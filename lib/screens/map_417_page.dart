@@ -1,5 +1,3 @@
-import 'dart:math';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart' show rootBundle, Clipboard, ClipboardData;
@@ -55,6 +53,18 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
         };
       }).toList();
       _updateMarkers(_currentZoom);
+    });
+  }
+
+  Future<void> _updateMarkers(double zoom) async {
+    final newMarkers = await OverlayHelper.generateClusterMarkers(
+      locations: _locations,
+      zoom: zoom,
+    );
+    setState(() {
+      _markers
+        ..clear()
+        ..addAll(newMarkers);
     });
   }
 
@@ -157,145 +167,6 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     );
     overlay.insert(entry);
   }
-
-  // ---------- 🔹 CLUSTER SYSTEM ----------
-  void _updateMarkers(double zoom) async {
-    double clusterDistanceKm;
-
-    if (zoom < 5) {
-      clusterDistanceKm = 200;
-    } else if (zoom < 7) {
-      clusterDistanceKm = 50;
-    } else if (zoom < 9) {
-      clusterDistanceKm = 20;
-    } else if (zoom < 11) {
-      clusterDistanceKm = 5;
-    } else if (zoom < 13) {
-      clusterDistanceKm = 1;
-    } else if (zoom < 15) {
-      clusterDistanceKm = 0.2;
-    } else if (zoom < 17) {
-      clusterDistanceKm = 0.05;
-    } else {
-      clusterDistanceKm = 0.01; // zoom molt alt → totalment separats
-    }
-
-    final clusters = <List<Map<String, dynamic>>>[];
-    final visited = List<bool>.filled(_locations.length, false);
-
-    for (int i = 0; i < _locations.length; i++) {
-      if (visited[i]) continue;
-      final cluster = [_locations[i]];
-      visited[i] = true;
-
-      for (int j = i + 1; j < _locations.length; j++) {
-        if (visited[j]) continue;
-        final dist = _distanceKm(
-          _locations[i]['lat'],
-          _locations[i]['lng'],
-          _locations[j]['lat'],
-          _locations[j]['lng'],
-        );
-        if (dist < clusterDistanceKm) {
-          cluster.add(_locations[j]);
-          visited[j] = true;
-        }
-      }
-      clusters.add(cluster);
-    }
-
-    final Set<Marker> newMarkers = {};
-
-    for (final cluster in clusters) {
-      final avgLat =
-          cluster.map((e) => e['lat']).reduce((a, b) => a + b) / cluster.length;
-      final avgLng =
-          cluster.map((e) => e['lng']).reduce((a, b) => a + b) / cluster.length;
-      final count = cluster.length;
-
-      if (count == 1) {
-        newMarkers.add(cluster.first['data']);
-      } else if (count == 2 && zoom >= 18) {
-        // 🔹 Petita separació visual
-        double offset = 0.0002;
-        newMarkers.add(Marker(
-          markerId: MarkerId('${cluster[0]['id']}_A'),
-          position: LatLng(cluster[0]['lat'] + offset, cluster[0]['lng'] - offset),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          onTap: cluster[0]['data'].onTap,
-        ));
-        newMarkers.add(Marker(
-          markerId: MarkerId('${cluster[1]['id']}_B'),
-          position: LatLng(cluster[1]['lat'] - offset, cluster[1]['lng'] + offset),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          onTap: cluster[1]['data'].onTap,
-        ));
-      } else {
-        final icon = await _createClusterIcon(count);
-        newMarkers.add(Marker(
-          markerId: MarkerId('cluster_${avgLat}_$avgLng'),
-          position: LatLng(avgLat, avgLng),
-          icon: icon,
-          infoWindow: InfoWindow(title: '$count llocs agrupats'),
-        ));
-      }
-    }
-
-    setState(() {
-      _markers
-        ..clear()
-        ..addAll(newMarkers);
-    });
-  }
-
-  Future<BitmapDescriptor> _createClusterIcon(int count) async {
-    const int size = 110;
-    final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(recorder);
-    final Paint paint = Paint()
-      ..color = Colors.blueAccent
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2.8, paint);
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: count.toString(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 38,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    textPainter.paint(
-      canvas,
-      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
-    );
-
-    final img = await recorder.endRecording().toImage(size, size);
-    final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
-  }
-
-  double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
-    const R = 6371;
-    final dLat = _degToRad(lat2 - lat1);
-    final dLng = _degToRad(lng2 - lng1);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_degToRad(lat1)) *
-            cos(_degToRad(lat2)) *
-            sin(dLng / 2) *
-            sin(dLng / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return R * c;
-  }
-
-  double _degToRad(double deg) => deg * pi / 180;
-
-  // 🔹 Torna a afegir aquests mètodes
 
   String _truncateTitle(String title) {
     title = title.trim();
@@ -413,8 +284,8 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             onPressed: () => Navigator.pop(context, false),
             child: const Text(
               'No',
-              style:
-                  TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.redAccent, fontWeight: FontWeight.bold),
             ),
           ),
           ElevatedButton(
@@ -451,7 +322,6 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     }
   }
 
-  // ---------- 🔹 POPUP I MAPA ----------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -476,7 +346,7 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             zoomControlsEnabled: false,
           ),
 
-          // 🔹 POPUP COMPLET (intacte)
+          // 🔹 POPUP COMPLET 
           if (_selectedRestaurant != null)
             Positioned(
               left: 0,
@@ -560,7 +430,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                       children: [
                         if ((_selectedRestaurant!['phone'] ?? '').isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.phone, color: Colors.blueAccent),
+                            icon: const Icon(
+                              Icons.phone,
+                              color: Colors.blueAccent,
+                            ),
                             tooltip: 'Copiar telèfon',
                             onPressed: () => _copyToClipboard(
                               _selectedRestaurant!['phone'],
@@ -569,8 +442,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                           ),
                         if ((_selectedRestaurant!['email'] ?? '').isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.email_outlined,
-                                color: Colors.redAccent),
+                            icon: const Icon(
+                              Icons.email_outlined,
+                              color: Colors.redAccent,
+                            ),
                             tooltip: 'Opcions de correu',
                             onPressed: () => _showEmailOptions(
                               _selectedRestaurant!['email'],
@@ -579,7 +454,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                         if ((_selectedRestaurant!['facebook_url'] ?? '')
                             .isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.facebook, color: Colors.blue),
+                            icon: const Icon(
+                              Icons.facebook,
+                              color: Colors.blue,
+                            ),
                             tooltip: 'Obrir Facebook',
                             onPressed: () =>
                                 _openUrl(_selectedRestaurant!['facebook_url']),
@@ -587,8 +465,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                         if ((_selectedRestaurant!['careers_page'] ?? '')
                             .isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.work_outline,
-                                color: Colors.green),
+                            icon: const Icon(
+                              Icons.work_outline,
+                              color: Colors.green,
+                            ),
                             tooltip: 'Veure ofertes de feina',
                             onPressed: () =>
                                 _openUrl(_selectedRestaurant!['careers_page']),

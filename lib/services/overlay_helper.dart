@@ -1,6 +1,23 @@
+// ------------------------------------------------------------
+//
+// Funcions disponibles:
+// 1️⃣ showCopiedOverlay → Mostra un missatge temporal “copiat” al centre de la pantalla.
+
+// 2️⃣ generateClusterMarkers → Agrupa els marcadors propers del mapa en un únic marcador (clustering).
+// 🔹 Funcions internes de suport al clustering:
+//     - _distanceKm: calcula la distància en km entre dues coordenades.
+//     - _degToRad: converteix graus a radians.
+//     - _createClusterIcon: genera una icona circular amb el número d’elements agrupats.
+//
+// ------------------------------------------------------------
+
+import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class OverlayHelper {
+  // ---------- 🔹 Mostra un missatge flotant “copiat” ----------
   static Future<void> showCopiedOverlay(
       BuildContext context, TickerProvider vsync, String label) async {
     final overlay = Overlay.of(context);
@@ -50,5 +67,143 @@ class OverlayHelper {
     await animationController.reverse();
     overlayEntry.remove();
     animationController.dispose();
+  }
+
+  // ---------- 🔹 Agrupació de marcadors (Clustering) ----------
+  static Future<Set<Marker>> generateClusterMarkers({
+    required List<Map<String, dynamic>> locations,
+    required double zoom,
+  }) async {
+    double clusterDistanceKm;
+
+    if (zoom < 5) {
+      clusterDistanceKm = 200;
+    } else if (zoom < 7) {
+      clusterDistanceKm = 50;
+    } else if (zoom < 9) {
+      clusterDistanceKm = 20;
+    } else if (zoom < 11) {
+      clusterDistanceKm = 5;
+    } else if (zoom < 13) {
+      clusterDistanceKm = 1;
+    } else if (zoom < 15) {
+      clusterDistanceKm = 0.2;
+    } else if (zoom < 17) {
+      clusterDistanceKm = 0.05;
+    } else {
+      clusterDistanceKm = 0.01;
+    }
+
+    final clusters = <List<Map<String, dynamic>>>[];
+    final visited = List<bool>.filled(locations.length, false);
+
+    for (int i = 0; i < locations.length; i++) {
+      if (visited[i]) continue;
+      final cluster = [locations[i]];
+      visited[i] = true;
+
+      for (int j = i + 1; j < locations.length; j++) {
+        if (visited[j]) continue;
+        final dist = _distanceKm(
+          locations[i]['lat'],
+          locations[i]['lng'],
+          locations[j]['lat'],
+          locations[j]['lng'],
+        );
+        if (dist < clusterDistanceKm) {
+          cluster.add(locations[j]);
+          visited[j] = true;
+        }
+      }
+      clusters.add(cluster);
+    }
+
+    final Set<Marker> newMarkers = {};
+
+    for (final cluster in clusters) {
+      final avgLat =
+          cluster.map((e) => e['lat']).reduce((a, b) => a + b) / cluster.length;
+      final avgLng =
+          cluster.map((e) => e['lng']).reduce((a, b) => a + b) / cluster.length;
+      final count = cluster.length;
+
+      if (count == 1) {
+        newMarkers.add(cluster.first['data']);
+      } else if (count == 2 && zoom >= 18) {
+        double offset = 0.0002;
+        newMarkers.add(Marker(
+          markerId: MarkerId('${cluster[0]['id']}_A'),
+          position:
+              LatLng(cluster[0]['lat'] + offset, cluster[0]['lng'] - offset),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          onTap: cluster[0]['data'].onTap,
+        ));
+        newMarkers.add(Marker(
+          markerId: MarkerId('${cluster[1]['id']}_B'),
+          position:
+              LatLng(cluster[1]['lat'] - offset, cluster[1]['lng'] + offset),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          onTap: cluster[1]['data'].onTap,
+        ));
+      } else {
+        final icon = await _createClusterIcon(count);
+        newMarkers.add(Marker(
+          markerId: MarkerId('cluster_${avgLat}_$avgLng'),
+          position: LatLng(avgLat, avgLng),
+          icon: icon,
+          infoWindow: InfoWindow(title: '$count llocs agrupats'),
+        ));
+      }
+    }
+
+    return newMarkers;
+  }
+
+  // ---------- 🔹 Funcions internes de càlcul i gràfics ----------
+  static double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const R = 6371;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLng = _degToRad(lng2 - lng1);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(lat1)) *
+            cos(_degToRad(lat2)) *
+            sin(dLng / 2) *
+            sin(dLng / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  static double _degToRad(double deg) => deg * pi / 180;
+
+  static Future<BitmapDescriptor> _createClusterIcon(int count) async {
+    const int size = 110;
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    final Paint paint = Paint()
+      ..color = Colors.blueAccent
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2.8, paint);
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: count.toString(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 38,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
+    );
+
+    final img = await recorder.endRecording().toImage(size, size);
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
 }
