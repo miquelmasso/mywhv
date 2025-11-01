@@ -252,7 +252,6 @@ static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
   return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
 }
 
-
 // ---------- 🔹 Funcions internes de càlcul i gràfics ----------
 static double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
   const R = 6371;

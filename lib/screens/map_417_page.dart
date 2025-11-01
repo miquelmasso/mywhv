@@ -43,19 +43,37 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     _mapStyle = await rootBundle.loadString('assets/map_style_clean.json');
   }
 
-  void _listenMarkers() {
-    MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) {
-      _locations = newMarkers.map((m) {
-        return {
-          'id': m.markerId.value,
-          'lat': m.position.latitude,
-          'lng': m.position.longitude,
-          'data': m,
-        };
-      }).toList();
-      _updateMarkers(_currentZoom);
-    });
-  }
+void _listenMarkers() {
+  MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
+    // 1️⃣ Primer, transforma els markers en la teva llista de localitzacions
+    _locations = newMarkers.map((m) {
+      return {
+        'id': m.markerId.value,
+        'lat': m.position.latitude,
+        'lng': m.position.longitude,
+        'data': m,
+        'worked_here_count': 0, // Inicialitzem temporalment
+      };
+    }).toList();
+
+    // 2️⃣ Després, agafa els valors reals de Firestore
+    final snapshot =
+        await FirebaseFirestore.instance.collection('restaurants').get();
+
+    for (final doc in snapshot.docs) {
+      final index = _locations.indexWhere((loc) => loc['id'] == doc.id);
+      if (index != -1) {
+        _locations[index]['worked_here_count'] =
+            doc.data()['worked_here_count'] ?? 0;
+      }
+    }
+
+    // 3️⃣ Actualitza els marcadors amb els nous valors
+    _updateMarkers(_currentZoom);
+  });
+}
+
+
 
   Future<void> _updateMarkers(double zoom) async {
     // Obtenim els marcadors agrupats (clusters)
