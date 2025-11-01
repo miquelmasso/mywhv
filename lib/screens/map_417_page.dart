@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter/services.dart' show rootBundle, Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show rootBundle, Clipboard, ClipboardData;
 import '../services/map_markers_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/overlay_helper.dart';
@@ -19,7 +20,7 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
   GoogleMapController? _controller;
   String? _mapStyle;
   final Set<Marker> _markers = {};
-  List<Map<String, dynamic>> _locations = [];
+  List<Map<String, Object?>> _locations = [];
   Map<String, dynamic>? _selectedRestaurant;
   double _currentZoom = 4.5;
 
@@ -57,14 +58,62 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
   }
 
   Future<void> _updateMarkers(double zoom) async {
+    // Obtenim els marcadors agrupats (clusters)
     final newMarkers = await OverlayHelper.generateClusterMarkers(
       locations: _locations,
       zoom: zoom,
     );
+
+    // Si no hi ha localitzacions, sortim (evitem errors)
+    if (_locations.isEmpty) {
+      setState(() {
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+      });
+      return;
+    }
+
+    final Set<Marker> updatedMarkers = {};
+
+    for (final marker in newMarkers) {
+      // Només editem els marcadors normals (no clusters)
+      if (!marker.markerId.value.startsWith('cluster_')) {
+        // Busquem la informació de la ubicació
+        final locationData = _locations.cast<Map<String, Object?>>().firstWhere(
+          (loc) => loc['id'] == marker.markerId.value,
+          orElse: () => <String, Object?>{},
+        );
+
+        // Si no hi ha dades, continuem sense fer res
+        if (locationData.isEmpty) {
+          updatedMarkers.add(marker);
+          continue;
+        }
+
+        // Llegim el nombre de persones que hi han treballat (si existeix)
+        final markerData = locationData['data'];
+        final workedCount =
+            (markerData is Map && markerData['worked_here_count'] != null)
+            ? markerData['worked_here_count']
+            : 0;
+
+        // Creem la icona personalitzada amb el número (gota amb cercle)
+        final customIcon = await OverlayHelper.createWorkCountMarker(
+          workedCount,
+        );
+
+        updatedMarkers.add(marker.copyWith(iconParam: customIcon));
+      } else {
+        updatedMarkers.add(marker);
+      }
+    }
+
+    // Actualitzem els marcadors
     setState(() {
       _markers
         ..clear()
-        ..addAll(newMarkers);
+        ..addAll(updatedMarkers);
     });
   }
 
@@ -125,12 +174,17 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                           await Clipboard.setData(ClipboardData(text: email));
                           entry.remove();
                           OverlayHelper.showCopiedOverlay(
-                              context, this, 'Correu copiat');
+                            context,
+                            this,
+                            'Correu copiat',
+                          );
                         },
                         child: const Text(
                           'Copiar correu',
                           style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w500),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -153,7 +207,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                         child: const Text(
                           'Enviar correu',
                           style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w500),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -168,6 +224,7 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     overlay.insert(entry);
   }
 
+  // ---------- 🔹 Truncate de titol ----------
   String _truncateTitle(String title) {
     title = title.trim();
     while (title.endsWith('.') || title.endsWith('-') || title.endsWith('&')) {
@@ -182,7 +239,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
       result += (result.isEmpty ? '' : ' ') + word;
     }
     result = result.trim();
-    while (result.endsWith('.') || result.endsWith('-') || result.endsWith('&')) {
+    while (result.endsWith('.') ||
+        result.endsWith('-') ||
+        result.endsWith('&')) {
       result = result.substring(0, result.length - 1).trim();
     }
     return result;
@@ -200,7 +259,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
   }
 
   Future<void> _showWorkedDialog(
-      String restaurantId, String restaurantName) async {
+    String restaurantId,
+    String restaurantName,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final workedList = prefs.getStringList('worked_places') ?? [];
 
@@ -231,7 +292,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
               child: const Text(
                 'No',
                 style: TextStyle(
-                    color: Colors.redAccent, fontWeight: FontWeight.bold),
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             ElevatedButton(
@@ -262,9 +325,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             ),
           );
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Error en desfer: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('❌ Error en desfer: $e')));
         }
       }
       return;
@@ -285,7 +348,9 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             child: const Text(
               'No',
               style: TextStyle(
-                  color: Colors.redAccent, fontWeight: FontWeight.bold),
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           ElevatedButton(
@@ -311,7 +376,8 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '✅ Gràcies! Hem afegit $restaurantName com a lloc on has treballat.'),
+              '✅ Gràcies! Hem afegit $restaurantName com a lloc on has treballat.',
+            ),
           ),
         );
       } catch (e) {
@@ -328,8 +394,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition:
-                const CameraPosition(target: LatLng(-25.0, 133.0), zoom: 4.5),
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(-25.0, 133.0),
+              zoom: 4.5,
+            ),
             onMapCreated: (controller) async {
               _controller = controller;
               if (_mapStyle != null) await controller.setMapStyle(_mapStyle);
@@ -339,14 +407,16 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             onTap: (_) => setState(() => _selectedRestaurant = null),
             markers: _markers,
             mapType: MapType.normal,
-            minMaxZoomPreference:
-                const MinMaxZoomPreference(_minZoom, _maxZoom),
+            minMaxZoomPreference: const MinMaxZoomPreference(
+              _minZoom,
+              _maxZoom,
+            ),
             cameraTargetBounds: CameraTargetBounds(_australiaBounds),
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
 
-          // 🔹 POPUP COMPLET 
+          // ---------- 🔹 POP up  amb mail tlf fb i worked here ----------
           if (_selectedRestaurant != null)
             Positioned(
               left: 0,
@@ -354,8 +424,10 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
               bottom: 0,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
@@ -393,14 +465,18 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                           alignment: Alignment.center,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.person, color: Colors.grey),
+                              icon: const Icon(
+                                Icons.person,
+                                color: Colors.grey,
+                              ),
                               tooltip: 'He treballat aquí',
                               onPressed: () => _showWorkedDialog(
                                 _selectedRestaurant!['docId'] ?? '',
                                 _selectedRestaurant!['name'] ?? 'aquest lloc',
                               ),
                             ),
-                            if ((_selectedRestaurant!['worked_here_count'] ?? 0) >
+                            if ((_selectedRestaurant!['worked_here_count'] ??
+                                    0) >
                                 0)
                               Positioned(
                                 right: 8,
@@ -479,6 +555,8 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                 ),
               ),
             ),
+
+          // ---------- 🔹 Fi popup ----------
         ],
       ),
     );
