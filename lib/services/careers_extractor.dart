@@ -1,0 +1,164 @@
+import 'package:http/http.dart' as http;
+
+class CareersExtractor {
+  /// 🔍 Troba una pàgina de "careers" o "jobs" dins d'un lloc web
+  Future<String?> find(String baseUrl) async {
+    print('💼 Buscant pàgina de feines a: $baseUrl');
+
+    final html = await _fetchHtml(baseUrl);
+    if (html == null || html.isEmpty) return null;
+
+    // 1️⃣ Cerca href amb cometes dobles o simples
+    final reHrefDouble = RegExp(
+      r'href\s*=\s*"([^"]*(?:careers?|jobs?)[^"]*)"',
+      caseSensitive: false,
+    );
+    final reHrefSingle = RegExp(
+      r"href\s*=\s*'([^']*(?:careers?|jobs?)[^']*)'",
+      caseSensitive: false,
+    );
+
+    final Set<String> candidates = {};
+
+    for (final m in reHrefDouble.allMatches(html)) {
+      final link = m.group(1);
+      if (link != null && link.isNotEmpty) candidates.add(link);
+    }
+
+    for (final m in reHrefSingle.allMatches(html)) {
+      final link = m.group(1);
+      if (link != null && link.isNotEmpty) candidates.add(link);
+    }
+
+    // 2️⃣ Busca text visible rellevant (com “Jobs”, “Careers”)
+    final reVisible = RegExp(
+      r'>([^<]*(?:careers?|jobs?)[^<]*)<',
+      caseSensitive: false,
+    );
+    if (reVisible.hasMatch(html)) {
+      candidates.add(baseUrl);
+    }
+
+    // 3️⃣ Explora subpàgines típiques per trobar-hi enllaços
+    final related = <String>{
+      _combineUrl(baseUrl, 'about'),
+      _combineUrl(baseUrl, 'contact'),
+      _combineUrl(baseUrl, 'team'),
+      _combineUrl(baseUrl, 'join'),
+    };
+
+    for (final sub in related) {
+      final subHtml = await _fetchHtml(sub);
+      if (subHtml == null) continue;
+
+      for (final m in reHrefDouble.allMatches(subHtml)) {
+        final link = m.group(1);
+        if (link != null && link.isNotEmpty) candidates.add(link);
+      }
+      for (final m in reHrefSingle.allMatches(subHtml)) {
+        final link = m.group(1);
+        if (link != null && link.isNotEmpty) candidates.add(link);
+      }
+
+      if (reVisible.hasMatch(subHtml)) {
+        candidates.add(sub);
+      }
+    }
+
+    // 4️⃣ Filtra i valida els enllaços
+    final filtered = candidates.where((link) {
+      try {
+        // Normalitza l'enllaç
+        final normalized = link.startsWith('http')
+            ? link
+            : _combineUrl(baseUrl, link);
+
+        final uri = Uri.parse(normalized);
+        final ll = normalized.toLowerCase();
+        final host = uri.host;
+        final path = uri.path;
+
+        // ❌ Filtra dominis socials
+        final isSocial =
+            host.contains('facebook.com') ||
+            host.contains('fb.com') ||
+            host.contains('instagram.com') ||
+            host.contains('linkedin.com') ||
+            host.contains('twitter.com');
+
+        // ❌ Extensions no vàlides
+        final invalidExt =
+            ll.endsWith('.pdf') ||
+            ll.endsWith('.doc') ||
+            ll.endsWith('.docx') ||
+            ll.endsWith('.zip') ||
+            ll.endsWith('.jpg') ||
+            ll.endsWith('.png') ||
+            ll.endsWith('.jpeg');
+
+        // ❌ Evita rutes llargues o amb massa paràmetres
+        final tooLong = ll.length > 120 || ll.split(RegExp(r'[?&]')).length > 5;
+
+        // ❌ Pàgines internes o seccions no rellevants
+        final badPath =
+            path.contains('/accommodation/') ||
+            path.contains('/destination/') ||
+            path.contains('/contact/') ||
+            path.contains('/team/') ||
+            path.contains('/menu/');
+
+        // ✅ Només accepta si el path conté “/careers” o “/jobs”
+        final validKeyword =
+            path.contains('/careers') || path.contains('/jobs');
+
+        // ✅ Ha de complir totes les condicions
+        return validKeyword &&
+            !isSocial &&
+            !invalidExt &&
+            !tooLong &&
+            !badPath &&
+            host.isNotEmpty &&
+            path.isNotEmpty;
+      } catch (e) {
+        print('⚠️ Error analitzant $link → $e');
+        return false;
+      }
+    }).toList();
+
+    // 5️⃣ Normalitza enllaços relatius i retorna el primer vàlid
+    for (var link in filtered) {
+      if (!link.startsWith('http')) {
+        link = _combineUrl(baseUrl, link);
+      }
+      print('✅ Pàgina de feines trobada: $link');
+      return link;
+    }
+
+    print('❌ Cap pàgina de feines trobada a $baseUrl');
+    return null;
+  }
+
+  // ───────────────────────── helpers ─────────────────────────
+
+  Future<String?> _fetchHtml(String url) async {
+    try {
+      final resp = await http.get(Uri.parse(url));
+      if (resp.statusCode == 200) return resp.body;
+      print('⚠️ Error HTTP ${resp.statusCode} a $url');
+    } catch (e) {
+      print('⚠️ Error descarregant $url → $e');
+    }
+    return null;
+  }
+
+  String _combineUrl(String base, String path) {
+    if (path.startsWith('http')) return path;
+    if (base.endsWith('/') && path.startsWith('/')) {
+      return base + path.substring(1);
+    } else if (!base.endsWith('/') && !path.startsWith('/')) {
+      return '$base/$path';
+    } else {
+      return base + path;
+    }
+  }
+}

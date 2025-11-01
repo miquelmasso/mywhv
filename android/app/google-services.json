@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "576629838865",
+    "project_id": "mywhvaus",
+    "storage_bucket": "mywhvaus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:576629838865:android:1d2bd72cdf881a79638db0",
+        "android_client_info": {
+          "package_name": "com.example.mywhv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0MS9Wc9mfOgqehnYGZ2C8ucPcDnYSRFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
