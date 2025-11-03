@@ -43,37 +43,38 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     _mapStyle = await rootBundle.loadString('assets/map_style_clean.json');
   }
 
-void _listenMarkers() {
-  MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
-    // 1️⃣ Primer, transforma els markers en la teva llista de localitzacions
-    _locations = newMarkers.map((m) {
-      return {
-        'id': m.markerId.value,
-        'lat': m.position.latitude,
-        'lng': m.position.longitude,
-        'data': m,
-        'worked_here_count': 0, // Inicialitzem temporalment
-      };
-    }).toList();
+  void _listenMarkers() {
+    MapMarkersService.getMarkers(_showRestaurantDetails).listen((
+      newMarkers,
+    ) async {
+      // 1️⃣ Primer, transforma els markers en la teva llista de localitzacions
+      _locations = newMarkers.map((m) {
+        return {
+          'id': m.markerId.value,
+          'lat': m.position.latitude,
+          'lng': m.position.longitude,
+          'data': m,
+          'worked_here_count': 0, // Inicialitzem temporalment
+        };
+      }).toList();
 
-    // 2️⃣ Després, agafa els valors reals de Firestore
-    final snapshot =
-        await FirebaseFirestore.instance.collection('restaurants').get();
+      // 2️⃣ Després, agafa els valors reals de Firestore
+      final snapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .get();
 
-    for (final doc in snapshot.docs) {
-      final index = _locations.indexWhere((loc) => loc['id'] == doc.id);
-      if (index != -1) {
-        _locations[index]['worked_here_count'] =
-            doc.data()['worked_here_count'] ?? 0;
+      for (final doc in snapshot.docs) {
+        final index = _locations.indexWhere((loc) => loc['id'] == doc.id);
+        if (index != -1) {
+          _locations[index]['worked_here_count'] =
+              doc.data()['worked_here_count'] ?? 0;
+        }
       }
-    }
 
-    // 3️⃣ Actualitza els marcadors amb els nous valors
-    _updateMarkers(_currentZoom);
-  });
-}
-
-
+      // 3️⃣ Actualitza els marcadors amb els nous valors
+      _updateMarkers(_currentZoom);
+    });
+  }
 
   Future<void> _updateMarkers(double zoom) async {
     // Obtenim els marcadors agrupats (clusters)
@@ -109,17 +110,19 @@ void _listenMarkers() {
           continue;
         }
 
-        // Llegim el nombre de persones que hi han treballat (si existeix)
-        final markerData = locationData['data'];
-        final workedCount =
-            (markerData is Map && markerData['worked_here_count'] != null)
-            ? markerData['worked_here_count']
-            : 0;
+        final rawCount = locationData['worked_here_count'];
+        final workedCount = (rawCount is int)
+            ? rawCount
+            : (rawCount is num)
+            ? rawCount.toInt()
+            : int.tryParse(rawCount.toString()) ?? 0;
 
-        // Creem la icona personalitzada amb el número (gota amb cercle)
         final customIcon = await OverlayHelper.createWorkCountMarker(
           workedCount,
         );
+
+        // 🔹 Afegim el marcador amb la nova icona
+        updatedMarkers.add(marker.copyWith(iconParam: customIcon));
 
         updatedMarkers.add(marker.copyWith(iconParam: customIcon));
       } else {

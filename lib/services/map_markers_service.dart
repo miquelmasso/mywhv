@@ -13,9 +13,10 @@ class MapMarkersService {
     _firestore.collection('restaurants').snapshots().listen((snapshot) {
       final markers = snapshot.docs.map((doc) {
         final data = doc.data();
-
+        
         // Afegim l’ID del document
         data['docId'] = doc.id;
+        
 
         // 🔹 Dades bàsiques
         final String name = data['name'] ?? 'Sense nom';
