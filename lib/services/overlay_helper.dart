@@ -16,7 +16,10 @@ class OverlayHelper {
 
   // ---------- 🔹 Mostra un missatge flotant “copiat” ----------
   static Future<void> showCopiedOverlay(
-      BuildContext context, TickerProvider vsync, String label) async {
+    BuildContext context,
+    TickerProvider vsync,
+    String label,
+  ) async {
     final overlay = Overlay.of(context);
     final animationController = AnimationController(
       vsync: vsync,
@@ -128,18 +131,32 @@ class OverlayHelper {
         newMarkers.add(cluster.first['data']);
       } else if (count == 2 && zoom >= 18) {
         double offset = 0.0002;
-        newMarkers.add(Marker(
-          markerId: MarkerId('${cluster[0]['id']}_A'),
-          position: LatLng(cluster[0]['lat'] + offset, cluster[0]['lng'] - offset),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          onTap: cluster[0]['data'].onTap,
-        ));
-        newMarkers.add(Marker(
-          markerId: MarkerId('${cluster[1]['id']}_B'),
-          position: LatLng(cluster[1]['lat'] - offset, cluster[1]['lng'] + offset),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          onTap: cluster[1]['data'].onTap,
-        ));
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('${cluster[0]['id']}_A'),
+            position: LatLng(
+              cluster[0]['lat'] + offset,
+              cluster[0]['lng'] - offset,
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+            onTap: cluster[0]['data'].onTap,
+          ),
+        );
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('${cluster[1]['id']}_B'),
+            position: LatLng(
+              cluster[1]['lat'] - offset,
+              cluster[1]['lng'] + offset,
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+            onTap: cluster[1]['data'].onTap,
+          ),
+        );
       } else {
         Color color;
         if (count <= 10) {
@@ -151,12 +168,14 @@ class OverlayHelper {
         }
 
         final icon = await _createClusterIcon(count, color);
-        newMarkers.add(Marker(
-          markerId: MarkerId('cluster_${avgLat}_$avgLng'),
-          position: LatLng(avgLat, avgLng),
-          icon: icon,
-          infoWindow: InfoWindow(title: '$count llocs agrupats'),
-        ));
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('cluster_${avgLat}_$avgLng'),
+            position: LatLng(avgLat, avgLng),
+            icon: icon,
+            infoWindow: InfoWindow(title: '$count llocs agrupats'),
+          ),
+        );
       }
     }
 
@@ -179,62 +198,10 @@ class OverlayHelper {
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4;
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2.5, borderPaint);
-
-    final img = await recorder.endRecording().toImage(size, size);
-    final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
-  }
-
-  // ---------- 🔹 Gota amb número al centre ----------
-  static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
-    const int size = 130;
-    final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(recorder);
-
-    Color color;
-    if (count >= 100) {
-      color = Colors.redAccent;
-    } else if (count >= 50) {
-      color = Colors.orangeAccent;
-    } else {
-      color = Colors.green;
-    }
-
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final Path path = Path();
-    path.moveTo(size / 2, size.toDouble());
-    path.quadraticBezierTo(size * 0.1, size * 0.65, size / 2, size * 0.15);
-    path.quadraticBezierTo(size * 0.9, size * 0.65, size / 2, size.toDouble());
-    canvas.drawPath(path, paint);
-
-    final Paint innerCircle = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(size / 2, size * 0.5), size * 0.22, innerCircle);
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: count.toString(),
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 40,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    )..layout();
-
-    textPainter.paint(
-      canvas,
-      Offset(
-        (size - textPainter.width) / 2,
-        (size * 0.5 - textPainter.height / 2),
-      ),
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2.5,
+      borderPaint,
     );
 
     final img = await recorder.endRecording().toImage(size, size);
@@ -242,12 +209,84 @@ class OverlayHelper {
     return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
 
+// ---------- 🔹 Pin negre exactament com el de Google Maps ----------
+static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
+  const int size = 140;
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  final Canvas canvas = Canvas(recorder);
+
+  // --- Fons transparent ---
+  final Paint clearPaint = Paint()..color = Colors.transparent;
+  canvas.drawRect(Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()), clearPaint);
+
+  // --- Forma precisa del pin amb corba més ampla a dalt i punta més llarga ---
+  final Path path = Path();
+  path.moveTo(size / 2, size * 0.98);
+  path.quadraticBezierTo(size * 0.05, size * 0.55, size / 2, size * 0.12);
+  path.quadraticBezierTo(size * 0.95, size * 0.55, size / 2, size * 0.98);
+  path.close();
+
+  final Paint paint = Paint()
+    ..color = Colors.black
+    ..style = PaintingStyle.fill;
+  canvas.drawPath(path, paint);
+
+  // --- Ombra subtil ---
+  final Paint shadowPaint = Paint()
+    ..color = Colors.black.withOpacity(0.25)
+    ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
+  canvas.drawPath(path, shadowPaint);
+
+  // --- Cercle blanc centrat a la part superior rodona ---
+  final double circleCenterY = size * 0.385; // més baix per centrar perfectament
+  final double circleRadius = size * 0.24;
+
+  final Paint innerCircle = Paint()
+    ..color = Colors.white
+    ..style = PaintingStyle.fill;
+  canvas.drawCircle(Offset(size / 2, circleCenterY), circleRadius, innerCircle);
+
+  // --- Text (número) centrat dins del cercle ---
+  final textPainter = TextPainter(
+    text: TextSpan(
+      text: count.toString(),
+      style: const TextStyle(
+        color: Colors.black,
+        fontSize: 38,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.center,
+  )..layout();
+
+  textPainter.paint(
+    canvas,
+    Offset(
+      (size - textPainter.width) / 2,
+      (circleCenterY - textPainter.height / 2),
+    ),
+  );
+
+  final img = await recorder.endRecording().toImage(size, size);
+  final data = await img.toByteData(format: ui.ImageByteFormat.png);
+  return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+}
+
+
+
   // ---------- 🔹 Funcions internes ----------
-  static double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+  static double _distanceKm(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const R = 6371;
     final dLat = _degToRad(lat2 - lat1);
     final dLng = _degToRad(lng2 - lng1);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(_degToRad(lat1)) *
             cos(_degToRad(lat2)) *
             sin(dLng / 2) *
@@ -259,7 +298,9 @@ class OverlayHelper {
   static double _degToRad(double deg) => deg * pi / 180;
 
   static Future<BitmapDescriptor> _createClusterIcon(
-      int count, Color color) async {
+    int count,
+    Color color,
+  ) async {
     const int size = 110;
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(recorder);
