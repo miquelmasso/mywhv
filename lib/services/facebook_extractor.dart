@@ -39,7 +39,10 @@ class FacebookExtractor {
       final matches = _extractFacebookLinks(html);
       if (matches.isNotEmpty) found.addAll(matches);
     }
-
+    if (baseUrl.toLowerCase().contains('facebook.com')) {
+      print('✅ Website ja és de Facebook: $baseUrl');
+      return {'link': baseUrl, 'score': 100};
+    }
     if (found.isEmpty) {
       // Si no troba res, prova amb la pàgina arrel (sense path)
       final rootHtml = await _fetchHtmlUnsafe(cleanedBase);
@@ -61,9 +64,12 @@ class FacebookExtractor {
 
   Future<String?> _fetchHtmlUnsafe(String url) async {
     try {
-      final client = HttpClient()..badCertificateCallback = (_, __, ___) => true;
+      final client = HttpClient()
+        ..badCertificateCallback = (_, __, ___) => true;
       final ioClient = IOClient(client);
-      final response = await ioClient.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final response = await ioClient
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) return response.body;
       print('⚠️ HTTP ${response.statusCode} per $url');
     } catch (e) {
@@ -75,49 +81,46 @@ class FacebookExtractor {
   Set<String> _extractFacebookLinks(String html) {
     final links = <String>{};
 
- final patterns = [
-  // href="https://facebook.com/..."
-  RegExp(
-    r'href\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
-    caseSensitive: false,
-  ),
-  // href='https://facebook.com/...'
-  RegExp(
-    r"href\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
-    caseSensitive: false,
-  ),
+    final patterns = [
+      // href="https://facebook.com/..."
+      RegExp(
+        r'href\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
+        caseSensitive: false,
+      ),
+      // href='https://facebook.com/...'
+      RegExp(
+        r"href\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
+        caseSensitive: false,
+      ),
 
-  // data-href="https://facebook.com/..."
-  RegExp(
-    r'data-href\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
-    caseSensitive: false,
-  ),
-  // data-href='https://facebook.com/...'
-  RegExp(
-    r"data-href\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
-    caseSensitive: false,
-  ),
+      // data-href="https://facebook.com/..."
+      RegExp(
+        r'data-href\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
+        caseSensitive: false,
+      ),
+      // data-href='https://facebook.com/...'
+      RegExp(
+        r"data-href\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
+        caseSensitive: false,
+      ),
 
-  // content="https://facebook.com/..."
-  RegExp(
-    r'content\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
-    caseSensitive: false,
-  ),
-  // content='https://facebook.com/...'
-  RegExp(
-    r"content\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
-    caseSensitive: false,
-  ),
+      // content="https://facebook.com/..."
+      RegExp(
+        r'content\s*=\s*"(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s"]+)"',
+        caseSensitive: false,
+      ),
+      // content='https://facebook.com/...'
+      RegExp(
+        r"content\s*=\s*'(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^<>\s']+)'",
+        caseSensitive: false,
+      ),
 
-  // Fallback — qualsevol URL de Facebook
-RegExp(
-  r'''(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^\s<>"']+)''',
-  caseSensitive: false,
-),
-
-];
-
-
+      // Fallback — qualsevol URL de Facebook
+      RegExp(
+        r'''(https?:\/\/(?:www\.|m\.|mbasic\.|business\.)?(?:facebook|fb)\.com\/[^\s<>"']+)''',
+        caseSensitive: false,
+      ),
+    ];
 
     for (final reg in patterns) {
       for (final match in reg.allMatches(html)) {
