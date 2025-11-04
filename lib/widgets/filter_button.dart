@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class FilterButton extends StatefulWidget {
-  final bool showAll;
+  /// Quan és `false`, només es mostren els restaurants amb dades de contacte.
+  /// Quan és `true`, es mostren tots (incloent els sense dades).
   final ValueChanged<bool> onChanged;
 
   const FilterButton({
     super.key,
-    required this.showAll,
     required this.onChanged,
   });
 
@@ -15,13 +15,7 @@ class FilterButton extends StatefulWidget {
 }
 
 class _FilterButtonState extends State<FilterButton> {
-  late bool _showAll;
-
-  @override
-  void initState() {
-    super.initState();
-    _showAll = widget.showAll;
-  }
+  bool _showAll = false; // 🔹 De base: només mostrar llocs amb dades útils
 
   void _toggleFilter(bool? value) {
     setState(() => _showAll = value ?? false);
@@ -31,7 +25,10 @@ class _FilterButtonState extends State<FilterButton> {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<int>(
-      icon: const Icon(Icons.filter_list, color: Colors.black87),
+      icon: Icon(
+        Icons.filter_list,
+        color: _showAll ? Colors.blueAccent : Colors.black87,
+      ),
       tooltip: 'Filtres',
       itemBuilder: (context) => [
         PopupMenuItem<int>(

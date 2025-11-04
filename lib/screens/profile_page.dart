@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'mail_setup_page.dart';
+import 'restaurant_edit_page.dart'; // 👈 nou import
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -24,20 +25,40 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Center(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MailSetupPage()),
-                  );
-                },
-                icon: const Icon(Icons.email_outlined),
-                label: const Text('Configurar correu automàtic'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MailSetupPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.email_outlined),
+                    label: const Text('Configurar correu automàtic'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RestaurantEditPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Editar restaurants'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

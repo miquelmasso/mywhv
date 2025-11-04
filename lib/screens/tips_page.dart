@@ -10,8 +10,9 @@ class TipsPage extends StatefulWidget {
 }
 
 class _TipsPageState extends State<TipsPage> {
-  final TextEditingController _postcodeController =
-      TextEditingController(text: '4802'); // Valor per defecte
+  final TextEditingController _postcodeController = TextEditingController(
+    text: '4802',
+  ); // Valor per defecte
   String _result = '';
   String _restaurantName = '';
   bool _loading = false;
@@ -67,8 +68,9 @@ class _TipsPageState extends State<TipsPage> {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final List<dynamic> postcodes = data['postcodes'] ?? [];
-        final postcodesStr =
-            postcodes.map((e) => e.toString().padLeft(4, '0')).toList();
+        final postcodesStr = postcodes
+            .map((e) => e.toString().padLeft(4, '0'))
+            .toList();
 
         if (postcodesStr.contains(postcodeStr)) {
           found = true;
@@ -91,7 +93,9 @@ class _TipsPageState extends State<TipsPage> {
         }
 
         // 🍽️ Cerca restaurants
-        final list = await _placesService.SaveTwoRestaurantsForPostcode(postcodeNum);
+        final list = await _placesService.SaveTwoRestaurantsForPostcode(
+          postcodeNum,
+        );
         final restaurant = list.isNotEmpty ? list.first : null;
 
         if (restaurant != null) {
@@ -111,6 +115,7 @@ class _TipsPageState extends State<TipsPage> {
             'lng': lng,
             'phone': phone,
             'timestamp': FieldValue.serverTimestamp(),
+            'bloqued': false,
           });
 
           print('✅ Restaurant desat correctament: $name');
@@ -147,7 +152,8 @@ class _TipsPageState extends State<TipsPage> {
     try {
       bool isAllowed = false;
 
-      if (postcodeStr.startsWith('08') || (postcodeNum >= 800 && postcodeNum <= 999)) {
+      if (postcodeStr.startsWith('08') ||
+          (postcodeNum >= 800 && postcodeNum <= 999)) {
         isAllowed = true;
       } else {
         final snapshot = await _firestore.collection('visa_postcodes').get();
@@ -155,7 +161,8 @@ class _TipsPageState extends State<TipsPage> {
           final data = doc.data();
           final List<dynamic> postcodes = data['postcodes'] ?? [];
           final String industry = data['industry'] ?? '';
-          if ((postcodes.contains(postcodeNum) || postcodes.contains(postcodeStr)) &&
+          if ((postcodes.contains(postcodeNum) ||
+                  postcodes.contains(postcodeStr)) &&
               industry.contains('Hospitality')) {
             isAllowed = true;
             break;
@@ -171,9 +178,14 @@ class _TipsPageState extends State<TipsPage> {
         return;
       }
 
-      final list = await _placesService.SaveTwoRestaurantsForPostcode(postcodeNum);
+      final list = await _placesService.SaveTwoRestaurantsForPostcode(
+        postcodeNum,
+      );
       if (list.isEmpty) {
-        _showSnack('⚠️ No s’han trobat restaurants nous.', color: Colors.orange);
+        _showSnack(
+          '⚠️ No s’han trobat restaurants nous.',
+          color: Colors.orange,
+        );
       } else {
         _showSnack(
           '✅ ${list.length} restaurants afegits correctament per $postcodeStr!',
@@ -199,7 +211,10 @@ class _TipsPageState extends State<TipsPage> {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        _showSnack('⚠️ No hi ha cap restaurant per eliminar.', color: Colors.orange);
+        _showSnack(
+          '⚠️ No hi ha cap restaurant per eliminar.',
+          color: Colors.orange,
+        );
       } else {
         final doc = snapshot.docs.first;
         final name = doc['name'] ?? 'Desconegut';
@@ -224,7 +239,10 @@ class _TipsPageState extends State<TipsPage> {
           .get();
 
       if (snapshot.docs.length <= 1) {
-        _showSnack('⚠️ Només hi ha un restaurant, res per eliminar.', color: Colors.orange);
+        _showSnack(
+          '⚠️ Només hi ha un restaurant, res per eliminar.',
+          color: Colors.orange,
+        );
         return;
       }
 
@@ -240,98 +258,127 @@ class _TipsPageState extends State<TipsPage> {
       setState(() => _loading = false);
     }
   }
-// 🔍 Cerca i desa tots els restaurants del codi postal fins que no en trobi més
-Future<void> _findAllRestaurantsByPostcode() async {
-  final input = _postcodeController.text.trim();
-  if (input.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('❌ Introdueix un codi postal.')),
-    );
-    return;
-  }
 
-  final String postcodeStr = input.padLeft(4, '0');
-  final int? postcodeNum = int.tryParse(postcodeStr);
-  if (postcodeNum == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Codi postal invàlid.')),
-    );
-    return;
-  }
+  // 🔍 Cerca i desa tots els restaurants del codi postal fins que no en trobi més
+  Future<void> _findAllRestaurantsByPostcode() async {
+    final input = _postcodeController.text.trim();
+    if (input.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Introdueix un codi postal.')),
+      );
+      return;
+    }
 
-  setState(() => _loading = true);
-  int totalAdded = 0;
+    final String postcodeStr = input.padLeft(4, '0');
+    final int? postcodeNum = int.tryParse(postcodeStr);
+    if (postcodeNum == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Codi postal invàlid.')));
+      return;
+    }
 
-  try {
-    print('🔍 Iniciant cerca massiva per $postcodeStr...');
+    setState(() => _loading = true);
+    int totalAdded = 0;
 
-    while (true) {
-      // 🔹 Usa el teu servei per obtenir nous restaurants (2 cada vegada)
-      final list = await _placesService.SaveTwoRestaurantsForPostcode(postcodeNum);
+    try {
+      print('🔍 Iniciant cerca massiva per $postcodeStr...');
 
-      // Si no en troba més → surt del bucle
-      if (list.isEmpty) {
-        print('✅ No s’han trobat més restaurants.');
-        break;
-      }
+      while (true) {
+        // 🔹 Usa el teu servei per obtenir nous restaurants (2 cada vegada)
+        final list = await _placesService.SaveTwoRestaurantsForPostcode(
+          postcodeNum,
+        );
 
-      for (final restaurant in list) {
-        final name = restaurant['name'] ?? 'Nom desconegut';
-        final lat = restaurant['lat'];
-        final lng = restaurant['lng'];
-        final phone = restaurant['phone'] ?? 'Sense telèfon';
-
-        // 🧠 🔹 Comprova si ja existeix un restaurant amb el mateix nom
-        final exists = await _firestore
-            .collection('restaurants')
-            .where('name', isEqualTo: name)
-            .limit(1)
-            .get();
-
-        if (exists.docs.isNotEmpty) {
-          print('⚠️ Ja existeix a Firestore: $name');
-          continue; // passa al següent sense desar
+        // Si no en troba més → surt del bucle
+        if (list.isEmpty) {
+          print('✅ No s’han trobat més restaurants.');
+          break;
         }
 
-        // 🔹 Desa només si no existeix
-        await _firestore.collection('restaurants').add({
-          'name': name,
-          'postcode': postcodeStr,
-          'lat': lat,
-          'lng': lng,
-          'phone': phone,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+        for (final restaurant in list) {
+          final name = restaurant['name'] ?? 'Nom desconegut';
+          final lat = restaurant['lat'];
+          final lng = restaurant['lng'];
+          final phone = restaurant['phone'] ?? 'Sense telèfon';
 
-        totalAdded++;
-        print('✅ Desat: $name');
+          // 🧠 🔹 Comprova si ja existeix un restaurant amb el mateix nom
+          final exists = await _firestore
+              .collection('restaurants')
+              .where('name', isEqualTo: name)
+              .limit(1)
+              .get();
+
+          // 🔹 Abans de desar, comprova si està bloquejat
+          final blocked = await _firestore
+              .collection('restaurants')
+              .where('name', isEqualTo: name)
+              .where('blocked', isEqualTo: true)
+              .get();
+
+          if (blocked.docs.isNotEmpty) {
+            print('🚫 Restaurant bloquejat: $name');
+            continue; // passa al següent
+          }
+
+          if (exists.docs.isNotEmpty) {
+            final data = exists.docs.first.data();
+            if (data['blocked'] == true) {
+              print('🚫 Restaurant bloquejat detectat, saltant: $name');
+              continue;
+            }
+          }
+
+          if (exists.docs.isNotEmpty) {
+            print('⚠️ Ja existeix a Firestore: $name');
+            continue; // passa al següent sense desar
+          }
+
+          // 🔹 Desa només si no existeix
+          await _firestore.collection('restaurants').add({
+            'name': name,
+            'postcode': postcodeStr,
+            'lat': lat,
+            'lng': lng,
+            'phone': phone,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+          totalAdded++;
+          print('✅ Desat: $name');
+        }
+
+        // ⏳ Pausa per evitar bloqueig de quotes API
+        await Future.delayed(const Duration(seconds: 1));
       }
 
-      // ⏳ Pausa per evitar bloqueig de quotes API
-      await Future.delayed(const Duration(seconds: 1));
-    }
-
-    if (totalAdded == 0) {
+      if (totalAdded == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠️ No s’han trobat nous restaurants per $postcodeStr.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ S’han afegit $totalAdded restaurants per $postcodeStr!',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error en la cerca massiva: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ No s’han trobat nous restaurants per $postcodeStr.')),
+        SnackBar(content: Text('❌ Error cercant tots els restaurants: $e')),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ S’han afegit $totalAdded restaurants per $postcodeStr!'),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
+    } finally {
+      setState(() => _loading = false);
     }
-  } catch (e) {
-    print('❌ Error en la cerca massiva: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('❌ Error cercant tots els restaurants: $e')),
-    );
-  } finally {
-    setState(() => _loading = false);
   }
-}
 
   // ---------------- 🔹 UI ----------------
   @override
@@ -376,8 +423,8 @@ Future<void> _findAllRestaurantsByPostcode() async {
                     color: _result.contains('✅')
                         ? Colors.green
                         : _result.contains('⚠️')
-                            ? Colors.orange
-                            : Colors.red,
+                        ? Colors.orange
+                        : Colors.red,
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
@@ -426,16 +473,16 @@ Future<void> _findAllRestaurantsByPostcode() async {
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
                     ),
-                  ),ElevatedButton.icon(
-  onPressed: _findAllRestaurantsByPostcode,
-  icon: const Icon(Icons.search_rounded),
-  label: const Text('Cercar tots els del codi postal'),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.blueAccent,
-    foregroundColor: Colors.white,
-  ),
-),
-
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _findAllRestaurantsByPostcode,
+                    icon: const Icon(Icons.search_rounded),
+                    label: const Text('Cercar tots els del codi postal'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
                 ],
               ),
             ],

@@ -8,8 +8,7 @@ import '../services/overlay_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/filter_button.dart';
-
+//import '../widgets/filter_button.dart';
 
 class Map417Page extends StatefulWidget {
   const Map417Page({super.key});
@@ -25,8 +24,16 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
   List<Map<String, Object?>> _locations = [];
   Map<String, dynamic>? _selectedRestaurant;
   double _currentZoom = 4.5;
-  bool _showAllRestaurants = true;
+  final bool _showAllRestaurants = false; // posar true per mostrar tots
 
+  final Map<int, BitmapDescriptor> _iconCache = {};
+
+  Future<BitmapDescriptor> _getCachedIcon(int count) async {
+    if (_iconCache.containsKey(count)) return _iconCache[count]!;
+    final icon = await OverlayHelper.createWorkCountMarker(count);
+    _iconCache[count] = icon;
+    return icon;
+  }
 
   static final LatLngBounds _australiaBounds = LatLngBounds(
     southwest: const LatLng(-44.0, 111.0),
@@ -47,95 +54,63 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     _mapStyle = await rootBundle.loadString('assets/map_style_clean.json');
   }
 
-  void _listenMarkers() {
-    MapMarkersService.getMarkers(_showRestaurantDetails).listen((
-      newMarkers,
-    ) async {
-      // 1️⃣ Primer, transforma els markers en la teva llista de localitzacions
-      _locations = newMarkers.map((m) {
-        return {
-          'id': m.markerId.value,
-          'lat': m.position.latitude,
-          'lng': m.position.longitude,
-          'data': m,
-          'worked_here_count': 0, // Inicialitzem temporalment
-        };
-      }).toList();
+ void _listenMarkers() {
+  MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
+    final firestore = FirebaseFirestore.instance;
+    final snapshot = await firestore.collection('restaurants').get();
 
-      // 2️⃣ Després, agafa els valors reals de Firestore
-      final snapshot = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .get();
+    // 🔹 Prepara un map ràpid per evitar loops lents
+    final Map<String, Map<String, dynamic>> restaurantMap = {
+      for (var doc in snapshot.docs) doc.id: doc.data(),
+    };
 
-      for (final doc in snapshot.docs) {
-        final index = _locations.indexWhere((loc) => loc['id'] == doc.id);
-        if (index != -1) {
-          _locations[index]['worked_here_count'] =
-              doc.data()['worked_here_count'] ?? 0;
-        }
-      }
+    // 🔹 Construeix la llista de localitzacions amb filtratge eficient
+    _locations = [];
+    for (final m in newMarkers) {
+      final data = restaurantMap[m.markerId.value];
 
-      // 3️⃣ Actualitza els marcadors amb els nous valors
-      _updateMarkers(_currentZoom);
-    });
-  }
+      if (data == null) continue; // si no hi ha doc, salta
+      if (data['blocked'] == true) continue;
 
- Future<void> _updateMarkers(double zoom) async {
-  // 🔹 1. Filtra les localitzacions segons el valor del filtre
-  List<Map<String, Object?>> visibleLocations = [];
+      final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+          (data['email'] ?? '').toString().isNotEmpty ||
+          (data['careers_page'] ?? '').toString().isNotEmpty);
 
-  if (_showAllRestaurants) {
-    visibleLocations = _locations;
-  } else {
-    for (final loc in _locations) {
-      final id = loc['id']?.toString() ?? '';
-      if (id.isEmpty) continue;
+      // 🔹 Només afegeix si té dades o si showAll està actiu
+      if (!_showAllRestaurants && !hasData) continue;
 
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('restaurants')
-            .doc(id)
-            .get();
-
-        final data = doc.data() ?? {};
-        final hasContact = (data['email'] ?? '').toString().isNotEmpty ||
-            (data['facebook_url'] ?? '').toString().isNotEmpty ||
-            (data['careers_page'] ?? '').toString().isNotEmpty;
-
-        if (hasContact) visibleLocations.add(loc);
-      } catch (_) {
-        // Si hi ha error, simplement ignorem aquest lloc
-      }
+      _locations.add({
+        'id': m.markerId.value,
+        'lat': m.position.latitude,
+        'lng': m.position.longitude,
+        'data': m,
+        'worked_here_count': data['worked_here_count'] ?? 0,
+      });
     }
-  }
 
-  // 🔹 2. Genera els marcadors (i clústers) només amb les localitzacions filtrades
+    // 🔹 Crida optimitzada (ja amb filtratge aplicat)
+    _updateMarkers(_currentZoom);
+  });
+}
+Future<void> _updateMarkers(double zoom) async {
+  // 🔹 1. Si no hi ha localitzacions, sortim ràpid
+  if (_locations.isEmpty) return;
+
+  // 🔹 2. Genera els marcadors (i clústers) amb totes les localitzacions
   final newMarkers = await OverlayHelper.generateClusterMarkers(
-    locations: visibleLocations,
+    locations: _locations,
     zoom: zoom,
   );
 
-  // 🔹 3. Si no hi ha localitzacions, buida el mapa
-  if (visibleLocations.isEmpty) {
-    setState(() {
-      _markers
-        ..clear()
-        ..addAll(newMarkers);
-    });
-    return;
-  }
-
   final Set<Marker> updatedMarkers = {};
 
-  // 🔹 4. Actualitza els marcadors normals amb la icona de “worked_here_count”
+  // 🔹 3. Actualitza els marcadors normals amb la icona de “worked_here_count”
   for (final marker in newMarkers) {
     if (!marker.markerId.value.startsWith('cluster_')) {
-      final locationData = visibleLocations
-          .cast<Map<String, Object?>>()
-          .firstWhere(
-            (loc) => loc['id'] == marker.markerId.value,
-            orElse: () => <String, Object?>{},
-          );
+      final locationData = _locations.cast<Map<String, Object?>>().firstWhere(
+        (loc) => loc['id'] == marker.markerId.value,
+        orElse: () => <String, Object?>{},
+      );
 
       if (locationData.isEmpty) {
         updatedMarkers.add(marker);
@@ -149,8 +124,7 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
               ? rawCount.toInt()
               : int.tryParse(rawCount.toString()) ?? 0;
 
-      final customIcon =
-          await OverlayHelper.createWorkCountMarker(workedCount);
+      final customIcon = await _getCachedIcon(workedCount);
 
       updatedMarkers.add(marker.copyWith(iconParam: customIcon));
     } else {
@@ -158,13 +132,14 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     }
   }
 
-  // 🔹 5. Mostra els resultats
+  // 🔹 4. Mostra els resultats
   setState(() {
     _markers
       ..clear()
       ..addAll(updatedMarkers);
   });
 }
+
 
   void _showRestaurantDetails(Map<String, dynamic> data) {
     setState(() => _selectedRestaurant = data);
@@ -464,20 +439,20 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
-
+/*
           Positioned(
-  top: 50,
-  right: 20,
-  child: FilterButton(
-    showAll: _showAllRestaurants,
-    onChanged: (value) {
-      setState(() => _showAllRestaurants = value);
-      _updateMarkers(_currentZoom);
-    },
-  ),
-),
-
-
+            top: 50,
+            right: 15,
+            child: FilterButton(
+              onChanged: (value) {
+                setState(() => _showAllRestaurants = value);
+                _updateMarkers(
+                  _currentZoom,
+                ); // 🔄 aplica el filtre automàticament
+              },
+            ),
+          ),
+*/
           // ---------- 🔹 POP up  amb mail tlf fb i worked here ----------
           if (_selectedRestaurant != null)
             Positioned(
