@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'mail_setup_page.dart';
-import 'restaurant_edit_page.dart'; // 👈 nou import
+import 'restaurant_edit_page.dart';
+import 'tips_page.dart'; // 👈 Afegit
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -20,13 +21,15 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Des d’aquí pots preparar el teu correu automàtic per enviar el teu CV amb un sol clic des de la pantalla del mapa.',
+              'Des d’aquí pots configurar el teu correu automàtic, editar la informació dels restaurants o accedir a les eines de gestió i comprovació.',
               style: TextStyle(fontSize: 15),
             ),
             const SizedBox(height: 24),
+
             Center(
               child: Column(
                 children: [
+                  // 📨 Configurar correu automàtic
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -42,7 +45,10 @@ class ProfilePage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                   ),
+
                   const SizedBox(height: 16),
+
+                  // ✏️ Editar restaurants
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -54,6 +60,25 @@ class ProfilePage extends StatelessWidget {
                     label: const Text('Editar restaurants'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 🧭 Gestió i comprovació (TipsPage)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const TipsPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.build_circle_outlined),
+                    label: const Text('Gestió i comprovació'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),

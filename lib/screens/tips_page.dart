@@ -380,10 +380,20 @@ class _TipsPageState extends State<TipsPage> {
     }
   }
 
-  // ---------------- 🔹 UI ----------------
+   // 🔹 INTERFÍCIE
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Gestió de restaurants', style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
+      ),
       backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -391,20 +401,19 @@ class _TipsPageState extends State<TipsPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 10),
               const Text(
-                'Comprova si un codi postal és Regional o Remot',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Comprova si un codi postal és\nREGIONAL o REMOT',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, height: 1.4),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 25),
               TextField(
                 controller: _postcodeController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Introdueix codi postal',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.search),
                     onPressed: _checkPostcode,
@@ -423,8 +432,8 @@ class _TipsPageState extends State<TipsPage> {
                     color: _result.contains('✅')
                         ? Colors.green
                         : _result.contains('⚠️')
-                        ? Colors.orange
-                        : Colors.red,
+                            ? Colors.orange
+                            : Colors.red,
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
