@@ -226,10 +226,6 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                   }
                 },
                 activeColor: Colors.redAccent,
-                subtitle: const Text(
-                  'S’esborraran les dades i no es tornarà a mostrar ni afegir.',
-                  style: TextStyle(fontSize: 13),
-                ),
               ),
 
               const SizedBox(height: 24),

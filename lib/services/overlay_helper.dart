@@ -208,69 +208,54 @@ class OverlayHelper {
     return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
 
-// ---------- 🔹 Pin negre exactament com el de Google Maps ----------
+// ---------- 🔹 Pin icona exactament com el de Google Maps ----------
 static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
-  const int size = 140;
-  final ui.PictureRecorder recorder = ui.PictureRecorder();
-  final Canvas canvas = Canvas(recorder);
+  return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
-  // --- Fons transparent ---
-  final Paint clearPaint = Paint()..color = Colors.transparent;
-  canvas.drawRect(Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()), clearPaint);
 
-  // --- Forma precisa del pin amb corba més ampla a dalt i punta més llarga ---
-  final Path path = Path();
-  path.moveTo(size / 2, size * 0.98);
-  path.quadraticBezierTo(size * 0.05, size * 0.55, size / 2, size * 0.12);
-  path.quadraticBezierTo(size * 0.95, size * 0.55, size / 2, size * 0.98);
-  path.close();
 
-  final Paint paint = Paint()
-    ..color = Colors.black
-    ..style = PaintingStyle.fill;
-  canvas.drawPath(path, paint);
 
-  // --- Ombra subtil ---
-  final Paint shadowPaint = Paint()
-    ..color = Colors.black.withOpacity(0.25)
-    ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
-  canvas.drawPath(path, shadowPaint);
 
-  // --- Cercle blanc centrat a la part superior rodona ---
-  final double circleCenterY = size * 0.385; // més baix per centrar perfectament
-  final double circleRadius = size * 0.24;
 
-  final Paint innerCircle = Paint()
-    ..color = Colors.white
-    ..style = PaintingStyle.fill;
-  canvas.drawCircle(Offset(size / 2, circleCenterY), circleRadius, innerCircle);
+// -  - - - cercle amb worked_here_count -  - - -
 
-  // --- Text (número) centrat dins del cercle ---
-  final textPainter = TextPainter(
-    text: TextSpan(
-      text: count.toString(),
-      style: const TextStyle(
-        color: Colors.black,
-        fontSize: 38,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-    textDirection: TextDirection.ltr,
-    textAlign: TextAlign.center,
-  )..layout();
+  // // --- Cercle blanc centrat a la part superior rodona ---
+  // final double circleCenterY = size * 0.385; // més baix per centrar perfectament
+  // final double circleRadius = size * 0.24;
 
-  textPainter.paint(
-    canvas,
-    Offset(
-      (size - textPainter.width) / 2,
-      (circleCenterY - textPainter.height / 2),
-    ),
-  );
+  // final Paint innerCircle = Paint()
+  //   ..color = Colors.white
+  //   ..style = PaintingStyle.fill;
+  // canvas.drawCircle(Offset(size / 2, circleCenterY), circleRadius, innerCircle);
 
-  final img = await recorder.endRecording().toImage(size, size);
-  final data = await img.toByteData(format: ui.ImageByteFormat.png);
-  return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+  // // // --- Text (número) centrat dins del cercle ---
+  // final textPainter = TextPainter(
+  //   text: TextSpan(
+  //     text: count.toString(),
+  //     style: const TextStyle(
+  //       color: Colors.black,
+  //       fontSize: 38,
+  //       fontWeight: FontWeight.bold,
+  //     ),
+  //   ),
+  //   textDirection: TextDirection.ltr,
+  //   textAlign: TextAlign.center,
+  // )..layout();
+
+  // textPainter.paint(
+  //   canvas,
+  //   Offset(
+  //     (size - textPainter.width) / 2,
+  //     (circleCenterY - textPainter.height / 2),
+  //   ),
+  // );
+
 }
+
+
+  
+
+
 
 
 
