@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'mail_setup_page.dart';
 import 'restaurant_edit_page.dart';
-import 'tips_page.dart'; // 👈 Afegit
+import 'gestio_restaurants.dart'; // 👈 Afegit
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});

@@ -305,10 +305,6 @@ Future<void> _updateMarkers(double zoom) async {
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          content: Text(
-            'Ja havies indicat que has treballat a $restaurantName.\nVols treure-ho?',
-            textAlign: TextAlign.center,
-          ),
           actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
             TextButton(

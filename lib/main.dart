@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/screens.dart';
+import 'screens/consejos_page.dart';
 
 
 
@@ -56,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
   static const List<Widget> _pages = <Widget>[
   Map417Page(),
   Map462Page(),
-  TipsPage(),
+  ConsejosPage(),
   HousePage(),
   ProfilePage(),
 ];
@@ -64,7 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
 static const List<String> _titles = <String>[
   'Map 417',
   'Map 462',
-  'Tips',
+  'Consejos',
   'House',
   'Profile',
 ];
@@ -104,7 +105,7 @@ Widget build(BuildContext context) {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.lightbulb_outline),
-          label: 'Tips',
+          label: 'Consejos',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.house_outlined),

@@ -173,7 +173,6 @@ class OverlayHelper {
             markerId: MarkerId('cluster_${avgLat}_$avgLng'),
             position: LatLng(avgLat, avgLng),
             icon: icon,
-            infoWindow: InfoWindow(title: '$count llocs agrupats'),
           ),
         );
       }
