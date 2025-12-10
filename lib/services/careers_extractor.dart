@@ -125,13 +125,58 @@ class CareersExtractor {
       }
     }).toList();
 
-    // 5️⃣ Normalitza enllaços relatius i retorna el primer vàlid
-    for (var link in filtered) {
-      if (!link.startsWith('http')) {
-        link = _combineUrl(baseUrl, link);
-      }
-      print('✅ Pàgina de feines trobada: $link');
-      return link;
+    // 5️⃣ Puntuem, ordenem i retornem el millor candidat
+    if (filtered.isNotEmpty) {
+      final baseHost = Uri.parse(baseUrl).host;
+
+      final scored = filtered.map((raw) {
+        final full = raw.startsWith('http') ? raw : _combineUrl(baseUrl, raw);
+        Uri? uri;
+        try {
+          uri = Uri.parse(full);
+        } catch (_) {}
+        if (uri == null) {
+          return {'url': full, 'score': -9999, 'pathLength': full.length};
+        }
+
+        final host = uri.host;
+        final path = uri.path;
+        int score = 0;
+
+        if (host == baseHost) score += 50;
+        if (path == '/careers' || path == '/jobs') {
+          score += 100;
+        } else if (path.endsWith('/careers') || path.endsWith('/jobs')) {
+          score += 40;
+        }
+
+        final depth = path.split('/').where((p) => p.isNotEmpty).length;
+        score -= depth * 5;
+
+        final lowerPath = path.toLowerCase();
+        if (lowerPath.contains('/blog/') ||
+            lowerPath.contains('/news/') ||
+            lowerPath.contains('/dining/') ||
+            lowerPath.contains('/menu/')) {
+          score -= 10;
+        }
+
+        return {'url': full, 'score': score, 'pathLength': path.length};
+      }).toList();
+
+      scored.sort((a, b) {
+        final scoreB = (b['score'] as int);
+        final scoreA = (a['score'] as int);
+        if (scoreB != scoreA) return scoreB.compareTo(scoreA);
+        final lenA = (a['pathLength'] as int);
+        final lenB = (b['pathLength'] as int);
+        return lenA.compareTo(lenB);
+      });
+
+      final best = scored.first;
+      final bestUrl = best['url'] as String;
+      print('✅ Pàgina de feines trobada: $bestUrl');
+      return bestUrl;
     }
 
     print('❌ Cap pàgina de feines trobada a $baseUrl');
