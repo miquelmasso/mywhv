@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/postcode_state_helper.dart';
 
 class RestaurantCollector {
   static const _apiKey = 'AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI';
@@ -35,6 +36,7 @@ class RestaurantCollector {
       }
 
       for (var r in restaurants.take(10)) {
+        final computedState = getStateFromPostcode(code.toString());
         await _firestore.collection('restaurants').add({
           'name': r['name'],
           'latitude': r['lat'],
@@ -42,6 +44,8 @@ class RestaurantCollector {
           'phone': r['phone'],
           'postcode': code,
           'visa_types': _getVisaTypes(code, postcodes417, postcodes462),
+          'worked_here_count': 0,
+          'state': computedState,
         });
       }
 

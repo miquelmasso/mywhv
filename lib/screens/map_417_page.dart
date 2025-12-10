@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
@@ -22,6 +23,8 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
   String? _mapStyle;
   final Set<Marker> _markers = {};
   List<Map<String, Object?>> _locations = [];
+  bool _isHospitality = true;
+  Set<String> _favoritePlaces = {};
   Map<String, dynamic>? _selectedRestaurant;
   double _currentZoom = 4.5;
   final bool _showAllRestaurants = false; // posar true per mostrar tots
@@ -48,51 +51,71 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
     super.initState();
     _loadMapStyle();
     _listenMarkers();
+    _loadFavorites();
   }
 
   Future<void> _loadMapStyle() async {
     _mapStyle = await rootBundle.loadString('assets/map_style_clean.json');
   }
 
- void _listenMarkers() {
-  MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
-    final firestore = FirebaseFirestore.instance;
-    final snapshot = await firestore.collection('restaurants').get();
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('favorite_places') ?? [];
+    setState(() {
+      _favoritePlaces = list.toSet();
+    });
+  }
 
-    // 🔹 Prepara un map ràpid per evitar loops lents
-    final Map<String, Map<String, dynamic>> restaurantMap = {
-      for (var doc in snapshot.docs) doc.id: doc.data(),
-    };
+  void _listenMarkers() {
+    MapMarkersService.getMarkers(_showRestaurantDetails)
+        .listen((newMarkers) async {
+      final firestore = FirebaseFirestore.instance;
+      final snapshot = await firestore.collection('restaurants').get();
 
-    // 🔹 Construeix la llista de localitzacions amb filtratge eficient
-    _locations = [];
-    for (final m in newMarkers) {
-      final data = restaurantMap[m.markerId.value];
+      // 🔹 Prepara un map ràpid per evitar loops lents
+      final Map<String, Map<String, dynamic>> restaurantMap = {
+        for (var doc in snapshot.docs) doc.id: doc.data(),
+      };
 
-      if (data == null) continue; // si no hi ha doc, salta
-      if (data['blocked'] == true) continue;
+      // 🔹 Construeix la llista de localitzacions amb filtratge eficient
+      _locations = [];
+      for (final m in newMarkers) {
+        final data = restaurantMap[m.markerId.value];
 
-      final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
-          (data['email'] ?? '').toString().isNotEmpty ||
-          (data['careers_page'] ?? '').toString().isNotEmpty);
+        if (data == null) continue; // si no hi ha doc, salta
+        if (data['blocked'] == true) continue;
 
-      // 🔹 Només afegeix si té dades o si showAll està actiu
-      if (!_showAllRestaurants && !hasData) continue;
+        final hasData =
+            ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+                (data['email'] ?? '').toString().isNotEmpty ||
+                (data['careers_page'] ?? '').toString().isNotEmpty);
 
-      _locations.add({
-        'id': m.markerId.value,
-        'lat': m.position.latitude,
-        'lng': m.position.longitude,
-        'data': m,
-        'worked_here_count': data['worked_here_count'] ?? 0,
-      });
-    }
+        // 🔹 Només afegeix si té dades o si showAll està actiu
+        if (!_showAllRestaurants && !hasData) continue;
 
-    // 🔹 Crida optimitzada (ja amb filtratge aplicat)
-    _updateMarkers(_currentZoom);
-  });
-}
-Future<void> _updateMarkers(double zoom) async {
+        _locations.add({
+          'id': m.markerId.value,
+          'lat': m.position.latitude,
+          'lng': m.position.longitude,
+          'data': m,
+          'worked_here_count': data['worked_here_count'] ?? 0,
+        });
+      }
+
+      // 🔹 Crida optimitzada (ja amb filtratge aplicat)
+      _updateMarkers(_currentZoom);
+    });
+  }
+
+  Future<void> _updateMarkers(double zoom) async {
+  if (!_isHospitality) {
+    setState(() {
+      _markers.clear();
+      _selectedRestaurant = null;
+    });
+    return;
+  }
+
   // 🔹 1. Si no hi ha localitzacions, sortim ràpid
   if (_locations.isEmpty) return;
 
@@ -107,8 +130,9 @@ Future<void> _updateMarkers(double zoom) async {
   // 🔹 3. Actualitza els marcadors normals amb la icona de “worked_here_count”
   for (final marker in newMarkers) {
     if (!marker.markerId.value.startsWith('cluster_')) {
+      final id = marker.markerId.value;
       final locationData = _locations.cast<Map<String, Object?>>().firstWhere(
-        (loc) => loc['id'] == marker.markerId.value,
+        (loc) => loc['id'] == id,
         orElse: () => <String, Object?>{},
       );
 
@@ -124,7 +148,10 @@ Future<void> _updateMarkers(double zoom) async {
               ? rawCount.toInt()
               : int.tryParse(rawCount.toString()) ?? 0;
 
-      final customIcon = await _getCachedIcon(workedCount);
+      final isFavorite = _favoritePlaces.contains(id);
+      final customIcon = isFavorite
+          ? await _getFavoriteHeartMarkerIcon()
+          : await _getCachedIcon(workedCount);
 
       updatedMarkers.add(marker.copyWith(iconParam: customIcon));
     } else {
@@ -140,9 +167,82 @@ Future<void> _updateMarkers(double zoom) async {
   });
 }
 
+  void _setCategory(bool isHospitality) {
+    if (_isHospitality == isHospitality) return;
+    setState(() {
+      _isHospitality = isHospitality;
+      _selectedRestaurant = null;
+    });
+
+    if (_isHospitality) {
+      _updateMarkers(_currentZoom);
+    } else {
+      setState(() => _markers.clear());
+    }
+  }
 
   void _showRestaurantDetails(Map<String, dynamic> data) {
     setState(() => _selectedRestaurant = data);
+  }
+
+  Future<BitmapDescriptor> _getFavoriteHeartMarkerIcon() async {
+    const int size = 120;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final center = Offset(size / 2, size / 2);
+
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: '❤',
+        style: TextStyle(
+          fontSize: 72,
+          color: Colors.redAccent,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final offset = center -
+        Offset(textPainter.width / 2, textPainter.height / 2);
+    textPainter.paint(canvas, offset);
+
+    final img = await recorder.endRecording().toImage(size, size);
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+  }
+
+  Future<void> _toggleFavorite(String restaurantId) async {
+    if (restaurantId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final current = Set<String>.from(_favoritePlaces);
+    bool added;
+
+    if (current.contains(restaurantId)) {
+      current.remove(restaurantId);
+      added = false;
+    } else {
+      current.add(restaurantId);
+      added = true;
+    }
+
+    await prefs.setStringList('favorite_places', current.toList());
+    setState(() => _favoritePlaces = current);
+    _updateMarkers(_currentZoom);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added ? 'Afegit a preferits' : 'Eliminat de preferits',
+        ),
+      ),
+    );
   }
 
   Future<void> _copyToClipboard(String text, String label) async {
@@ -435,6 +535,87 @@ Future<void> _updateMarkers(double zoom) async {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _setCategory(true),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isHospitality
+                                ? Colors.blueAccent
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Hospitality',
+                            style: TextStyle(
+                              color: _isHospitality
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _setCategory(false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: !_isHospitality
+                                ? Colors.blueAccent
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Farm',
+                            style: TextStyle(
+                              color: !_isHospitality
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
 /*
           Positioned(
             top: 50,
@@ -582,6 +763,20 @@ Future<void> _updateMarkers(double zoom) async {
                             onPressed: () =>
                                 _openUrl(_selectedRestaurant!['careers_page']),
                           ),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(
+                            _favoritePlaces
+                                    .contains(_selectedRestaurant!['docId'] ?? '')
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: Colors.redAccent,
+                          ),
+                          tooltip: 'Preferit',
+                          onPressed: () => _toggleFavorite(
+                            _selectedRestaurant!['docId'] ?? '',
+                          ),
+                        ),
                       ],
                     ),
                   ],

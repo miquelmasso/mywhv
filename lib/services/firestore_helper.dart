@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'postcode_state_helper.dart';
 
 class FirestoreHelper {
   final firestore = FirebaseFirestore.instance;
@@ -30,11 +31,13 @@ class FirestoreHelper {
     final lng = details['location']?['longitude'];
     final phone = details['internationalPhoneNumber'] ?? '';
     final website = details['websiteUri'] ?? '';
+    final state = getStateFromPostcode(postcode);
 
     return {
       'name': name,
       'postcode': postcode,
       'postcode_display': postcode.toString().padLeft(4, '0'),
+      'state': state,
       'address': address,
       'latitude': lat,
       'longitude': lng,

@@ -1,8 +1,16 @@
 import 'dart:io';
 import 'package:http/io_client.dart';
+import 'package:flutter/foundation.dart';
 
 class EmailExtractor {
   String? lastFacebookUrl;
+  static const bool _debugEmailFilterLogs = false;
+
+  void _logEmail(String msg) {
+    if (!_debugEmailFilterLogs) return;
+    // ignore: avoid_print
+    print(msg);
+  }
 
   Future<String?> extract(String baseUrl, {String? businessName, String? locationName}) async {
     final tried = <String>{};
@@ -48,7 +56,7 @@ final urlsToCheck = <String>{
 
       for (final email in candidates) {
         if (!_isValidEmail(email, _domain(baseUrl), originUrl: url)) {
-          print('❌ Filtrat: $email (invàlid)');
+          _logEmail('❌ Filtrat: $email (invàlid)');
           continue;
         }
 
@@ -65,7 +73,7 @@ final urlsToCheck = <String>{
     }
 
     if (found.isEmpty) {
-      print('⚠️ Cap correu vàlid trobat per $baseUrl');
+      _logEmail('⚠️ Cap correu vàlid trobat per $baseUrl');
       return null;
     }
 
@@ -78,11 +86,11 @@ final urlsToCheck = <String>{
 
     final best = found.first;
     if ((best['score'] as int) < 40) {
-      print('⚠️ Cap correu amb prou confiança.');
+      _logEmail('⚠️ Cap correu amb prou confiança.');
       return null;
     }
 
-    print('✅ Millor correu: ${best['email']} (${best['score']}%)');
+    _logEmail('✅ Millor correu: ${best['email']} (${best['score']}%)');
     return best['email'] as String;
   }
 
