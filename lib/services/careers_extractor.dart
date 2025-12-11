@@ -3,8 +3,62 @@ import 'package:http/http.dart' as http;
 class CareersExtractor {
   /// 🔍 Troba una pàgina de "careers" o "jobs" dins d'un lloc web
   Future<String?> find(String baseUrl) async {
-    print('💼 Buscant pàgina de feines a: $baseUrl');
+    // Si la web base és una xarxa social, no busquem cap careers page
+    final parsedBase = Uri.tryParse(baseUrl);
+    if (parsedBase != null) {
+      final host = parsedBase.host.toLowerCase();
+      if (host.contains('facebook.com') ||
+          host.contains('m.facebook.com') ||
+          host.contains('fb.com') ||
+          host.contains('instagram.com') ||
+          host.contains('linkedin.com') ||
+          host.contains('twitter.com')) {
+        print('❌ Base URL és una xarxa social, no busco careers');
+        return null;
+      }
+    }
 
+    // PHASE 0: Prova rutes canòniques directes abans de parsejar HTML
+    final baseUri = Uri.tryParse(baseUrl);
+    if (baseUri != null) {
+      const canonicalPaths = [
+        '/careers',
+        '/jobs',
+        '/work-with-us',
+        '/work-for-us',
+        '/join-our-team',
+      ];
+
+      for (final path in canonicalPaths) {
+        final canonical = Uri(
+          scheme: baseUri.scheme,
+          host: baseUri.host,
+          port: baseUri.hasPort ? baseUri.port : null,
+          path: path,
+        ).toString();
+
+        final htmlCanonical = await _fetchHtml(canonical);
+        if (htmlCanonical == null || htmlCanonical.isEmpty) continue;
+
+        final lower = htmlCanonical.toLowerCase();
+        const keywords = [
+          'career',
+          'careers',
+          'jobs',
+          'vacancies',
+          'join our team',
+        ];
+        if (keywords.any((k) => lower.contains(k))) {
+          final uri = Uri.tryParse(canonical);
+          if (uri != null && _isGenericFacebookCareers(uri)) {
+            continue;
+          }
+          return canonical;
+        }
+      }
+    }
+
+    // PHASE 1: Lògica existent
     final html = await _fetchHtml(baseUrl);
     if (html == null || html.isEmpty) return null;
 
@@ -78,13 +132,18 @@ class CareersExtractor {
         final host = uri.host;
         final path = uri.path;
 
-        // ❌ Filtra dominis socials
+        final isGenericFacebookCareers = _isGenericFacebookCareers(uri);
+
+        // ❌ Filtra dominis socials (Facebook mai s'accepta com a careers)
         final isSocial =
             host.contains('facebook.com') ||
+            host.contains('m.facebook.com') ||
             host.contains('fb.com') ||
             host.contains('instagram.com') ||
+            host.contains('instagr.am') ||
             host.contains('linkedin.com') ||
-            host.contains('twitter.com');
+            host.contains('twitter.com') ||
+            host.contains('tiktok.com');
 
         // ❌ Extensions no vàlides
         final invalidExt =
@@ -114,6 +173,7 @@ class CareersExtractor {
         // ✅ Ha de complir totes les condicions
         return validKeyword &&
             !isSocial &&
+            !isGenericFacebookCareers &&
             !invalidExt &&
             !tooLong &&
             !badPath &&
@@ -175,11 +235,14 @@ class CareersExtractor {
 
       final best = scored.first;
       final bestUrl = best['url'] as String;
-      print('✅ Pàgina de feines trobada: $bestUrl');
+      final bestHtml = await _fetchHtml(bestUrl);
+      if (bestHtml == null || _looksLike404(bestHtml)) {
+        print('❌ Pàgina de careers invàlida (404 o not found): $bestUrl');
+        return null;
+      }
       return bestUrl;
     }
 
-    print('❌ Cap pàgina de feines trobada a $baseUrl');
     return null;
   }
 
@@ -189,11 +252,28 @@ class CareersExtractor {
     try {
       final resp = await http.get(Uri.parse(url));
       if (resp.statusCode == 200) return resp.body;
-      print('⚠️ Error HTTP ${resp.statusCode} a $url');
     } catch (e) {
-      print('⚠️ Error descarregant $url → $e');
     }
     return null;
+  }
+
+  bool _looksLike404(String html) {
+    final lower = html.toLowerCase();
+    return lower.contains('404 not found') ||
+        lower.contains('page not found') ||
+        (lower.contains('not found') && lower.contains('error'));
+  }
+
+  bool _isGenericFacebookCareers(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (!(host.contains('facebook.com') || host.contains('fb.com'))) {
+      return false;
+    }
+    final path = uri.path.toLowerCase();
+    return path == '/careers' ||
+        path == '/careers/' ||
+        path == '/jobs' ||
+        path == '/jobs/';
   }
 
   String _combineUrl(String base, String path) {

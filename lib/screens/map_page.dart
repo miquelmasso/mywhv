@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
@@ -11,14 +12,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 //import '../widgets/filter_button.dart';
 
-class Map417Page extends StatefulWidget {
-  const Map417Page({super.key});
+class MapPage extends StatefulWidget {
+  const MapPage({super.key});
 
   @override
-  State<Map417Page> createState() => _Map417PageState();
+  State<MapPage> createState() => _MapPageState();
 }
 
-class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
+class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   GoogleMapController? _controller;
   String? _mapStyle;
   final Set<Marker> _markers = {};
@@ -87,6 +88,7 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
 
         final hasData =
             ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+                (data['instagram_url'] ?? '').toString().isNotEmpty ||
                 (data['email'] ?? '').toString().isNotEmpty ||
                 (data['careers_page'] ?? '').toString().isNotEmpty);
 
@@ -762,6 +764,17 @@ class _Map417PageState extends State<Map417Page> with TickerProviderStateMixin {
                             tooltip: 'Veure ofertes de feina',
                             onPressed: () =>
                                 _openUrl(_selectedRestaurant!['careers_page']),
+                          ),
+                        if ((_selectedRestaurant!['instagram_url'] ?? '')
+                            .toString()
+                            .isNotEmpty)
+                          IconButton(
+                            icon: const FaIcon(FontAwesomeIcons.instagram,
+                                color: Colors.purple),
+                            tooltip: 'Obrir Instagram',
+                            onPressed: () => _openUrl(
+                              _selectedRestaurant!['instagram_url'],
+                            ),
                           ),
                         const Spacer(),
                         IconButton(

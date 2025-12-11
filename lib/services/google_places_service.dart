@@ -89,10 +89,19 @@ class GooglePlacesService {
         String? email;
         String? careersPage;
         String? facebookUrl;
+        String? instagramUrl;
+        final host = Uri.tryParse(website)?.host.toLowerCase() ?? '';
+        final isSocial =
+            host.contains('facebook.com') || host.contains('instagram.com');
 
         if (website.isNotEmpty) {
-  email = await _emailExtractor.extract(website);
+  if (!isSocial) {
+    email = await _emailExtractor.extract(website);
+  }
   careersPage = await _careersExtractor.find(website);
+  if (_isGenericFacebookCareersUrl(careersPage)) {
+    careersPage = null;
+  }
 
   // ✅ Retorna un Map amb {link, score} → n’extraiem només el link
   final fbResult = await _facebookExtractor.find(
@@ -101,7 +110,14 @@ class GooglePlacesService {
     address: address,
     phone: details['internationalPhoneNumber'] ?? '',
   );
-  facebookUrl = fbResult != null ? fbResult['link'] as String? : null;
+  final candidateFb = fbResult != null ? fbResult['link'] as String? : null;
+  facebookUrl =
+      _isValidFacebookPage(candidateFb) ? candidateFb : null;
+
+  final uri = Uri.tryParse(website);
+  if (host.contains('instagram.com')) {
+    instagramUrl = website;
+  }
 }
 
 
@@ -115,6 +131,7 @@ class GooglePlacesService {
           placeId: id,
           facebookUrl: facebookUrl,
           careersPage: careersPage,
+          instagramUrl: instagramUrl,
         );
 
         await _firestoreHelper.saveRestaurant(restaurant, name);
@@ -146,5 +163,68 @@ class GooglePlacesService {
     final re = RegExp(r'\b0?\d{3,4}\b');
     final matches = re.allMatches(address).map((m) => m.group(0)).toList();
     return matches.contains(target);
+  }
+
+  bool _isGenericFacebookCareersUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    Uri? uri;
+    try {
+      uri = Uri.parse(url);
+    } catch (_) {
+      return false;
+    }
+    final host = uri.host.toLowerCase();
+    if (!(host.contains('facebook.com') || host.contains('fb.com'))) {
+      return false;
+    }
+    final path = uri.path.toLowerCase();
+    return path == '/careers' ||
+        path == '/careers/' ||
+        path == '/jobs' ||
+        path == '/jobs/';
+  }
+
+  bool _isValidFacebookPage(String? url) {
+    if (url == null || url.isEmpty) return false;
+    Uri? uri;
+    try {
+      uri = Uri.parse(url);
+    } catch (_) {
+      return false;
+    }
+
+    final host = uri.host.toLowerCase();
+    if (!host.contains('facebook.com') && !host.contains('fb.com')) {
+      return false;
+    }
+
+    if (uri.path.isEmpty || uri.path == '/') return false;
+
+    const badLastSegments = {
+      'tr',
+      'sharer.php',
+      'plugins',
+      'dialog',
+      'events',
+      'help',
+      'login',
+      'l.php',
+    };
+    final last = uri.pathSegments.isNotEmpty ? uri.pathSegments.last.toLowerCase() : '';
+    if (badLastSegments.contains(last)) return false;
+
+    if (uri.path == '/profile.php') {
+      final id = uri.queryParameters['id'];
+      return id != null && id.trim().isNotEmpty;
+    }
+
+    if (uri.pathSegments.isNotEmpty) {
+      final first = uri.pathSegments.first.trim();
+      if (first.isEmpty) return false;
+      if (first.endsWith('.php')) return false;
+      return true;
+    }
+
+    return false;
   }
 }

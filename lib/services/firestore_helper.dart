@@ -26,6 +26,7 @@ class FirestoreHelper {
     required String placeId,
     String? facebookUrl,
     String? careersPage, // 👈 nou paràmetre
+    String? instagramUrl,
   }) {
     final lat = details['location']?['latitude'];
     final lng = details['location']?['longitude'];
@@ -46,6 +47,7 @@ class FirestoreHelper {
       'email': email ?? '',
       'facebook_url': facebookUrl ?? '',
       'careers_page': careersPage ?? '', // 👈 afegim-lo aquí
+      'instagram_url': instagramUrl ?? '',
       'source_place_id': placeId,
       'timestamp': DateTime.now(),
     };

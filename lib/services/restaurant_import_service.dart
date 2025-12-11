@@ -37,6 +37,8 @@ class RestaurantImportService {
     int number,
     QuerySnapshot<Map<String, dynamic>> snapshot,
   ) {
+    // Només considerem codis de Tourism & Hospitality (Remote & Very Remote Australia).
+    // Els codis de "Regional Australia" NO s’utilitzen per a hospitality.
     if (_isNorthernTerritory(normalized, number)) return true;
 
     for (final doc in snapshot.docs) {
@@ -45,8 +47,7 @@ class RestaurantImportService {
       final String industry = (data['industry'] ?? '').toString();
       final lowerIndustry = industry.toLowerCase();
       final bool isTourism = lowerIndustry.contains('hospitality');
-      final bool isRegional = lowerIndustry.contains('regional');
-      if (!isTourism && !isRegional) continue;
+      if (!isTourism) continue;
       if (postcodes.contains(number) || postcodes.contains(normalized)) {
         return true;
       }
@@ -87,6 +88,14 @@ class RestaurantImportService {
       allowed: true,
       addedCount: list.length,
     );
+  }
+
+  Future<bool> isRemoteTourismPostcode(String postcodeStr) async {
+    final normalized = _normalize(postcodeStr.trim());
+    final number = int.tryParse(normalized);
+    if (number == null) return false;
+    final snapshot = await _loadVisaPostcodes();
+    return _isAllowedWithSnapshot(normalized, number, snapshot);
   }
 
   Future<int> importAllRestaurantsForPostcode(String postcodeStr) async {

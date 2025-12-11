@@ -55,16 +55,14 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
   static const List<Widget> _pages = <Widget>[
-  Map417Page(),
-  Map462Page(),
+  MapPage(),
   ConsejosPage(),
   HousePage(),
   ProfilePage(),
 ];
 
 static const List<String> _titles = <String>[
-  'Map 417',
-  'Map 462',
+  'Map',
   'Consejos',
   'House',
   'Profile',
@@ -97,11 +95,7 @@ Widget build(BuildContext context) {
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(
           icon: Icon(Icons.map_outlined),
-          label: '417',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.public_outlined),
-          label: '462',
+          label: 'Map',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.lightbulb_outline),

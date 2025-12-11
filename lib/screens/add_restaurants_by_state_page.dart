@@ -22,7 +22,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
         'QLD': (4000, 4999),
         'VIC': (3000, 3999),
         'NSW': (2000, 2999),
-        'SA': (5000, 5799),
+        'SA': (5000, 5999),
         'WA': (6000, 6999),
         'TAS': (7000, 7999),
         'NT': (800, 999),
@@ -55,7 +55,11 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
 
       for (int pc = start; pc <= end; pc++) {
         final postcodeStr = pc.toString().padLeft(4, '0');
-        await _importService.importAllRestaurantsForPostcode(postcodeStr);
+        final isRemote =
+            await _importService.isRemoteTourismPostcode(postcodeStr);
+        if (isRemote) {
+          await _importService.importAllRestaurantsForPostcode(postcodeStr);
+        }
         setState(() => _processed++);
       }
 
@@ -102,7 +106,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
           children: [
             const SizedBox(height: 10),
             const Text(
-              'Importa tots els codis postals vàlids d’un estat (criteris REMOTE/Regional igual que el flux per codi).',
+              'Importa tots els codis postals remots d’un estat (criteris Tourism & Hospitality).',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 18),
