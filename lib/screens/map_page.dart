@@ -235,6 +235,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     }
 
     await prefs.setStringList('favorite_places', current.toList());
+    debugPrint('❤️ Toggle favorite $restaurantId -> $added; total=${current.length}');
     setState(() => _favoritePlaces = current);
     _updateMarkers(_currentZoom);
 
@@ -777,18 +778,21 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                             ),
                           ),
                         const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            _favoritePlaces
-                                    .contains(_selectedRestaurant!['docId'] ?? '')
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: Colors.redAccent,
-                          ),
-                          tooltip: 'Preferit',
-                          onPressed: () => _toggleFavorite(
-                            _selectedRestaurant!['docId'] ?? '',
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final id = _selectedRestaurant!['docId'] ?? '';
+                            final isFav = _favoritePlaces.contains(id);
+                            debugPrint('❤️ Render heart for $id isFav=$isFav');
+                            return IconButton(
+                              icon: Icon(
+                                isFav ? Icons.favorite : Icons.favorite_border,
+                                color: isFav ? Colors.red : Colors.grey,
+                                size: 28,
+                              ),
+                              tooltip: 'Preferit',
+                              onPressed: () => _toggleFavorite(id),
+                            );
+                          },
                         ),
                       ],
                     ),
