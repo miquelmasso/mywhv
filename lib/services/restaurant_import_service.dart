@@ -107,66 +107,13 @@ class RestaurantImportService {
     final allowed = _isAllowedWithSnapshot(normalized, postcodeNum, snapshot);
     if (!allowed) return 0;
 
-    final computedState = getStateFromPostcode(normalized);
+    // 🔹 Importa tots els restaurants disponibles per aquest codi (sense límit)
+    final list = await _placesService.SaveTwoRestaurantsForPostcode(
+      postcodeNum,
+      maxToSave: 0, // sense límit: volem tots els del codi en una sola passada
+    );
 
-    int totalAdded = 0;
-    while (true) {
-      final list = await _placesService.SaveTwoRestaurantsForPostcode(
-        postcodeNum,
-      );
-
-      if (list.isEmpty) break;
-
-      for (final restaurant in list) {
-        final name = restaurant['name'] ?? 'Nom desconegut';
-        final lat = restaurant['lat'];
-        final lng = restaurant['lng'];
-        final phone = restaurant['phone'] ?? 'Sense telèfon';
-
-        final exists = await _firestore
-            .collection('restaurants')
-            .where('name', isEqualTo: name)
-            .limit(1)
-            .get();
-
-        final blocked = await _firestore
-            .collection('restaurants')
-            .where('name', isEqualTo: name)
-            .where('blocked', isEqualTo: true)
-            .get();
-
-        if (blocked.docs.isNotEmpty) continue;
-
-        if (exists.docs.isNotEmpty) {
-          final data = exists.docs.first.data();
-          if (data['blocked'] == true) {
-            continue;
-          }
-        }
-
-        if (exists.docs.isNotEmpty) {
-          continue;
-        }
-
-        await _firestore.collection('restaurants').add({
-          'name': name,
-          'postcode': normalized,
-          'lat': lat,
-          'lng': lng,
-          'latitude': lat,
-          'longitude': lng,
-          'phone': phone,
-          'timestamp': FieldValue.serverTimestamp(),
-          'worked_here_count': 0,
-          'state': computedState,
-        });
-
-        totalAdded++;
-      }
-
-      await Future.delayed(const Duration(seconds: 1));
-    }
-
-    return totalAdded;
+    // El servei ja desarà els restaurants; retornem el recompte per coherència
+    return list.length;
   }
 }

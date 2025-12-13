@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
 import '../services/map_markers_service.dart';
+import '../services/harvest_markers_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/overlay_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,10 +24,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   GoogleMapController? _controller;
   String? _mapStyle;
   final Set<Marker> _markers = {};
-  List<Map<String, Object?>> _locations = [];
-  bool _isHospitality = true;
+  List<Map<String, Object?>> _restaurantLocations = [];
+  List<Map<String, Object?>> _harvestLocations = [];
+  bool _isHospitality = true; // false → Harvest
   Set<String> _favoritePlaces = {};
   Map<String, dynamic>? _selectedRestaurant;
+  Map<String, dynamic>? _selectedHarvest;
   double _currentZoom = 4.5;
   final bool _showAllRestaurants = false; // posar true per mostrar tots
 
@@ -68,22 +71,17 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   void _listenMarkers() {
-    MapMarkersService.getMarkers(_showRestaurantDetails)
-        .listen((newMarkers) async {
+    MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
       final firestore = FirebaseFirestore.instance;
       final snapshot = await firestore.collection('restaurants').get();
-
-      // 🔹 Prepara un map ràpid per evitar loops lents
       final Map<String, Map<String, dynamic>> restaurantMap = {
         for (var doc in snapshot.docs) doc.id: doc.data(),
       };
 
-      // 🔹 Construeix la llista de localitzacions amb filtratge eficient
-      _locations = [];
+      _restaurantLocations = [];
       for (final m in newMarkers) {
         final data = restaurantMap[m.markerId.value];
-
-        if (data == null) continue; // si no hi ha doc, salta
+        if (data == null) continue;
         if (data['blocked'] == true) continue;
 
         final hasData =
@@ -91,11 +89,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                 (data['instagram_url'] ?? '').toString().isNotEmpty ||
                 (data['email'] ?? '').toString().isNotEmpty ||
                 (data['careers_page'] ?? '').toString().isNotEmpty);
-
-        // 🔹 Només afegeix si té dades o si showAll està actiu
         if (!_showAllRestaurants && !hasData) continue;
 
-        _locations.add({
+        _restaurantLocations.add({
           'id': m.markerId.value,
           'lat': m.position.latitude,
           'lng': m.position.longitude,
@@ -104,87 +100,152 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         });
       }
 
-      // 🔹 Crida optimitzada (ja amb filtratge aplicat)
       _updateMarkers(_currentZoom);
     });
+
+    HarvestMarkersService.getMarkers(_showHarvestDetails).listen(
+      (newMarkers) async {
+        final firestore = FirebaseFirestore.instance;
+        final snapshot = await firestore.collection('harvest_calendar').get();
+        final Map<String, Map<String, dynamic>> harvestMap = {
+          for (var doc in snapshot.docs) doc.id: doc.data(),
+        };
+
+        _harvestLocations = [];
+        for (final m in newMarkers) {
+          final data = harvestMap[m.markerId.value];
+          if (data == null) continue;
+
+          _harvestLocations.add({
+            'id': m.markerId.value,
+            'lat': m.position.latitude,
+            'lng': m.position.longitude,
+            'data': m,
+            'worked_here_count': data['worked_here_count'] ?? 0,
+          });
+        }
+
+        _updateMarkers(_currentZoom);
+      },
+    );
   }
 
   Future<void> _updateMarkers(double zoom) async {
-  if (!_isHospitality) {
-    setState(() {
-      _markers.clear();
-      _selectedRestaurant = null;
-    });
-    return;
+    if (!_isHospitality) {
+      // 🔹 Mode Harvest
+      if (_harvestLocations.isEmpty) {
+        setState(() {
+          _markers.clear();
+          _selectedRestaurant = null;
+          _selectedHarvest = null;
+        });
+        return;
+      }
+      await _updateMarkersFor(_harvestLocations, zoom);
+      return;
+    }
+
+    // 🔹 Mode Hospitality
+    if (_restaurantLocations.isEmpty) return;
+    await _updateMarkersFor(_restaurantLocations, zoom);
   }
 
-  // 🔹 1. Si no hi ha localitzacions, sortim ràpid
-  if (_locations.isEmpty) return;
+  Future<void> _updateMarkersFor(
+    List<Map<String, Object?>> locations,
+    double zoom,
+  ) async {
 
   // 🔹 2. Genera els marcadors (i clústers) amb totes les localitzacions
   final newMarkers = await OverlayHelper.generateClusterMarkers(
-    locations: _locations,
+    locations: locations,
     zoom: zoom,
   );
 
-  final Set<Marker> updatedMarkers = {};
+    final Set<Marker> updatedMarkers = {};
 
-  // 🔹 3. Actualitza els marcadors normals amb la icona de “worked_here_count”
-  for (final marker in newMarkers) {
-    if (!marker.markerId.value.startsWith('cluster_')) {
-      final id = marker.markerId.value;
-      final locationData = _locations.cast<Map<String, Object?>>().firstWhere(
-        (loc) => loc['id'] == id,
-        orElse: () => <String, Object?>{},
-      );
+    // 🔹 3. Actualitza els marcadors normals amb la icona de “worked_here_count”
+    for (final marker in newMarkers) {
+      if (!marker.markerId.value.startsWith('cluster_')) {
+        final id = marker.markerId.value;
+        final baseId = _baseMarkerId(id);
+      final locationData = locations.cast<Map<String, Object?>>().firstWhere(
+            (loc) => loc['id'] == baseId,
+            orElse: () => <String, Object?>{},
+          );
 
-      if (locationData.isEmpty) {
+        if (locationData.isEmpty) {
+          updatedMarkers.add(marker);
+          continue;
+        }
+
+        final rawCount = locationData['worked_here_count'];
+        final workedCount = (rawCount is int)
+            ? rawCount
+            : (rawCount is num)
+                ? rawCount.toInt()
+                : int.tryParse(rawCount.toString()) ?? 0;
+
+        final isFavorite = _favoritePlaces.contains(baseId);
+        final customIcon = isFavorite
+            ? await _getFavoriteHeartMarkerIcon()
+            : await _getCachedIcon(workedCount);
+
+        updatedMarkers.add(marker.copyWith(iconParam: customIcon));
+      } else {
         updatedMarkers.add(marker);
-        continue;
       }
-
-      final rawCount = locationData['worked_here_count'];
-      final workedCount = (rawCount is int)
-          ? rawCount
-          : (rawCount is num)
-              ? rawCount.toInt()
-              : int.tryParse(rawCount.toString()) ?? 0;
-
-      final isFavorite = _favoritePlaces.contains(id);
-      final customIcon = isFavorite
-          ? await _getFavoriteHeartMarkerIcon()
-          : await _getCachedIcon(workedCount);
-
-      updatedMarkers.add(marker.copyWith(iconParam: customIcon));
-    } else {
-      updatedMarkers.add(marker);
     }
+
+    // 🔹 4. Mostra els resultats
+    setState(() {
+      _markers
+        ..clear()
+        ..addAll(updatedMarkers);
+    });
   }
 
-  // 🔹 4. Mostra els resultats
-  setState(() {
-    _markers
-      ..clear()
-      ..addAll(updatedMarkers);
-  });
-}
+  /// Retorna l'ID original encara que vingui d'un split de clúster
+  /// (p.ex. "abc123_A"). Així evitem perdre l'estat de favorits o els comptadors.
+  String _baseMarkerId(String markerId) {
+    const suffixes = ['_A', '_B'];
+
+    for (final suffix in suffixes) {
+      if (markerId.endsWith(suffix)) {
+        final candidate = markerId.substring(0, markerId.length - suffix.length);
+        final exists = _currentLocations().any((loc) => loc['id'] == candidate);
+        if (exists) return candidate;
+      }
+    }
+
+    return markerId;
+  }
+
+  List<Map<String, Object?>> _currentLocations() =>
+      _isHospitality ? _restaurantLocations : _harvestLocations;
 
   void _setCategory(bool isHospitality) {
     if (_isHospitality == isHospitality) return;
     setState(() {
       _isHospitality = isHospitality;
       _selectedRestaurant = null;
+      _selectedHarvest = null;
     });
 
-    if (_isHospitality) {
-      _updateMarkers(_currentZoom);
-    } else {
-      setState(() => _markers.clear());
-    }
+    _updateMarkers(_currentZoom);
   }
 
   void _showRestaurantDetails(Map<String, dynamic> data) {
-    setState(() => _selectedRestaurant = data);
+    setState(() {
+      _selectedRestaurant = data;
+      _selectedHarvest = null;
+    });
+  }
+
+  void _showHarvestDetails(Map<String, dynamic> data) {
+    setState(() {
+      _selectedHarvest = data;
+      _selectedRestaurant = null;
+    });
   }
 
   Future<BitmapDescriptor> _getFavoriteHeartMarkerIcon() async {
@@ -527,7 +588,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             },
             onCameraMove: (pos) => _currentZoom = pos.zoom,
             onCameraIdle: () => _updateMarkers(_currentZoom),
-            onTap: (_) => setState(() => _selectedRestaurant = null),
+            onTap: (_) => setState(() {
+              _selectedRestaurant = null;
+              _selectedHarvest = null;
+            }),
             markers: _markers,
             mapType: MapType.normal,
             minMaxZoomPreference: const MinMaxZoomPreference(
@@ -603,7 +667,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            'Farm',
+                            'Harvest',
                             style: TextStyle(
                               color: !_isHospitality
                                   ? Colors.white
@@ -633,176 +697,297 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
           ),
 */
-          // ---------- 🔹 POP up  amb mail tlf fb i worked here ----------
-          if (_selectedRestaurant != null)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, -2),
+          // ---------- 🔹 POP up Restaurant ----------
+          if (_selectedRestaurant != null) _buildRestaurantPopup(),
+          // ---------- 🔹 POP up Harvest ----------
+          if (_selectedHarvest != null) _buildHarvestPopup(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRestaurantPopup() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    _truncateTitle(
+                      _selectedRestaurant!['name'] ?? 'Sense nom',
                     ),
-                  ],
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
+                    IconButton(
+                      icon: const Icon(
+                        Icons.person,
+                        color: Colors.grey,
+                      ),
+                      tooltip: 'He treballat aquí',
+                      onPressed: () => _showWorkedDialog(
+                        _selectedRestaurant!['docId'] ?? '',
+                        _selectedRestaurant!['name'] ?? 'aquest lloc',
+                      ),
+                    ),
+                    if ((_selectedRestaurant!['worked_here_count'] ?? 0) > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
                           child: Text(
-                            _truncateTitle(
-                              _selectedRestaurant!['name'] ?? 'Sense nom',
-                            ),
+                            '${_selectedRestaurant!['worked_here_count']}',
                             style: const TextStyle(
-                              fontSize: 18,
+                              color: Colors.white,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.person,
-                                color: Colors.grey,
-                              ),
-                              tooltip: 'He treballat aquí',
-                              onPressed: () => _showWorkedDialog(
-                                _selectedRestaurant!['docId'] ?? '',
-                                _selectedRestaurant!['name'] ?? 'aquest lloc',
-                              ),
-                            ),
-                            if ((_selectedRestaurant!['worked_here_count'] ??
-                                    0) >
-                                0)
-                              Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${_selectedRestaurant!['worked_here_count']}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        if ((_selectedRestaurant!['phone'] ?? '').isNotEmpty)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.phone,
-                              color: Colors.blueAccent,
-                            ),
-                            tooltip: 'Copiar telèfon',
-                            onPressed: () => _copyToClipboard(
-                              _selectedRestaurant!['phone'],
-                              'Telèfon',
-                            ),
-                          ),
-                        if ((_selectedRestaurant!['email'] ?? '').isNotEmpty)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.email_outlined,
-                              color: Colors.redAccent,
-                            ),
-                            tooltip: 'Opcions de correu',
-                            onPressed: () => _showEmailOptions(
-                              _selectedRestaurant!['email'],
-                            ),
-                          ),
-                        if ((_selectedRestaurant!['facebook_url'] ?? '')
-                            .isNotEmpty)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.facebook,
-                              color: Colors.blue,
-                            ),
-                            tooltip: 'Obrir Facebook',
-                            onPressed: () =>
-                                _openUrl(_selectedRestaurant!['facebook_url']),
-                          ),
-                        if ((_selectedRestaurant!['careers_page'] ?? '')
-                            .isNotEmpty)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.work_outline,
-                              color: Colors.green,
-                            ),
-                            tooltip: 'Veure ofertes de feina',
-                            onPressed: () =>
-                                _openUrl(_selectedRestaurant!['careers_page']),
-                          ),
-                        if ((_selectedRestaurant!['instagram_url'] ?? '')
-                            .toString()
-                            .isNotEmpty)
-                          IconButton(
-                            icon: const FaIcon(FontAwesomeIcons.instagram,
-                                color: Colors.purple),
-                            tooltip: 'Obrir Instagram',
-                            onPressed: () => _openUrl(
-                              _selectedRestaurant!['instagram_url'],
-                            ),
-                          ),
-                        const Spacer(),
-                        Builder(
-                          builder: (context) {
-                            final id = _selectedRestaurant!['docId'] ?? '';
-                            final isFav = _favoritePlaces.contains(id);
-                            debugPrint('❤️ Render heart for $id isFav=$isFav');
-                            return IconButton(
-                              icon: Icon(
-                                isFav ? Icons.favorite : Icons.favorite_border,
-                                color: isFav ? Colors.red : Colors.grey,
-                                size: 28,
-                              ),
-                              tooltip: 'Preferit',
-                              onPressed: () => _toggleFavorite(id),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if ((_selectedRestaurant!['phone'] ?? '').isNotEmpty)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.phone,
+                      color: Colors.blueAccent,
+                    ),
+                    tooltip: 'Copiar telèfon',
+                    onPressed: () => _copyToClipboard(
+                      _selectedRestaurant!['phone'],
+                      'Telèfon',
+                    ),
+                  ),
+                if ((_selectedRestaurant!['email'] ?? '').isNotEmpty)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.email_outlined,
+                      color: Colors.redAccent,
+                    ),
+                    tooltip: 'Opcions de correu',
+                    onPressed: () => _showEmailOptions(
+                      _selectedRestaurant!['email'],
+                    ),
+                  ),
+                if ((_selectedRestaurant!['facebook_url'] ?? '').isNotEmpty)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.facebook,
+                      color: Colors.blue,
+                    ),
+                    tooltip: 'Obrir Facebook',
+                    onPressed: () => _openUrl(_selectedRestaurant!['facebook_url']),
+                  ),
+                if ((_selectedRestaurant!['careers_page'] ?? '').isNotEmpty)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.work_outline,
+                      color: Colors.green,
+                    ),
+                    tooltip: 'Veure ofertes de feina',
+                    onPressed: () => _openUrl(_selectedRestaurant!['careers_page']),
+                  ),
+                if ((_selectedRestaurant!['instagram_url'] ?? '').toString().isNotEmpty)
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.purple),
+                    tooltip: 'Obrir Instagram',
+                    onPressed: () => _openUrl(
+                      _selectedRestaurant!['instagram_url'],
+                    ),
+                  ),
+                const Spacer(),
+                Builder(
+                  builder: (context) {
+                    final id = _selectedRestaurant!['docId'] ?? '';
+                    final isFav = _favoritePlaces.contains(id);
+                    return IconButton(
+                      icon: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        color: isFav ? Colors.red : Colors.grey,
+                        size: 28,
+                      ),
+                      tooltip: 'Preferit',
+                      onPressed: () => _toggleFavorite(id),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHarvestPopup() {
+    final crops = (_selectedHarvest?['crops'] as List?)?.cast<Map>() ?? [];
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _truncateTitle(_selectedHarvest?['region_name'] ?? 'Harvest'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Postcode: ${(_selectedHarvest?['postcode'] ?? '').toString().padLeft(4, '0')} • ${_selectedHarvest?['state'] ?? ''}',
+              style: const TextStyle(color: Colors.black54),
+            ),
+            if ((_selectedHarvest?['map_url'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              TextButton.icon(
+                onPressed: () => _openUrl(_selectedHarvest?['map_url']),
+                icon: const Icon(Icons.map),
+                label: const Text('Obrir al mapa'),
+              ),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 220,
+              child: ListView.builder(
+                itemCount: crops.length,
+                itemBuilder: (context, index) {
+                  final crop = crops[index];
+                  final months = (crop['months'] as List?)?.cast<int>() ?? [];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          crop['crop']?.toString() ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: List.generate(12, (i) {
+                            final val = i < months.length ? months[i] : 0;
+                            return _monthChip(i, val);
+                          }),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // ---------- 🔹 Fi popup ----------
-        ],
+  Widget _monthChip(int index, int value) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    Color bg;
+    if (value >= 2) {
+      bg = Colors.green.shade400;
+    } else if (value == 1) {
+      bg = Colors.orange.shade400;
+    } else {
+      bg = Colors.grey.shade300;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        months[index],
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
       ),
     );
   }

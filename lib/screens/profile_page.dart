@@ -1,42 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'mail_setup_page.dart';
 import 'restaurant_edit_page.dart';
 import 'gestio_restaurants.dart';
+import 'manage_farms_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
-
-  Future<void> resetWorkedHereCount(BuildContext context) async {
-    try {
-      final firestore = FirebaseFirestore.instance;
-
-      final query = await firestore.collection('restaurants').get();
-
-      WriteBatch batch = firestore.batch();
-
-      for (var doc in query.docs) {
-        batch.update(doc.reference, {'worked_here_count': 0});
-      }
-
-      await batch.commit();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tots els worked_here_count s’han posat a 0!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error fent reset: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,20 +86,24 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // 🔄 RESET worked_here_count
+                  // 🌾 Gestionar farms (afegir/eliminar per estat)
                   ElevatedButton.icon(
-                    onPressed: () async {
-                      await resetWorkedHereCount(context);
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ManageFarmsPage(),
+                        ),
+                      );
                     },
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Reset worked_here_count'),
+                    icon: const Icon(Icons.agriculture),
+                    label: const Text('Gestionar farms'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: Colors.brown.shade600,
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                   ),
                 ],

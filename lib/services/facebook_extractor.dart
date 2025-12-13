@@ -2,6 +2,15 @@ import 'dart:io';
 import 'package:http/io_client.dart';
 
 class FacebookExtractor {
+  static const bool _verboseLogs = false;
+
+  void _log(String msg) {
+    if (_verboseLogs) {
+      // ignore: avoid_print
+      print(msg);
+    }
+  }
+
   Future<Map<String, dynamic>?> find({
     required String baseUrl,
     required String businessName,
@@ -17,7 +26,7 @@ class FacebookExtractor {
         (baseUri.host.contains('facebook.com') ||
             baseUri.host.contains('fb.com') ||
             baseUri.host.contains('m.facebook.com'))) {
-      print('⚠️ La web base és Facebook; s’omet la detecció de pàgina.');
+      _log('⚠️ La web base és Facebook; s’omet la detecció de pàgina.');
       return null;
     }
 
@@ -57,17 +66,17 @@ class FacebookExtractor {
     }
 
     if (found.isEmpty) {
-      print('⚠️ Cap Facebook trobat per $baseUrl');
+      _log('⚠️ Cap Facebook trobat per $baseUrl');
       return null;
     }
 
     // 🔹 Selecciona el millor link
     final best = _selectBest(found, businessName);
     if (best == null) {
-      print('⚠️ Cap Facebook vàlid per $baseUrl');
+      _log('⚠️ Cap Facebook vàlid per $baseUrl');
       return null;
     }
-    print('✅ Facebook trobat: $best');
+    _log('✅ Facebook trobat: $best');
     return {'link': best, 'score': 100};
   }
 
@@ -82,9 +91,9 @@ class FacebookExtractor {
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) return response.body;
-      print('⚠️ HTTP ${response.statusCode} per $url');
+      _log('⚠️ HTTP ${response.statusCode} per $url');
     } catch (e) {
-      print('⚠️ Error descarregant $url → $e');
+      _log('⚠️ Error descarregant $url → $e');
     }
     return null;
   }

@@ -13,7 +13,6 @@ class CareersExtractor {
           host.contains('instagram.com') ||
           host.contains('linkedin.com') ||
           host.contains('twitter.com')) {
-        print('❌ Base URL és una xarxa social, no busco careers');
         return null;
       }
     }
@@ -180,7 +179,6 @@ class CareersExtractor {
             host.isNotEmpty &&
             path.isNotEmpty;
       } catch (e) {
-        print('⚠️ Error analitzant $link → $e');
         return false;
       }
     }).toList();
@@ -236,10 +234,7 @@ class CareersExtractor {
       final best = scored.first;
       final bestUrl = best['url'] as String;
       final bestHtml = await _fetchHtml(bestUrl);
-      if (bestHtml == null || _looksLike404(bestHtml)) {
-        print('❌ Pàgina de careers invàlida (404 o not found): $bestUrl');
-        return null;
-      }
+      if (bestHtml == null || _looksLike404(bestHtml)) return null;
       return bestUrl;
     }
 

@@ -102,9 +102,9 @@ final urlsToCheck = <String>{
       final response = await ioClient.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) return response.body;
-      print('⚠️ HTTP ${response.statusCode} per $url');
+      _logEmail('⚠️ HTTP ${response.statusCode} per $url');
     } catch (e) {
-      print('⚠️ Error descarregant $url → $e');
+      _logEmail('⚠️ Error descarregant $url → $e');
     }
     return null;
   }

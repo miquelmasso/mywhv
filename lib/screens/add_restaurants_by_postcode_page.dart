@@ -100,30 +100,10 @@ class _AddRestaurantsByPostcodePageState
 
         if (restaurant != null) {
           final name = restaurant['name'] ?? 'Nom desconegut';
-          final lat = restaurant['lat'];
-          final lng = restaurant['lng'];
-          final phone = restaurant['phone'] ?? 'Sense telèfon';
-          final computedState = getStateFromPostcode(postcodeStr);
 
           setState(() {
             _restaurantName = name;
           });
-
-          await _firestore.collection('restaurants').add({
-            'name': name,
-            'postcode': postcodeStr,
-            'lat': lat,
-            'lng': lng,
-            'latitude': lat,
-            'longitude': lng,
-            'phone': phone,
-            'timestamp': FieldValue.serverTimestamp(),
-            'bloqued': false,
-            'worked_here_count': 0,
-            'state': computedState,
-          });
-
-          print('✅ Restaurant desat correctament: $name');
         } else {
           setState(() {
             _restaurantName = 'No s’ha trobat cap restaurant per aquest codi.';
