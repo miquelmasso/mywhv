@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/farm_import_service.dart';
-import '../services/harvest_import_service.dart';
+import '../services/harvest_import_from_asset.dart';
 
 class ManageFarmsPage extends StatefulWidget {
   const ManageFarmsPage({super.key});
@@ -14,7 +14,7 @@ class ManageFarmsPage extends StatefulWidget {
 class _ManageFarmsPageState extends State<ManageFarmsPage> {
   final List<String> _states = const ['QLD', 'VIC', 'NSW', 'SA', 'WA', 'TAS', 'NT'];
   final FarmImportService _importService = FarmImportService();
-  final HarvestImportService _harvestImportService = HarvestImportService();
+  final HarvestImportFromAssetService _harvestAssetService = HarvestImportFromAssetService();
   String? _selectedState;
   bool _isDeleting = false;
   bool _isImporting = false;
@@ -147,22 +147,17 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
     });
 
     try {
-      final result = await _harvestImportService.importHarvest(onProgress: (p) {
-        setState(() {
-          _harvestStatus = p.message;
-          _harvestParsed = p.regionsParsed;
-          _harvestWritten = p.docsWritten;
-          _harvestErrors = p.errors;
-        });
+      setState(() {
+        _harvestStatus = 'Llegint asset...';
       });
+      final result = await _harvestAssetService.importFromAsset();
+      _harvestParsed = result.docsWritten;
+      _harvestWritten = result.docsWritten;
+      _harvestErrors = result.errors;
       _showSnack(
-        'Harvest import. Regions: ${result.regions} docs: ${result.docs} errors: ${result.errors}'
-        ' | HTTP: ${result.httpStatus ?? '-'} | len: ${result.bodyLength ?? '-'}',
+        'Harvest import. Docs: ${result.docsWritten} errors: ${result.errors}',
         Colors.green,
       );
-      if (result.errors > 0) {
-        _showErrorDialog(result);
-      }
     } catch (e) {
       _showSnack('Error import Harvest: $e', Colors.red);
     } finally {
@@ -176,48 +171,6 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
     );
   }
 
-  void _showErrorDialog(dynamic result) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Harvest import error'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('HTTP: ${result.httpStatus ?? '-'}'),
-                Text('Body length: ${result.bodyLength ?? '-'}'),
-                if (result.finalUrl != null) Text('URL: ${result.finalUrl}'),
-                if (result.exception != null) Text('Exception: ${result.exception}'),
-                const SizedBox(height: 8),
-                const Text('Snippet:'),
-                const SizedBox(height: 4),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 200),
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  color: Colors.grey.shade200,
-                  child: SingleChildScrollView(
-                    child: Text(
-                      result.snippet ?? '',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Tancar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

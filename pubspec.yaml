@@ -33,6 +33,7 @@ dependencies:
   firebase_core: ^4.1.1
   cloud_firestore: ^6.0.2
   http: ^1.2.2
+  html: ^0.15.5
   google_maps_flutter: ^2.7.0
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.0
@@ -77,6 +78,7 @@ flutter:
     - assets/map_style_australia.json
     - assets/map_style_australia_only.json
     - assets/map_style_clean.json
+    - assets/harvest/harvest_2025.json
 
   # To add assets to your application, add an assets section, like this:
   #. assets:
