@@ -10,6 +10,7 @@ import 'http_client.dart';
 
 class GooglePlacesService {
   static const _apiKey = 'AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI';
+  static String get apiKey => _apiKey;
   final EmailExtractor _emailExtractor = EmailExtractor();
   final CareersExtractor _careersExtractor = CareersExtractor();
   final FacebookExtractor _facebookExtractor = FacebookExtractor();

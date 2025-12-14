@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/farm_import_service.dart';
-import '../services/harvest_import_from_asset.dart';
+import '../services/harvest_admin_import_service.dart';
+import '../services/harvest_geocode_service.dart';
 
 class ManageFarmsPage extends StatefulWidget {
   const ManageFarmsPage({super.key});
@@ -14,11 +15,13 @@ class ManageFarmsPage extends StatefulWidget {
 class _ManageFarmsPageState extends State<ManageFarmsPage> {
   final List<String> _states = const ['QLD', 'VIC', 'NSW', 'SA', 'WA', 'TAS', 'NT'];
   final FarmImportService _importService = FarmImportService();
-  final HarvestImportFromAssetService _harvestAssetService = HarvestImportFromAssetService();
+  final HarvestAdminImportService _harvestAssetService = HarvestAdminImportService();
+  final HarvestGeocodeService _harvestGeocodeService = HarvestGeocodeService();
   String? _selectedState;
   bool _isDeleting = false;
   bool _isImporting = false;
   bool _isImportingHarvest = false;
+  bool _isGeocodingHarvest = false;
   int _deleted = 0;
   int _processed = 0;
   int _total = 0;
@@ -150,18 +153,39 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       setState(() {
         _harvestStatus = 'Llegint asset...';
       });
-      final result = await _harvestAssetService.importFromAsset();
-      _harvestParsed = result.docsWritten;
-      _harvestWritten = result.docsWritten;
-      _harvestErrors = result.errors;
+      final written = await _harvestAssetService.importHarvestPlacesFromAsset();
+      _harvestParsed = written;
+      _harvestWritten = written;
+      _harvestErrors = 0;
+      _harvestStatus = 'Completat';
       _showSnack(
-        'Harvest import. Docs: ${result.docsWritten} errors: ${result.errors}',
+        'Harvest import. Docs: $written',
         Colors.green,
       );
     } catch (e) {
       _showSnack('Error import Harvest: $e', Colors.red);
     } finally {
       setState(() => _isImportingHarvest = false);
+    }
+  }
+
+  Future<void> _geocodeHarvestPlaces() async {
+    if (_isGeocodingHarvest) return;
+    setState(() {
+      _isGeocodingHarvest = true;
+    });
+    try {
+      final res = await _harvestGeocodeService.geocodeMissingHarvestPlaces();
+      _showSnack(
+        'Geocode done. updated: ${res.updated}, skipped: ${res.skipped}, errors: ${res.errors}',
+        Colors.green,
+      );
+    } catch (e) {
+      _showSnack('Error geocoding: $e', Colors.red);
+    } finally {
+      setState(() {
+        _isGeocodingHarvest = false;
+      });
     }
   }
 
@@ -234,6 +258,17 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
+              onPressed: (_isGeocodingHarvest || _isImportingHarvest) ? null : _geocodeHarvestPlaces,
+              icon: const Icon(Icons.explore),
+              label: Text(_isGeocodingHarvest ? 'Geocoding...' : '🧭 Geocode Harvest Places (Admin)'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                backgroundColor: Colors.blueGrey.shade700,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
               onPressed: _isDeleting ? null : _deleteByState,
               icon: const Icon(Icons.delete_forever),
               label: Text(
@@ -245,7 +280,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
                 foregroundColor: Colors.white,
               ),
             ),
-            if (_isDeleting || _isImporting || _isImportingHarvest) ...[
+            if (_isDeleting || _isImporting || _isImportingHarvest || _isGeocodingHarvest) ...[
               const SizedBox(height: 16),
               const LinearProgressIndicator(),
               const SizedBox(height: 8),

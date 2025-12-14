@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -5,9 +6,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
 import '../services/map_markers_service.dart';
-import '../services/harvest_markers_service.dart';
+import '../services/harvest_places_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/overlay_helper.dart';
+import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,11 +31,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   bool _isHospitality = true; // false → Harvest
   Set<String> _favoritePlaces = {};
   Map<String, dynamic>? _selectedRestaurant;
-  Map<String, dynamic>? _selectedHarvest;
+  HarvestPlace? _selectedHarvest;
   double _currentZoom = 4.5;
   final bool _showAllRestaurants = false; // posar true per mostrar tots
 
   final Map<int, BitmapDescriptor> _iconCache = {};
+  Offset? _harvestScreenOffset;
+  bool _pendingCameraUpdate = false;
+  Timer? _cameraDebounce;
 
   Future<BitmapDescriptor> _getCachedIcon(int count) async {
     if (_iconCache.containsKey(count)) return _iconCache[count]!;
@@ -103,31 +108,25 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       _updateMarkers(_currentZoom);
     });
 
-    HarvestMarkersService.getMarkers(_showHarvestDetails).listen(
-      (newMarkers) async {
-        final firestore = FirebaseFirestore.instance;
-        final snapshot = await firestore.collection('harvest_calendar').get();
-        final Map<String, Map<String, dynamic>> harvestMap = {
-          for (var doc in snapshot.docs) doc.id: doc.data(),
-        };
-
-        _harvestLocations = [];
-        for (final m in newMarkers) {
-          final data = harvestMap[m.markerId.value];
-          if (data == null) continue;
-
-          _harvestLocations.add({
-            'id': m.markerId.value,
-            'lat': m.position.latitude,
-            'lng': m.position.longitude,
-            'data': m,
-            'worked_here_count': data['worked_here_count'] ?? 0,
-          });
-        }
-
-        _updateMarkers(_currentZoom);
-      },
-    );
+    HarvestPlacesService.streamHarvestPlaces().listen((places) async {
+      _harvestLocations = [];
+      for (final p in places) {
+        final marker = Marker(
+          markerId: MarkerId(p.id),
+          position: LatLng(p.latitude, p.longitude),
+          infoWindow: const InfoWindow(title: ''),
+          onTap: () => _showHarvestDetails({'data': p}),
+        );
+        _harvestLocations.add({
+          'id': p.id,
+          'lat': p.latitude,
+          'lng': p.longitude,
+          'data': marker,
+          'worked_here_count': 0,
+        });
+      }
+      _updateMarkers(_currentZoom);
+    });
   }
 
   Future<void> _updateMarkers(double zoom) async {
@@ -242,10 +241,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   void _showHarvestDetails(Map<String, dynamic> data) {
-    setState(() {
-      _selectedHarvest = data;
-      _selectedRestaurant = null;
-    });
+    if (data['data'] is HarvestPlace) {
+      setState(() {
+        _selectedHarvest = data['data'] as HarvestPlace;
+        _selectedRestaurant = null;
+        _updateHarvestScreenOffset();
+      });
+    }
   }
 
   Future<BitmapDescriptor> _getFavoriteHeartMarkerIcon() async {
@@ -586,11 +588,29 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               _controller = controller;
               if (_mapStyle != null) await controller.setMapStyle(_mapStyle);
             },
-            onCameraMove: (pos) => _currentZoom = pos.zoom,
-            onCameraIdle: () => _updateMarkers(_currentZoom),
+            onCameraMove: (pos) {
+              _currentZoom = pos.zoom;
+              if (!_isHospitality && _selectedHarvest != null) {
+                _pendingCameraUpdate = true;
+                _cameraDebounce?.cancel();
+                _cameraDebounce = Timer(const Duration(milliseconds: 120), () {
+                  if (_pendingCameraUpdate) {
+                    _pendingCameraUpdate = false;
+                    _updateHarvestScreenOffset();
+                  }
+                });
+              }
+            },
+            onCameraIdle: () {
+              _updateMarkers(_currentZoom);
+              if (!_isHospitality && _selectedHarvest != null) {
+                _updateHarvestScreenOffset();
+              }
+            },
             onTap: (_) => setState(() {
               _selectedRestaurant = null;
               _selectedHarvest = null;
+              _harvestScreenOffset = null;
             }),
             markers: _markers,
             mapType: MapType.normal,
@@ -697,6 +717,12 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
           ),
 */
+          if (!_isHospitality && _selectedHarvest != null && _harvestScreenOffset != null)
+            HarvestMonthsRadialOverlay(
+              centerScreen: _harvestScreenOffset!,
+              radius: 52,
+              visible: true,
+            ),
           // ---------- 🔹 POP up Restaurant ----------
           if (_selectedRestaurant != null) _buildRestaurantPopup(),
           // ---------- 🔹 POP up Harvest ----------
@@ -865,7 +891,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   Widget _buildHarvestPopup() {
-    final crops = (_selectedHarvest?['crops'] as List?)?.cast<Map>() ?? [];
+    if (_selectedHarvest == null) return const SizedBox.shrink();
+    final harvest = _selectedHarvest!;
     return Positioned(
       left: 0,
       right: 0,
@@ -891,7 +918,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _truncateTitle(_selectedHarvest?['region_name'] ?? 'Harvest'),
+              _truncateTitle(harvest.name),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -900,52 +927,16 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 4),
             Text(
-              'Postcode: ${(_selectedHarvest?['postcode'] ?? '').toString().padLeft(4, '0')} • ${_selectedHarvest?['state'] ?? ''}',
+              'Postcode: ${harvest.postcode} • ${harvest.state}',
               style: const TextStyle(color: Colors.black54),
             ),
-            if ((_selectedHarvest?['map_url'] ?? '').toString().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              TextButton.icon(
-                onPressed: () => _openUrl(_selectedHarvest?['map_url']),
-                icon: const Icon(Icons.map),
-                label: const Text('Obrir al mapa'),
+            if (harvest.description != null && harvest.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                harvest.description!,
+                style: const TextStyle(color: Colors.black87),
               ),
             ],
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                itemCount: crops.length,
-                itemBuilder: (context, index) {
-                  final crop = crops[index];
-                  final months = (crop['months'] as List?)?.cast<int>() ?? [];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          crop['crop']?.toString() ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: List.generate(12, (i) {
-                            final val = i < months.length ? months[i] : 0;
-                            return _monthChip(i, val);
-                          }),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
           ],
         ),
       ),
@@ -990,5 +981,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+  void _updateHarvestScreenOffset() async {
+    if (_selectedHarvest == null || _controller == null) return;
+    final latLng = LatLng(_selectedHarvest!.latitude, _selectedHarvest!.longitude);
+    final sc = await _controller!.getScreenCoordinate(latLng);
+    setState(() {
+      _harvestScreenOffset = Offset(sc.x.toDouble(), sc.y.toDouble() - 8); // slight lift
+    });
   }
 }

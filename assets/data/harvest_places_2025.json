@@ -1,0 +1,156 @@
+{
+  "source_url": "https://www.backpackerjobboard.com.au/harvest/",
+  "year": 2025,
+  "states": [
+    {
+      "state": "NSW",
+      "places": [
+        { "name": "Albury", "postcode": "2640" },
+        { "name": "Tumut", "postcode": "2720" },
+        { "name": "Griffith", "postcode": "2680" },
+        { "name": "Leeton", "postcode": "2705" },
+        { "name": "Narrandera", "postcode": "2700" },
+        { "name": "Deniliquin", "postcode": "2710" },
+        { "name": "Hay", "postcode": "2711" },
+        { "name": "Cobar", "postcode": "2835" },
+        { "name": "Nyngan", "postcode": "2825" },
+        { "name": "Bourke", "postcode": "2840" },
+        { "name": "Dubbo", "postcode": "2830" },
+        { "name": "Narromine", "postcode": "2821" },
+        { "name": "Warren", "postcode": "2824" },
+        { "name": "Forbes", "postcode": "2871" },
+        { "name": "Parkes", "postcode": "2870" },
+        { "name": "West Wyalong", "postcode": "2671" },
+        { "name": "Young", "postcode": "2594" },
+        { "name": "Cowra", "postcode": "2794" },
+        { "name": "Orange", "postcode": "2800" },
+        { "name": "Bathurst", "postcode": "2795" },
+        { "name": "Lithgow", "postcode": "2790" },
+        { "name": "Mudgee", "postcode": "2850" },
+        { "name": "Coonabarabran", "postcode": "2357" },
+        { "name": "Gunnedah", "postcode": "2380" },
+        { "name": "Narrabri", "postcode": "2390" },
+        { "name": "Moree", "postcode": "2400" },
+        { "name": "Inverell", "postcode": "2360" },
+        { "name": "Glen Innes", "postcode": "2370" },
+        { "name": "Armidale", "postcode": "2350" },
+        { "name": "Tamworth", "postcode": "2340" },
+        { "name": "Taree", "postcode": "2430" },
+        { "name": "Port Macquarie", "postcode": "2444" },
+        { "name": "Coffs Harbour", "postcode": "2450" },
+        { "name": "Grafton", "postcode": "2460" },
+        { "name": "Lismore", "postcode": "2480" },
+        { "name": "Byron Bay", "postcode": "2481" },
+        { "name": "Ballina", "postcode": "2478" }
+      ]
+    },
+    {
+      "state": "NT",
+      "places": [
+        { "name": "Darwin", "postcode": "0800" },
+        { "name": "Katherine", "postcode": "0850" },
+        { "name": "Alice Springs", "postcode": "0870" }
+      ]
+    },
+    {
+      "state": "QLD",
+      "places": [
+        { "name": "Boonah", "postcode": "4310" },
+        { "name": "Gatton", "postcode": "4343" },
+        { "name": "Toowoomba", "postcode": "4350" },
+        { "name": "Stanthorpe", "postcode": "4380" },
+        { "name": "Warwick", "postcode": "4370" },
+        { "name": "Goondiwindi", "postcode": "4390" },
+        { "name": "Dalby", "postcode": "4405" },
+        { "name": "Chinchilla", "postcode": "4413" },
+        { "name": "Miles", "postcode": "4415" },
+        { "name": "Emerald", "postcode": "4720" },
+        { "name": "Theodore", "postcode": "4719" },
+        { "name": "Biloela", "postcode": "4715" },
+        { "name": "Mackay", "postcode": "4740" },
+        { "name": "Bowen", "postcode": "4805" },
+        { "name": "Ayr", "postcode": "4807" },
+        { "name": "Ingham", "postcode": "4850" },
+        { "name": "Innisfail", "postcode": "4860" },
+        { "name": "Tully", "postcode": "4854" },
+        { "name": "Atherton", "postcode": "4883" },
+        { "name": "Mareeba", "postcode": "4880" },
+        { "name": "Port Douglas", "postcode": "4877" },
+        { "name": "Cairns", "postcode": "4870" },
+        { "name": "Bundaberg", "postcode": "4670" },
+        { "name": "Gin Gin", "postcode": "4671" },
+        { "name": "Childers", "postcode": "4660" },
+        { "name": "Maryborough", "postcode": "4650" },
+        { "name": "Hervey Bay", "postcode": "4655" }
+      ]
+    },
+    {
+      "state": "SA",
+      "places": [
+        { "name": "Murray Bridge", "postcode": "5253" },
+        { "name": "Renmark", "postcode": "5341" },
+        { "name": "Berri", "postcode": "5343" },
+        { "name": "Loxton", "postcode": "5333" },
+        { "name": "Waikerie", "postcode": "5330" },
+        { "name": "Barmera", "postcode": "5345" },
+        { "name": "Nuriootpa", "postcode": "5355" },
+        { "name": "Tanunda", "postcode": "5352" },
+        { "name": "Angaston", "postcode": "5353" },
+        { "name": "Clare", "postcode": "5453" },
+        { "name": "Port Augusta", "postcode": "5700" },
+        { "name": "Whyalla", "postcode": "5600" },
+        { "name": "Port Lincoln", "postcode": "5606" },
+        { "name": "Mount Gambier", "postcode": "5290" }
+      ]
+    },
+    {
+      "state": "TAS",
+      "places": [
+        { "name": "Devonport", "postcode": "7310" },
+        { "name": "Burnie", "postcode": "7320" },
+        { "name": "Ulverstone", "postcode": "7315" },
+        { "name": "Sheffield", "postcode": "7306" },
+        { "name": "Deloraine", "postcode": "7304" },
+        { "name": "Launceston", "postcode": "7250" },
+        { "name": "Scottsdale", "postcode": "7260" },
+        { "name": "Bridport", "postcode": "7262" },
+        { "name": "Hobart", "postcode": "7000" },
+        { "name": "Huonville", "postcode": "7109" }
+      ]
+    },
+    {
+      "state": "VIC",
+      "places": [
+        { "name": "Mildura", "postcode": "3500" },
+        { "name": "Robinvale", "postcode": "3549" },
+        { "name": "Swan Hill", "postcode": "3585" },
+        { "name": "Kerang", "postcode": "3579" },
+        { "name": "Echuca", "postcode": "3564" },
+        { "name": "Shepparton", "postcode": "3630" },
+        { "name": "Benalla", "postcode": "3672" },
+        { "name": "Wangaratta", "postcode": "3677" },
+        { "name": "Wodonga", "postcode": "3690" },
+        { "name": "Bairnsdale", "postcode": "3875" },
+        { "name": "Sale", "postcode": "3850" },
+        { "name": "Traralgon", "postcode": "3844" },
+        { "name": "Warragul", "postcode": "3820" },
+        { "name": "Dandenong", "postcode": "3175" }
+      ]
+    },
+    {
+      "state": "WA",
+      "places": [
+        { "name": "Broome", "postcode": "6725" },
+        { "name": "Kununurra", "postcode": "6743" },
+        { "name": "Derby", "postcode": "6728" },
+        { "name": "Carnarvon", "postcode": "6701" },
+        { "name": "Geraldton", "postcode": "6530" },
+        { "name": "Bunbury", "postcode": "6230" },
+        { "name": "Margaret River", "postcode": "6285" },
+        { "name": "Albany", "postcode": "6330" },
+        { "name": "Esperance", "postcode": "6450" },
+        { "name": "Kalgoorlie", "postcode": "6430" }
+      ]
+    }
+  ]
+}
