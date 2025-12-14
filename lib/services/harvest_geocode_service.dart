@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'google_places_service.dart';
 
@@ -14,10 +15,186 @@ class GeocodeResult {
   });
 }
 
+class HarvestImportOutcome {
+  final int docs; // places touched/imported
+  final int monthsUpdated; // month docs touched/created
+  final int errors;
+  HarvestImportOutcome({
+    required this.docs,
+    required this.monthsUpdated,
+    required this.errors,
+  });
+}
+
+class HarvestCombinedResult {
+  final HarvestImportOutcome importOutcome;
+  final GeocodeResult geocodeResult;
+  HarvestCombinedResult({
+    required this.importOutcome,
+    required this.geocodeResult,
+  });
+}
+
 class HarvestGeocodeService {
   static const _collection = 'harvest_places';
   // Reuse the same API key mechanism as restaurants/places
   static String get _apiKey => GooglePlacesService.apiKey;
+  static const _assetPath = 'assets/data/harvest_places_2025.json';
+
+  Future<HarvestCombinedResult> importAndGeocodeFromAsset() async {
+    final importOutcome = await importFromAssetWithMonths();
+    final geocodeRes = await geocodeMissingHarvestPlaces();
+    return HarvestCombinedResult(importOutcome: importOutcome, geocodeResult: geocodeRes);
+  }
+
+  Future<HarvestImportOutcome> importFromAssetWithMonths() async {
+    final firestore = FirebaseFirestore.instance;
+    final content = await rootBundle.loadString(_assetPath);
+    final decoded = jsonDecode(content);
+    final states = (decoded['states'] as List?) ?? [];
+    final year = decoded['year'] ?? 2025;
+    final sourceUrl = decoded['source_url']?.toString() ?? '';
+
+    // Load existing IDs to avoid overriding created_at
+    final existingSnapshot = await firestore.collection(_collection).get();
+    final existingIds = existingSnapshot.docs.map((d) => d.id).toSet();
+
+    WriteBatch batch = firestore.batch();
+    int batchCount = 0;
+    int docs = 0;
+    int monthsUpdated = 0;
+    int errors = 0;
+
+    Future<void> commitBatch() async {
+      if (batchCount == 0) return;
+      await batch.commit();
+      batch = firestore.batch();
+      batchCount = 0;
+    }
+
+    for (final stateEntry in states) {
+      if (stateEntry is! Map) continue;
+      final stateCode = (stateEntry['state'] ?? '').toString().toUpperCase();
+      final places = (stateEntry['places'] as List?) ?? [];
+
+      for (final place in places) {
+        if (place is! Map) continue;
+        final name = (place['name'] ?? place['place'] ?? '').toString();
+        final postcode = (place['postcode'] ?? '').toString();
+        final explicitId = (place['id'] ?? '').toString();
+        if (name.trim().isEmpty || !_validPostcode(postcode) || stateCode.isEmpty) continue;
+        final docId = explicitId.isNotEmpty ? explicitId : _buildId(stateCode, postcode, name);
+        final isNew = !existingIds.contains(docId);
+
+        final data = {
+          'name': name,
+          'postcode': postcode,
+          'state': stateCode,
+          'year': year,
+          'source_url': sourceUrl,
+          'updated_at': FieldValue.serverTimestamp(),
+          'latitude': (place['latitude'] as num?)?.toDouble() ?? 0.0,
+          'longitude': (place['longitude'] as num?)?.toDouble() ?? 0.0,
+          'coords_placeholder': ((place['latitude'] ?? 0) == 0 || (place['longitude'] ?? 0) == 0),
+        };
+        if (isNew) {
+          data['created_at'] = FieldValue.serverTimestamp();
+        }
+
+        batch.set(
+          firestore.collection(_collection).doc(docId),
+          data,
+          SetOptions(merge: true),
+        );
+        docs++;
+        batchCount++;
+
+        // Months subcollection from JSON if provided
+        final months = (place['months'] as List?) ?? [];
+        if (months.isEmpty) {
+          for (int m = 1; m <= 12; m++) {
+            final mm = m.toString().padLeft(2, '0');
+            batch.set(
+              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              {
+                'month': m,
+                'fruits': [],
+                'vegetables': [],
+                'other': [],
+                'updated_at': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+            batchCount++;
+            monthsUpdated++;
+            if (batchCount >= 400) {
+              await commitBatch();
+            }
+          }
+        } else {
+          // ensure missing months are still created empty
+          final seenMonths = <int>{};
+          for (final mObj in months) {
+            if (mObj is! Map) continue;
+            final mInt = _parseInt(mObj['month']);
+            if (mInt == null || mInt < 1 || mInt > 12) continue;
+            seenMonths.add(mInt);
+            final mm = mInt.toString().padLeft(2, '0');
+            final fruits = _cleanListOfMaps(mObj['fruits']);
+            final vegetables = _cleanListOfMaps(mObj['vegetables']);
+            final other = _cleanListOfMaps(mObj['other']);
+
+            batch.set(
+              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              {
+                'month': mInt,
+                if (mObj['month_label'] != null)
+                  'month_label': mObj['month_label'].toString(),
+                'fruits': fruits,
+                'vegetables': vegetables,
+                'other': other,
+                'updated_at': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+            batchCount++;
+            monthsUpdated++;
+            if (batchCount >= 400) {
+              await commitBatch();
+            }
+          }
+          // create missing months empty
+          for (int m = 1; m <= 12; m++) {
+            if (seenMonths.contains(m)) continue;
+            final mm = m.toString().padLeft(2, '0');
+            batch.set(
+              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              {
+                'month': m,
+                'fruits': [],
+                'vegetables': [],
+                'other': [],
+                'updated_at': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+            batchCount++;
+            monthsUpdated++;
+            if (batchCount >= 400) {
+              await commitBatch();
+            }
+          }
+        }
+
+        if (batchCount >= 400) {
+          await commitBatch();
+        }
+      }
+    }
+
+    await commitBatch();
+    return HarvestImportOutcome(docs: docs, monthsUpdated: monthsUpdated, errors: errors);
+  }
 
   Future<GeocodeResult> initHarvestCoords() async {
     final firestore = FirebaseFirestore.instance;
@@ -68,10 +245,12 @@ class HarvestGeocodeService {
     return GeocodeResult(updated: updated, skipped: skipped, errors: errors);
   }
 
-  Future<GeocodeResult> geocodeMissingHarvestPlaces() async {
+  Future<GeocodeResult> geocodeMissingHarvestPlaces({bool runImport = false}) async {
+    if (runImport) {
+      // Ensure fruits/vegetables/other per month are loaded before geocoding.
+      await importFromAssetWithMonths();
+    }
     final firestore = FirebaseFirestore.instance;
-    // Init placeholders first
-    await initHarvestCoords();
     // Firestore doesn't support "field missing OR null", so fetch all and filter.
     final snapshot = await firestore.collection(_collection).get();
 
@@ -165,20 +344,17 @@ class HarvestGeocodeService {
   }
 
   Future<_GeoResponse> _geocode(_GeoQuery q) async {
-    Uri uri;
-    if (q.isComponents) {
-      uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
-        'components': q.raw,
-        'key': _apiKey,
-        'region': 'au',
-      });
-    } else {
-      uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
-        'address': q.raw,
-        'key': _apiKey,
-        'region': 'au',
-      });
-    }
+    final uri = q.isComponents
+        ? Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
+            'components': q.raw,
+            'key': _apiKey,
+            'region': 'au',
+          })
+        : Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
+            'address': q.raw,
+            'key': _apiKey,
+            'region': 'au',
+          });
     try {
       final resp = await http.get(uri);
       if (resp.statusCode == 429) {
@@ -213,6 +389,24 @@ class HarvestGeocodeService {
 
   // Accepts exactly 4 digits (e.g., "0870"). Single backslash so \d works.
   bool _validPostcode(String pc) => RegExp(r'^\d{4}$').hasMatch(pc);
+  int? _parseInt(dynamic v) => v is int ? v : int.tryParse('$v');
+
+  List<Map<String, dynamic>> _cleanListOfMaps(dynamic raw) {
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+        .toList();
+  }
+
+  String _buildId(String state, String postcode, String name) {
+    final slug = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return '${state}_${postcode}_$slug';
+  }
 }
 
 enum _GeoStatus { ok, overLimit, requestDenied, error }

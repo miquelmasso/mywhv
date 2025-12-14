@@ -175,7 +175,12 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       _isGeocodingHarvest = true;
     });
     try {
-      final res = await _harvestGeocodeService.geocodeMissingHarvestPlaces();
+      final combined = await _harvestGeocodeService.importAndGeocodeFromAsset();
+      _showSnack(
+        'Harvest import done. docs: ${combined.importOutcome.docs}, months: ${combined.importOutcome.monthsUpdated}, errors: ${combined.importOutcome.errors}',
+        Colors.green,
+      );
+      final res = combined.geocodeResult;
       _showSnack(
         'Geocode done. updated: ${res.updated}, skipped: ${res.skipped}, errors: ${res.errors}',
         Colors.green,

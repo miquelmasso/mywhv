@@ -687,7 +687,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            'Harvest',
+                            'Farm (soon)',
                             style: TextStyle(
                               color: !_isHospitality
                                   ? Colors.white
