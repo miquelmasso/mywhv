@@ -13,6 +13,7 @@ import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'profile_page.dart';
 //import '../widgets/filter_button.dart';
 
 class MapPage extends StatefulWidget {
@@ -34,6 +35,17 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   HarvestPlace? _selectedHarvest;
   double _currentZoom = 4.5;
   final bool _showAllRestaurants = false; // posar true per mostrar tots
+
+  final Set<String> _selectedSources = {}; // buit -> All
+  final List<Map<String, dynamic>> _sourceOptions = const [
+    {'key': 'gmail', 'label': 'Gmail', 'icon': Icons.email},
+    {'key': 'facebook', 'label': 'Facebook', 'icon': Icons.facebook},
+    {'key': 'instagram', 'label': 'IG', 'icon': Icons.camera_alt},
+    {'key': 'careers', 'label': 'Careers', 'icon': Icons.work},
+  ];
+
+  final LayerLink _filterLink = LayerLink();
+  OverlayEntry? _filterOverlay;
 
   final Map<int, BitmapDescriptor> _iconCache = {};
   Offset? _harvestScreenOffset;
@@ -102,6 +114,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           'lng': m.position.longitude,
           'data': m,
           'worked_here_count': data['worked_here_count'] ?? 0,
+          'sources': _extractSources(data),
         });
       }
 
@@ -146,7 +159,19 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     // 🔹 Mode Hospitality
     if (_restaurantLocations.isEmpty) return;
-    await _updateMarkersFor(_restaurantLocations, zoom);
+
+    final filteredRestaurants =
+        _restaurantLocations.where(_passesFilter).toList();
+
+    if (filteredRestaurants.isEmpty) {
+      setState(() {
+        _markers.clear();
+        _selectedRestaurant = null;
+      });
+      return;
+    }
+
+    await _updateMarkersFor(filteredRestaurants, zoom);
   }
 
   Future<void> _updateMarkersFor(
@@ -222,8 +247,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   List<Map<String, Object?>> _currentLocations() =>
       _isHospitality ? _restaurantLocations : _harvestLocations;
 
+  bool get _allSelected => _selectedSources.isEmpty;
+
   void _setCategory(bool isHospitality) {
     if (_isHospitality == isHospitality) return;
+    _closeFilterOverlay();
     setState(() {
       _isHospitality = isHospitality;
       _selectedRestaurant = null;
@@ -231,6 +259,215 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     });
 
     _updateMarkers(_currentZoom);
+  }
+
+  void _selectAllSources() {
+    setState(() {
+      _selectedSources.clear();
+      _selectedRestaurant = null;
+    });
+    _updateMarkers(_currentZoom);
+  }
+
+  void _setSourceSelection(String sourceKey, bool selected) {
+    setState(() {
+      if (sourceKey == 'all') {
+        _selectedSources.clear();
+      } else {
+        if (selected) {
+          _selectedSources.add(sourceKey);
+        } else {
+          _selectedSources.remove(sourceKey);
+        }
+        // si no queda cap seleccionat, tornem a All (concepte)
+        if (_selectedSources.isEmpty) _selectedSources.clear();
+      }
+      _selectedRestaurant = null;
+    });
+    _updateMarkers(_currentZoom);
+  }
+
+  void _closeFilterOverlay() {
+    _filterOverlay?.remove();
+    _filterOverlay = null;
+  }
+
+  void _toggleFilterOverlay() {
+    if (!_isHospitality) return;
+    if (_filterOverlay != null) {
+      _closeFilterOverlay();
+      return;
+    }
+
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    const double sheetWidth = 240;
+
+    _filterOverlay = OverlayEntry(
+      builder: (context) {
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: _closeFilterOverlay,
+                  child: Container(
+                    color: Colors.black.withOpacity(0.25),
+                  ),
+                ),
+              ),
+              CompositedTransformFollower(
+                link: _filterLink,
+                showWhenUnlinked: false,
+                offset: Offset(-(sheetWidth - 44), 56), // aligns popover to icon
+                child: StatefulBuilder(
+                  builder: (context, setPopoverState) {
+                    return Material(
+                      type: MaterialType.transparency,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(-12, -2),
+                            child: CustomPaint(
+                              size: const Size(18, 10),
+                              painter: _TrianglePainter(color: Colors.white),
+                            ),
+                          ),
+                          Material(
+                            color: Colors.white,
+                            elevation: 6,
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: sheetWidth,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.select_all),
+                                    title: const Text(
+                                      'All',
+                                      style: TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    trailing: Checkbox(
+                                      value: _allSelected,
+                                      onChanged: (_) {
+                                        _setSourceSelection('all', true);
+                                        setPopoverState(() {});
+                                      },
+                                    ),
+                                  ),
+                                  const Divider(height: 1),
+                                  ..._sourceOptions.map((option) {
+                                    final key = option['key'] as String;
+                                    final label = option['label'] as String;
+                                    final icon = option['icon'] as IconData;
+                                    final selected = _selectedSources.contains(key);
+                                    return CheckboxListTile(
+                                      value: selected,
+                                      onChanged: (_) {
+                                        _setSourceSelection(key, !selected);
+                                        setPopoverState(() {});
+                                      },
+                                      controlAffinity: ListTileControlAffinity.trailing,
+                                      secondary: Icon(
+                                        icon,
+                                        color: selected
+                                            ? Colors.blueAccent
+                                            : Colors.black54,
+                                      ),
+                                      title: Text(label),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_filterOverlay!);
+  }
+
+  Set<String> _extractSources(Map<String, dynamic> data) {
+    final sources = <String>{};
+    final dynamic rawSource = data['source'] ?? data['platform'];
+
+    String normalize(String value) {
+      final v = value.toLowerCase().trim();
+      if (v.contains('facebook') || v == 'fb') return 'facebook';
+      if (v.contains('insta') || v == 'ig') return 'instagram';
+      if (v.contains('career') || v.contains('jobs')) return 'careers';
+      if (v.contains('mail')) return 'gmail';
+      return v;
+    }
+
+    void addSource(dynamic value) {
+      if (value == null) return;
+      final normalized = normalize(value.toString());
+      if (normalized.isNotEmpty) sources.add(normalized);
+    }
+
+    if (rawSource is String && rawSource.trim().isNotEmpty) {
+      addSource(rawSource);
+    } else if (rawSource is Iterable) {
+      for (final value in rawSource) {
+        addSource(value);
+      }
+    }
+
+    bool hasText(dynamic value) =>
+        value != null && value.toString().trim().isNotEmpty;
+
+    if (hasText(data['email'])) sources.add('gmail');
+    if (hasText(data['facebook_url']) || hasText(data['facebook'])) {
+      sources.add('facebook');
+    }
+    if (hasText(data['instagram_url']) || hasText(data['instagram'])) {
+      sources.add('instagram');
+    }
+    if (hasText(data['careers_page']) || hasText(data['careers'])) {
+      sources.add('careers');
+    }
+
+    return sources;
+  }
+
+  bool _passesFilter(Map<String, Object?> location) {
+    if (!_isHospitality) return true;
+    if (_selectedSources.isEmpty) return true;
+
+    final dynamic rawSources = location['sources'];
+    final Iterable<String> sources = rawSources is Set<String>
+        ? rawSources
+        : rawSources is Iterable
+            ? rawSources.whereType<String>()
+            : const Iterable.empty();
+
+    if (sources.isEmpty) return false;
+    return sources.any(_selectedSources.contains);
   }
 
   void _showRestaurantDetails(Map<String, dynamic> data) {
@@ -575,6 +812,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   @override
+  void dispose() {
+    _closeFilterOverlay();
+    _cameraDebounce?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -625,7 +869,62 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           Positioned(
             top: 16,
             left: 16,
+            child: SafeArea(
+              child: Material(
+                elevation: 4,
+                shape: const CircleBorder(),
+                color: Colors.white,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ProfilePage(),
+                      ),
+                    );
+                  },
+                  child: const SizedBox(
+                    height: 48,
+                    width: 48,
+                    child: Icon(
+                      Icons.person_outline,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
             right: 16,
+            child: SafeArea(
+              child: CompositedTransformTarget(
+                link: _filterLink,
+                child: Material(
+                  elevation: 4,
+                  shape: const CircleBorder(),
+                  color: Colors.white,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _toggleFilterOverlay,
+                    child: const SizedBox(
+                      height: 48,
+                      width: 48,
+                      child: Icon(
+                        Icons.filter_list,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            left: 80,
+            right: 80,
             child: SafeArea(
               child: Container(
                 padding: const EdgeInsets.all(4),
@@ -640,63 +939,69 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _setCategory(true),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isHospitality
-                                ? Colors.blueAccent
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Hospitality',
-                            style: TextStyle(
-                              color: _isHospitality
-                                  ? Colors.white
-                                  : Colors.black87,
-                              fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _setCategory(true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isHospitality
+                                    ? Colors.blueAccent
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Hospitality',
+                                style: TextStyle(
+                                  color: _isHospitality
+                                      ? Colors.white
+                                      : Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _setCategory(false),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: !_isHospitality
-                                ? Colors.blueAccent
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Farm (soon)',
-                            style: TextStyle(
-                              color: !_isHospitality
-                                  ? Colors.white
-                                  : Colors.black87,
-                              fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _setCategory(false),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_isHospitality
+                                    ? Colors.blueAccent
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Farm (soon)',
+                                style: TextStyle(
+                                  color: !_isHospitality
+                                      ? Colors.white
+                                      : Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -990,4 +1295,24 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       _harvestScreenOffset = Offset(sc.x.toDouble(), sc.y.toDouble() - 8); // slight lift
     });
   }
+}
+
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+
+  _TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path()
+      ..moveTo(0, size.height)
+      ..lineTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

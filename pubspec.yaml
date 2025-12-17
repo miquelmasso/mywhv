@@ -80,6 +80,7 @@ flutter:
     - assets/map_style_clean.json
     - assets/harvest/harvest_2025.json
     - assets/data/harvest_places_2025.json
+    - assets/data/guide_manual.json
 
   # To add assets to your application, add an assets section, like this:
   #. assets:

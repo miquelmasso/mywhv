@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'mail_setup_page.dart';
-import 'restaurant_edit_page.dart';
-import 'gestio_restaurants.dart';
-import 'manage_farms_page.dart';
+import 'admin_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -50,58 +48,18 @@ class ProfilePage extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // ✏️ Editar restaurants
+                  // 🛡️ Admin
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RestaurantEditPage()),
+                        MaterialPageRoute(builder: (context) => const AdminPage()),
                       );
                     },
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Editar restaurants'),
+                    icon: const Icon(Icons.admin_panel_settings),
+                    label: const Text('Admin'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 🧭 Gestió i comprovació
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const TipsPage()),
-                      );
-                    },
-                    icon: const Icon(Icons.build_circle_outlined),
-                    label: const Text('Gestió i comprovació'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 🌾 Gestionar farms (afegir/eliminar per estat)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ManageFarmsPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.agriculture),
-                    label: const Text('Gestionar farms'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.brown.shade600,
+                      backgroundColor: Colors.blueGrey,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),

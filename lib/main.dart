@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/screens.dart';
-import 'screens/consejos_page.dart';
 
 
 
@@ -45,28 +44,33 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+  const MyHomePage({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState(initialIndex: initialIndex);
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
+  _MyHomePageState({this.initialIndex = 0});
 
-  static const List<Widget> _pages = <Widget>[
-  MapPage(),
-  ConsejosPage(),
-  HousePage(),
-  ProfilePage(),
-];
+  final int initialIndex;
+  late int _selectedIndex;
 
-static const List<String> _titles = <String>[
-  'Map',
-  'Consejos',
-  'House',
-  'Profile',
-];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = initialIndex;
+    _pages = <Widget>[
+      const MapPage(),
+      GuideScreen(onNavigateToTab: _onItemTapped),
+      const TipsRandomPage(),
+      const ForumPage(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -89,25 +93,27 @@ Widget build(BuildContext context) {
     ),
     bottomNavigationBar: BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
       currentIndex: _selectedIndex,
       selectedItemColor: Theme.of(context).colorScheme.primary,
       onTap: _onItemTapped,
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(
           icon: Icon(Icons.map_outlined),
-          label: 'Map',
+          label: '',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.lightbulb_outline),
-          label: 'Consejos',
+          label: '',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.house_outlined),
-          label: 'House',
+          icon: Icon(Icons.auto_awesome),
+          label: '',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
+          icon: Icon(Icons.forum_outlined),
+          label: '',
         ),
       ],
     ),
