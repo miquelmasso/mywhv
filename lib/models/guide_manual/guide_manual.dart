@@ -75,6 +75,7 @@ class GuidePage {
   final String title;
   final String summary;
   final List<GuideBlock> blocks;
+  final List<GuidePageSection> sections;
   final List<ChecklistItem> checklist;
   final GuideCtaLink? cta;
 
@@ -83,6 +84,7 @@ class GuidePage {
     required this.title,
     required this.summary,
     required this.blocks,
+    this.sections = const [],
     required this.checklist,
     this.cta,
   });
@@ -90,6 +92,7 @@ class GuidePage {
   factory GuidePage.fromJson(Map<String, dynamic> json) {
     final blocksJson = json['blocks'] as List? ?? [];
     final checklistJson = json['checklist'] as List? ?? [];
+    final sectionsJson = json['sections'] as List? ?? [];
     return GuidePage(
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
@@ -97,6 +100,10 @@ class GuidePage {
       blocks: blocksJson
           .whereType<Map<String, dynamic>>()
           .map(GuideBlock.fromJson)
+          .toList(),
+      sections: sectionsJson
+          .whereType<Map<String, dynamic>>()
+          .map(GuidePageSection.fromJson)
           .toList(),
       checklist: checklistJson
           .whereType<Map<String, dynamic>>()
@@ -113,6 +120,7 @@ class GuidePage {
         'title': title,
         'summary': summary,
         'blocks': blocks.map((b) => b.toJson()).toList(),
+        if (sections.isNotEmpty) 'sections': sections.map((s) => s.toJson()).toList(),
         'checklist': checklist.map((c) => c.toJson()).toList(),
         if (cta != null) 'cta': cta!.toJson(),
       };
@@ -123,18 +131,24 @@ class GuideBlock {
   final String? title;
   final String? content;
   final List<String> items;
+  final String? buttonLabel;
+  final String? buttonUrl;
 
   GuideBlock({
     required this.type,
     this.title,
     this.content,
     this.items = const [],
+    this.buttonLabel,
+    this.buttonUrl,
   });
 
   factory GuideBlock.fromJson(Map<String, dynamic> json) {
     final rawContent = json['content'];
     final items = <String>[];
     String? contentStr;
+    String? buttonLabel;
+    String? buttonUrl;
 
     if (rawContent is List) {
       items.addAll(rawContent.whereType<String>());
@@ -144,11 +158,19 @@ class GuideBlock {
       contentStr = json['text'] as String;
     }
 
+    if (json['button'] is Map<String, dynamic>) {
+      final btn = json['button'] as Map<String, dynamic>;
+      buttonLabel = btn['label']?.toString();
+      buttonUrl = btn['url']?.toString();
+    }
+
     return GuideBlock(
       type: (json['type'] ?? 'text').toString(),
       title: json['title']?.toString(),
       content: contentStr,
       items: items,
+      buttonLabel: buttonLabel,
+      buttonUrl: buttonUrl,
     );
   }
 
@@ -157,6 +179,11 @@ class GuideBlock {
         if (title != null) 'title': title,
         if (content != null) 'content': content,
         if (items.isNotEmpty) 'content': items,
+        if (buttonLabel != null || buttonUrl != null)
+          'button': {
+            if (buttonLabel != null) 'label': buttonLabel,
+            if (buttonUrl != null) 'url': buttonUrl,
+          },
       };
 }
 
@@ -210,5 +237,43 @@ class GuideCtaLink {
         if (mapCategory != null) 'mapCategory': mapCategory,
         if (forumTag != null) 'forumTag': forumTag,
         if (externalLinks.isNotEmpty) 'externalLinks': externalLinks,
+      };
+}
+
+class GuidePageSection {
+  final String id;
+  final String title;
+  final String? subtitle;
+  final String? icon;
+  final List<GuideBlock> blocks;
+
+  GuidePageSection({
+    required this.id,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.blocks = const [],
+  });
+
+  factory GuidePageSection.fromJson(Map<String, dynamic> json) {
+    final blocksJson = json['blocks'] as List? ?? [];
+    return GuidePageSection(
+      id: (json['id'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      subtitle: json['subtitle']?.toString(),
+      icon: json['icon']?.toString(),
+      blocks: blocksJson
+          .whereType<Map<String, dynamic>>()
+          .map(GuideBlock.fromJson)
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        if (subtitle != null) 'subtitle': subtitle,
+        if (icon != null) 'icon': icon,
+        'blocks': blocks.map((b) => b.toJson()).toList(),
       };
 }

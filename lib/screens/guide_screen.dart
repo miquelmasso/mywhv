@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
+import 'guide_page_screen.dart';
 import 'guide_section_screen.dart';
 
 class GuideScreen extends StatefulWidget {
@@ -14,6 +15,18 @@ class GuideScreen extends StatefulWidget {
 }
 
 class _GuideScreenState extends State<GuideScreen> {
+  static const Map<String, IconData> _iconMap = {
+    // Use broadly available Material icons to avoid SDK version issues.
+    'passport': Icons.badge_outlined,
+    'flight_takeoff': Icons.flight_takeoff,
+    'how_to_reg': Icons.how_to_reg,
+    'home': Icons.home,
+    'work': Icons.work,
+    'agriculture': Icons.agriculture,
+    'directions_car': Icons.directions_car,
+    'attach_money': Icons.attach_money,
+  };
+
   late Future<GuideManual> _future;
   String _query = '';
 
@@ -24,6 +37,21 @@ class _GuideScreenState extends State<GuideScreen> {
   }
 
   void _openSection(BuildContext context, GuideSection section) {
+    // Per a seccions que només tenen una pàgina (ex: visa), salta directament al contingut.
+    if (section.id == 'visa_requirements' && section.pages.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuidePageScreen(
+            sectionId: section.id,
+            page: section.pages.first,
+            onNavigateToTab: widget.onNavigateToTab,
+          ),
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -45,6 +73,10 @@ class _GuideScreenState extends State<GuideScreen> {
               s.description.toLowerCase().contains(q),
         )
         .toList();
+  }
+
+  IconData _iconForSection(String iconName) {
+    return _iconMap[iconName] ?? Icons.menu_book_outlined;
   }
 
   @override
@@ -75,49 +107,7 @@ class _GuideScreenState extends State<GuideScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.play_circle_outline, color: Colors.blue),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Continua on ho vas deixar',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Exemple de progrés (dummy). Tornarem aviat aquí.',
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Expanded(
               child: FutureBuilder<GuideManual>(
                 future: _future,
@@ -150,9 +140,9 @@ class _GuideScreenState extends State<GuideScreen> {
                     itemCount: sections.length,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      mainAxisSpacing: 12,
+                      mainAxisSpacing: 8,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 0.9,
+                      childAspectRatio: 1.35,
                     ),
                     itemBuilder: (context, index) {
                       final section = sections[index];
@@ -160,7 +150,7 @@ class _GuideScreenState extends State<GuideScreen> {
                         borderRadius: BorderRadius.circular(12),
                         onTap: () => _openSection(context, section),
                         child: Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
@@ -173,36 +163,31 @@ class _GuideScreenState extends State<GuideScreen> {
                             ],
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                section.icon,
-                                style: const TextStyle(fontSize: 26),
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _iconForSection(section.icon),
+                                  size: 22,
+                                  color: Colors.blue[700],
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 section.title,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 15,
+                                  fontSize: 13.5,
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Expanded(
-                                child: Text(
-                                  section.description,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              LinearProgressIndicator(
-                                value: 0,
-                                backgroundColor: Colors.grey.withOpacity(0.2),
-                                color: Colors.blueAccent,
-                                minHeight: 6,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),

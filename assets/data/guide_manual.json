@@ -7,139 +7,83 @@
       "id": "visa_requirements",
       "title": "Visat i requisits",
       "icon": "passport",
-      "description": "Tot el que necessites per aplicar al 417/462, requisits, costos i temps.",
+      "description": "417/462, requisits, cost i passos.",
       "pages": [
         {
-          "id": "visa_417_vs_462",
-          "title": "417 vs 462",
-          "summary": "Quin visat és el teu i què canvia entre els dos.",
+          "id": "visa_overview",
+          "title": "Visat i requisits",
+          "summary": "417/462, requisits, cost i passos.",
           "blocks": [
             {
               "type": "text",
-              "title": "Idea clau",
-              "content": "Hi ha dos visats Work and Holiday: el 417 i el 462. Quin et toca depèn del teu país."
-            },
+              "title": "",
+              "content": "Comprova sempre la web oficial: els requisits canvien."
+            }
+          ],
+          "sections": [
             {
-              "type": "bullets",
-              "title": "Què mirar (ràpid)",
-              "content": [
-                "Si el teu país és elegible per 417 o 462",
-                "Límit d’edat (18–30 o fins a 35 segons país)",
-                "Requisits d’estudis (varia segons país)",
-                "Requisit d’anglès (examen acceptat pel govern)"
+              "id": "requirements_tab",
+              "title": "Requisits",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Quin visat tinc? (417 o 462)",
+                  "content": [
+                    "Depèn del teu país.",
+                    "Edat: normalment 18–30 (fins 35 en alguns països).",
+                    "Requisits poden variar (estudis / anglès)."
+                  ],
+                  "button": {
+                    "label": "Obrir llista oficial (417/462)",
+                    "url": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing"
+                  }
+                },
+                {
+                  "type": "steps",
+                  "title": "Checklist",
+                  "content": [
+                    "Passaport en vigor",
+                    "Fons mínims (ex: 5.000 AUD habitualment)",
+                    "Anglès (examen acceptat)",
+                    "Assegurança mèdica (recomanable / sovint necessària)",
+                    "Estudis superiors"
+                  ]
+                },
+                {
+                  "type": "warning",
+                  "title": "Important",
+                  "content": "Els requisits canvien. Verifica sempre a la web oficial"
+                }
               ]
             },
             {
-              "type": "warning",
-              "title": "Important",
-              "content": "No et refiïs de vídeos o llistes antigues: els requisits canvien. Verifica sempre a la web oficial del govern (immi)."
-            },
-            {
-              "type": "steps",
-              "title": "Pas a pas (decisió ràpida)",
-              "content": [
-                "Busca el teu país a la pàgina oficial del 417 i del 462",
-                "Compara requisits d’edat/estudis/anglès",
-                "Decideix quin aplicar (el que et permeti el teu país)",
-                "Guarda l’enllaç oficial com a referència"
+              "id": "apply_steps_tab",
+              "title": "Passos per aplicar",
+              "blocks": [
+                {
+                  "type": "steps",
+                  "title": "Passos per aplicar (resum)",
+                  "content": [
+                    "Crear ImmiAccount",
+                    "Omplir formulari",
+                    "Pujar documents",
+                    "Pagar",
+                    "Revisar correu i respondre si demanen extra"
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Consell",
+                  "content": "Guarda documents a Drive + còpia offline al mòbil."
+                }
               ]
             }
           ],
-          "checklist": [
-            { "id": "c_417_462_1", "text": "He comprovat a immi quin visat em toca (417 o 462)", "done": false },
-            { "id": "c_417_462_2", "text": "He revisat el límit d’edat del meu país", "done": false },
-            { "id": "c_417_462_3", "text": "He revisat requisits d’estudis (si aplica)", "done": false },
-            { "id": "c_417_462_4", "text": "He identificat l’examen d’anglès acceptat", "done": false }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": null,
             "forumTag": "visa",
-            "externalLinks": [
-              { "label": "Buscar visats a Immi", "url": "https://immi.homeaffairs.gov.au/" }
-            ]
-          }
-        },
-        {
-          "id": "visa_requirements_overview",
-          "title": "Requisits bàsics",
-          "summary": "Edat, passaport, fons, anglès i documentació.",
-          "blocks": [
-            {
-              "type": "bullets",
-              "title": "Checklist de requisits",
-              "content": [
-                "Passaport en vigor",
-                "Edat dins el rang del teu país",
-                "Fons mínims (ex: 5.000 AUD habitualment)",
-                "Anglès (examen acceptat)",
-                "Assegurança mèdica (recomanable / sovint necessària)"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Consell",
-              "content": "Guarda tots els documents en una carpeta al núvol (Drive) + còpia offline al mòbil."
-            },
-            {
-              "type": "warning",
-              "title": "Error típic",
-              "content": "Enviar un certificat d’anglès que no és acceptat. Si immi et rebutja el document, te’n demanaran un de valid."
-            }
-          ],
-          "checklist": [
-            { "id": "c_req_1", "text": "Passaport en vigor (data revisada)", "done": false },
-            { "id": "c_req_2", "text": "Fons mínims disponibles i demostrables", "done": false },
-            { "id": "c_req_3", "text": "He triat l’examen d’anglès correcte", "done": false },
-            { "id": "c_req_4", "text": "Tinc assegurança mèdica (o ja sé quina contractaré)", "done": false },
-            { "id": "c_req_5", "text": "Tinc carpeta de docs al núvol + offline", "done": false }
-          ],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "requisits",
-            "externalLinks": [
-              { "label": "Immi (requisits oficials)", "url": "https://immi.homeaffairs.gov.au/" }
-            ]
-          }
-        },
-        {
-          "id": "visa_cost_and_time",
-          "title": "Cost i temps d’aprovació",
-          "summary": "Preu del visat i com planificar els timings.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Cost (orientatiu)",
-              "content": "El cost del visat pot variar. Comprova el preu actual a la web oficial abans de pagar."
-            },
-            {
-              "type": "steps",
-              "title": "Com aplicar (resum)",
-              "content": [
-                "Crear ImmiAccount",
-                "Omplir formulari",
-                "Pujar documents",
-                "Pagar",
-                "Revisar correu per si demanen informació extra"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Planificació",
-              "content": "Aplica amb temps: hi ha gent que l’aconsegueix ràpid i altra a qui li triga setmanes segons temporada."
-            }
-          ],
-          "checklist": [
-            { "id": "c_cost_1", "text": "He revisat el cost actual del visat a immi", "done": false },
-            { "id": "c_cost_2", "text": "Tinc ImmiAccount creat", "done": false },
-            { "id": "c_cost_3", "text": "Tinc tots els documents llestos en PDF", "done": false },
-            { "id": "c_cost_4", "text": "He activat alertes del correu per no perdre cap request", "done": false }
-          ],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "immiaccount",
-            "externalLinks": [
-              { "label": "ImmiAccount", "url": "https://online.immi.gov.au/" }
-            ]
+            "externalLinks": []
           }
         }
       ]
@@ -151,94 +95,101 @@
       "description": "Targetes, hostal, CV, i preparar-te perquè arribar sigui fàcil.",
       "pages": [
         {
-          "id": "choose_city_and_season",
-          "title": "Triar ciutat i temporada",
-          "summary": "On aterrar segons mes i objectiu (treball, preu, ambient).",
-          "blocks": [
-            {
-              "type": "bullets",
-              "title": "Ciutats (resum ràpid)",
-              "content": [
-                "Sydney: cara però molta oferta",
-                "Melbourne: equilibrada",
-                "Brisbane: més tranquil·la i sovint més barata",
-                "Perth: mines/WA, però depèn molt del tipus de feina"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Estratègia de temporada",
-              "content": "No arribis al pic de temporada: arriba 3–4 setmanes abans perquè contracten plantilla abans que exploti."
-            }
-          ],
-          "checklist": [
-            { "id": "c_city_1", "text": "He escollit ciutat d’arribada segons temporada", "done": false },
-            { "id": "c_city_2", "text": "He mirat alternatives (2a opció si no surt feina ràpid)", "done": false }
-          ],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "ciutats",
-            "externalLinks": []
-          }
-        },
-        {
-          "id": "bank_card_and_money",
-          "title": "Targeta i diners",
-          "summary": "Com pagar i evitar comissions (tarjeta internacional).",
+          "id": "before_arrival_overview",
+          "title": "Abans d’arribar",
+          "summary": "Preparació, diners, hostal i CV en un cop d’ull.",
           "blocks": [
             {
               "type": "text",
-              "title": "Objectiu",
-              "content": "Arribar amb una targeta que funcioni bé a l’estranger i tenir-la en físic."
-            },
-            {
-              "type": "bullets",
-              "title": "Punts clau",
-              "content": [
-                "Porta la targeta física (no només al mòbil)",
-                "Avisa el banc (si cal) per evitar bloquejos",
-                "Tingues un pla B (una 2a targeta)"
-              ]
+              "title": "",
+              "content": "Abans d’arribar: prepara ciutat, diners, hostal i CVs."
             }
           ],
-          "checklist": [
-            { "id": "c_card_1", "text": "Tinc targeta internacional i en físic", "done": false },
-            { "id": "c_card_2", "text": "Tinc una segona targeta o alternativa", "done": false }
-          ],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "diners",
-            "externalLinks": []
-          }
-        },
-        {
-          "id": "hostel_and_cv",
-          "title": "Hostal i currículums",
-          "summary": "Primeres nits i preparar CVs per diferents feines.",
-          "blocks": [
+          "sections": [
             {
-              "type": "steps",
-              "title": "Abans de volar",
-              "content": [
-                "Reserva hostal per 3–7 nits",
-                "Prepara 2–3 CVs (hospitality / construction / general)",
-                "Deixa el CV en format australià (habitualment sense foto)"
+              "id": "preparation_tab",
+              "title": "Preparació",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Triar ciutat i temporada",
+                  "content": [
+                    "Sydney: més oferta, més cara.",
+                    "Melbourne: equilibrada.",
+                    "Brisbane/Perth: més tranquil·les, potser més barates."
+                  ]
+                },
+                {
+                  "type": "bullets",
+                  "title": "Estratègia de temporada",
+                  "content": [
+                    "Arriba 3–4 setmanes abans del pic.",
+                    "Evita arribar en dates punta si pots."
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Tip",
+                  "content": "Decideix la ciutat segons objectiu: feina ràpida, cost o ambient."
+                }
               ]
             },
             {
-              "type": "tip",
-              "title": "Truc",
-              "content": "No reservis hostal l’últim dia: a vegades pugen molt els preus."
+              "id": "money_tab",
+              "title": "Diners",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Targeta",
+                  "content": [
+                    "Porta targeta física.",
+                    "Avisa el banc si cal.",
+                    "Tingues un pla B.",
+                    "Evita comissions: tria banc/app amb bons canvis."
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "hostel_tab",
+              "title": "Hostal",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Reserva",
+                  "content": [
+                    "Reserva 3–7 nits.",
+                    "No reservis l’última nit.",
+                    "Zona cèntrica o ben connectada."
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Truc",
+                  "content": "Pregunta si tenen descompte setmanal o habitació compartida estable."
+                }
+              ]
+            },
+            {
+              "id": "cv_tab",
+              "title": "CV",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Prepara CVs",
+                  "content": [
+                    "2–3 CVs: hospitality / general / construcció.",
+                    "Format australià: sense foto.",
+                    "PDF llest abans de volar."
+                  ]
+                }
+              ]
             }
           ],
-          "checklist": [
-            { "id": "c_hostel_1", "text": "Hostal reservat (mínim 3 nits)", "done": false },
-            { "id": "c_cv_1", "text": "Tinc CV hospitality", "done": false },
-            { "id": "c_cv_2", "text": "Tinc CV construction/cleaning o general", "done": false }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": null,
-            "forumTag": "curriculum",
+            "forumTag": "abans-arribar",
             "externalLinks": []
           }
         }
@@ -275,8 +226,16 @@
             }
           ],
           "checklist": [
-            { "id": "c_sim_1", "text": "He descarregat el mapa offline de la ciutat", "done": false },
-            { "id": "c_sim_2", "text": "Tinc pla per comprar SIM el primer dia", "done": false }
+            {
+              "id": "c_sim_1",
+              "text": "He descarregat el mapa offline de la ciutat",
+              "done": false
+            },
+            {
+              "id": "c_sim_2",
+              "text": "Tinc pla per comprar SIM el primer dia",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
@@ -310,14 +269,25 @@
             }
           ],
           "checklist": [
-            { "id": "c_tfn_1", "text": "He sol·licitat el TFN", "done": false },
-            { "id": "c_tfn_2", "text": "Tinc una adreça segura per rebre el TFN", "done": false }
+            {
+              "id": "c_tfn_1",
+              "text": "He sol·licitat el TFN",
+              "done": false
+            },
+            {
+              "id": "c_tfn_2",
+              "text": "Tinc una adreça segura per rebre el TFN",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
             "forumTag": "tfn",
             "externalLinks": [
-              { "label": "ATO", "url": "https://www.ato.gov.au/" }
+              {
+                "label": "ATO",
+                "url": "https://www.ato.gov.au/"
+              }
             ]
           }
         },
@@ -347,9 +317,21 @@
             }
           ],
           "checklist": [
-            { "id": "c_cert_1", "text": "He decidit si necessito RSA ara", "done": false },
-            { "id": "c_cert_2", "text": "He decidit si necessito White Card ara", "done": false },
-            { "id": "c_cert_3", "text": "He revisat que el curs sigui del meu estat", "done": false }
+            {
+              "id": "c_cert_1",
+              "text": "He decidit si necessito RSA ara",
+              "done": false
+            },
+            {
+              "id": "c_cert_2",
+              "text": "He decidit si necessito White Card ara",
+              "done": false
+            },
+            {
+              "id": "c_cert_3",
+              "text": "He revisat que el curs sigui del meu estat",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
@@ -393,9 +375,21 @@
             }
           ],
           "checklist": [
-            { "id": "c_house_1", "text": "He entrat als grups de Facebook de la meva ciutat", "done": false },
-            { "id": "c_house_2", "text": "He fet 2–3 inspections", "done": false },
-            { "id": "c_house_3", "text": "No he pagat res abans de veure el pis", "done": false }
+            {
+              "id": "c_house_1",
+              "text": "He entrat als grups de Facebook de la meva ciutat",
+              "done": false
+            },
+            {
+              "id": "c_house_2",
+              "text": "He fet 2–3 inspections",
+              "done": false
+            },
+            {
+              "id": "c_house_3",
+              "text": "No he pagat res abans de veure el pis",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
@@ -424,8 +418,16 @@
             }
           ],
           "checklist": [
-            { "id": "c_lease_1", "text": "He mirat opcions d’agència (Real Estate, etc.)", "done": false },
-            { "id": "c_lease_2", "text": "Entenc bond + condicions del contracte", "done": false }
+            {
+              "id": "c_lease_1",
+              "text": "He mirat opcions d’agència (Real Estate, etc.)",
+              "done": false
+            },
+            {
+              "id": "c_lease_2",
+              "text": "Entenc bond + condicions del contracte",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
@@ -439,32 +441,86 @@
       "id": "work",
       "title": "Feina",
       "icon": "work",
-      "description": "Buscar feina (online i cara a cara), tipus de feines i contractes.",
+      "description": "Com més apliquis més opcions tindrás",
       "pages": [
         {
           "id": "find_work_online",
-          "title": "Trobar feina online (abans d’arribar)",
-          "summary": "Facebook groups, webs i truc de Google Maps + email.",
-          "blocks": [
+          "title": "Online",
+          "summary": "3 canals top: Facebook groups, webs locals i el mapa de l’app per enviar CVs per correu.",
+          "blocks": [],
+          "sections": [
             {
-              "type": "bullets",
-              "title": "Canals que funcionen",
-              "content": [
-                "Grups de Facebook (jobs)",
-                "Webs locals (ex: Gumtree, Indeed)",
-                "Google Maps: buscar locals i enviar CV per email"
+              "id": "facebook",
+              "title": "Facebook groups (jobs)",
+              "icon": "groups",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Com buscar",
+                  "content": [
+                    "Entra a grups de Facebook de ciutat/estat + “jobs / work / backpacker”.",
+                    "Mira ofertes i escriu missatge / envia CV.",
+                    "Repeteix sovint (posts nous)."
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Missatge ràpid (copiar)",
+                  "content": "Hi! I’m arriving on (date). Experience in hospitality/cleaning. Available immediately. I send you my CV. Thanks!"
+                }
               ]
             },
             {
-              "type": "tip",
-              "title": "Quan va millor",
-              "content": "A zones remotes pot funcionar més fàcil perquè els costa trobar personal."
+              "id": "webs",
+              "title": "Webs locals (aplicar ràpid)",
+              "icon": "language",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Webs",
+                  "content": [
+                    "Jora",
+                    "Seek",
+                    "Indeed",
+                    "Gumtree"
+                  ]
+                },
+                {
+                  "type": "bullets",
+                  "title": "Altres webs",
+                  "content": [
+                    "Webs d’empreses (careers pages)"
+                  ]
+                },
+                {
+                  "type": "text",
+                  "title": "",
+                  "content": "Filtra per zona + “immediate start” + “casual”"
+                }
+              ]
+            },
+            {
+              "id": "map",
+              "title": "Mapa de l’app",
+              "icon": "map_outlined",
+              "blocks": [
+                {
+                  "type": "steps",
+                  "title": "Passos ràpids",
+                  "content": [
+                    "Troba el contacte al mapa.",
+                    "Envia el mail + CV."
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Email (copiar)",
+                  "content": "Hi, I’m (Name). I’m available from (date) and I have experience in (…). CV attached. Thank you!"
+                }
+              ]
             }
           ],
-          "checklist": [
-            { "id": "c_job_online_1", "text": "He preparat email plantilla + CV adjunt", "done": false },
-            { "id": "c_job_online_2", "text": "He aplicat a 15+ llocs (batch)", "done": false }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": "hospitality",
             "forumTag": "feina",
@@ -473,30 +529,27 @@
         },
         {
           "id": "work_face_to_face",
-          "title": "Trobar feina cara a cara",
+          "title": "Cara a cara",
           "summary": "Com repartir CV i parlar amb el manager.",
           "blocks": [
             {
               "type": "steps",
-              "title": "Rutina efectiva",
+              "title": "Rutina",
               "content": [
                 "Imprimeix 10–20 CVs",
                 "Ves porta a porta",
                 "Demana pel manager",
                 "Presentació curta + actitud",
-                "Follow-up al cap de 2–3 dies"
+                "Preguntar a tothom si están buscant a algun lloc"
               ]
             },
             {
               "type": "tip",
-              "title": "Detall",
-              "content": "No t’autosabotejis: reparteix a molts llocs encara que sembli que no et pillaran."
+              "title": "Tip",
+              "content": "Reparteix a molts llocs encara que sembli que no et pillaran."
             }
           ],
-          "checklist": [
-            { "id": "c_job_ftf_1", "text": "He imprès CVs", "done": false },
-            { "id": "c_job_ftf_2", "text": "He parlat amb 5 managers", "done": false }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": "hospitality",
             "forumTag": "cv",
@@ -507,30 +560,16 @@
           "id": "contracts_and_pay",
           "title": "Contractes i salaris",
           "summary": "Casual vs part-time i com entendre els rates.",
-          "blocks": [
-            {
-              "type": "bullets",
-              "title": "Casual vs Part-time",
-              "content": [
-                "Casual: més $/h, menys estabilitat, sense sick/holidays",
-                "Part-time: hores assegurades, sick/holidays, avís 2 setmanes"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Referència oficial",
-              "content": "Si dubtes del salari mínim, consulta Fair Work (awards) segons sector."
-            }
-          ],
-          "checklist": [
-            { "id": "c_contract_1", "text": "Sé si estic en casual o part-time", "done": false },
-            { "id": "c_contract_2", "text": "He comprovat el meu award/rate", "done": false }
-          ],
+          "blocks": [],
+          "checklist": [],
           "cta": {
             "mapCategory": null,
             "forumTag": "contractes",
             "externalLinks": [
-              { "label": "Fair Work", "url": "https://www.fairwork.gov.au/" }
+              {
+                "label": "Fair Work",
+                "url": "https://www.fairwork.gov.au/"
+              }
             ]
           }
         }
@@ -564,15 +603,30 @@
             }
           ],
           "checklist": [
-            { "id": "c_ext_1", "text": "He mirat la llista oficial de postcodes", "done": false },
-            { "id": "c_ext_2", "text": "Guardo tots els paylips", "done": false },
-            { "id": "c_ext_3", "text": "Tinc marge de temps (no vaig a última hora)", "done": false }
+            {
+              "id": "c_ext_1",
+              "text": "He mirat la llista oficial de postcodes",
+              "done": false
+            },
+            {
+              "id": "c_ext_2",
+              "text": "Guardo tots els paylips",
+              "done": false
+            },
+            {
+              "id": "c_ext_3",
+              "text": "Tinc marge de temps (no vaig a última hora)",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": "harvest",
             "forumTag": "extension",
             "externalLinks": [
-              { "label": "Immi (postcodes i condicions)", "url": "https://immi.homeaffairs.gov.au/" }
+              {
+                "label": "Immi (postcodes i condicions)",
+                "url": "https://immi.homeaffairs.gov.au/"
+              }
             ]
           }
         },
@@ -596,8 +650,16 @@
             }
           ],
           "checklist": [
-            { "id": "c_farm_1", "text": "He triat quin tipus de granja busco", "done": false },
-            { "id": "c_farm_2", "text": "He revisat si és per hora o per peça", "done": false }
+            {
+              "id": "c_farm_1",
+              "text": "He triat quin tipus de granja busco",
+              "done": false
+            },
+            {
+              "id": "c_farm_2",
+              "text": "He revisat si és per hora o per peça",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": "harvest",
@@ -634,8 +696,16 @@
             }
           ],
           "checklist": [
-            { "id": "c_car_1", "text": "He verificat rego + roadworthy", "done": false },
-            { "id": "c_car_2", "text": "He preguntat a l’oficina de trànsit del meu estat", "done": false }
+            {
+              "id": "c_car_1",
+              "text": "He verificat rego + roadworthy",
+              "done": false
+            },
+            {
+              "id": "c_car_2",
+              "text": "He preguntat a l’oficina de trànsit del meu estat",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,
@@ -668,8 +738,16 @@
             }
           ],
           "checklist": [
-            { "id": "c_tax_1", "text": "Sé què és el superannuation", "done": false },
-            { "id": "c_tax_2", "text": "He guardat dades del meu super fund", "done": false }
+            {
+              "id": "c_tax_1",
+              "text": "Sé què és el superannuation",
+              "done": false
+            },
+            {
+              "id": "c_tax_2",
+              "text": "He guardat dades del meu super fund",
+              "done": false
+            }
           ],
           "cta": {
             "mapCategory": null,

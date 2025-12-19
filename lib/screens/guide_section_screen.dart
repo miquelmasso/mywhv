@@ -104,18 +104,20 @@ class GuideSectionScreen extends StatelessWidget {
                                     fontSize: 13.5,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle_outline,
-                                      size: 16,
-                                      color: Colors.green,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text('$checklistCount tasques'),
-                                  ],
-                                ),
+                                if (checklistCount > 0) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_outline,
+                                        size: 16,
+                                        color: Colors.green,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text('$checklistCount tasques'),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
