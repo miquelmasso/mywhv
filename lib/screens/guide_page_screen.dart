@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 import '../models/guide_manual/guide_manual.dart';
+import '../repositories/guide_manual_repository.dart';
 import '../services/main_tabs_controller.dart';
 import '../services/overlay_helper.dart';
 import 'mail_setup_page.dart';
@@ -39,6 +40,12 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     final isVisaPage = widget.page.id == 'visa_overview';
     final isBeforeArrivalPage = widget.page.id == 'before_arrival_overview';
     final hasChecklist = widget.page.checklist.isNotEmpty;
+    final bool hasChecklistTab = hasChecklist &&
+        widget.sectionId != 'arrival_steps' &&
+        widget.sectionId != 'housing' &&
+        widget.sectionId != 'regional_and_extension' &&
+        widget.sectionId != 'transport' &&
+        widget.sectionId != 'money_taxes';
     const bool hasActions = false; // disable actions tab globally
 
     int tabLength;
@@ -53,7 +60,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     } else if (isBeforeArrivalPage) {
       tabLength = widget.page.sections.length.clamp(4, 4);
     } else {
-      tabLength = 1 + (hasChecklist ? 1 : 0) + (hasActions ? 1 : 0);
+      tabLength = 1 + (hasChecklistTab ? 1 : 0) + (hasActions ? 1 : 0);
     }
 
     _controller = TabController(length: tabLength, vsync: this);
@@ -112,41 +119,32 @@ class _GuidePageScreenState extends State<GuidePageScreen>
       onPressed: () => _goToTab(3),
     );
     final hasChecklist = widget.page.checklist.isNotEmpty;
+    final bool hasChecklistTab =
+        hasChecklist && widget.sectionId != 'arrival_steps' && widget.sectionId != 'housing';
     const bool hasActions = false; // disable actions tab globally
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.page.title),
-        bottom: isFindWorkPage
-            ? TabBar(
-                controller: _controller,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.black54,
-                tabs: const [
-                  Tab(text: 'Facebook'),
-                  Tab(text: 'Webs'),
-                  Tab(text: 'Mapa'),
-                ],
-              )
-            : TabBar(
-                controller: _controller,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.black54,
-                tabs: isVisaPage
+
+    final tabs = isFindWorkPage
+        ? const [
+            Tab(text: 'Facebook'),
+            Tab(text: 'Webs'),
+            Tab(text: 'Mapa'),
+          ]
+        : isVisaPage
+            ? const [
+                Tab(text: 'Requisits'),
+                Tab(text: 'Passos per aplicar'),
+              ]
+            : isBeforeArrivalPage
+                ? const [
+                    Tab(text: 'Preparació'),
+                    Tab(text: 'Allotjament'),
+                    Tab(text: 'Diners'),
+                    Tab(text: 'Feina'),
+                  ]
+                : isFaceToFacePage
                     ? const [
-                        Tab(text: 'Requisits'),
-                        Tab(text: 'Passos per aplicar'),
-                      ]
-                    : isBeforeArrivalPage
-                        ? const [
-                            Tab(text: 'Preparació'),
-                            Tab(text: 'Diners'),
-                            Tab(text: 'Hostal'),
-                            Tab(text: 'CV'),
-                      ]
-                    : isFaceToFacePage
-                        ? const [
-                            Tab(text: 'Info'),
-                            Tab(text: 'CV'),
+                        Tab(text: 'Info'),
+                        Tab(text: 'CV'),
                       ]
                     : isContractsPage
                         ? const [
@@ -155,10 +153,24 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           ]
                         : [
                             const Tab(text: 'Info'),
-                            if (hasChecklist) const Tab(text: 'Checklist'),
+                            if (hasChecklistTab) const Tab(text: 'Checklist'),
                             if (hasActions) const Tab(text: 'Accions'),
-                          ],
-              ),
+                          ];
+    final tabBar = TabBar(
+      controller: _controller,
+      labelColor: Theme.of(context).colorScheme.primary,
+      unselectedLabelColor: Colors.black54,
+      isScrollable: false,
+      labelPadding: EdgeInsets.zero,
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
+      tabs: tabs,
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.page.title),
+        bottom: tabBar,
       ),
       body: isFindWorkPage
           ? Column(
@@ -243,10 +255,12 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           _SectionBlocksView(
                             section: _findSectionById('requirements_tab'),
                             vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
                           ),
                           _SectionBlocksView(
                             section: _findSectionById('apply_steps_tab'),
                             vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
                           ),
                         ],
                       ),
@@ -269,18 +283,22 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           _SectionBlocksView(
                             section: _findSectionById('preparation_tab'),
                             vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
+                          ),
+                          _SectionBlocksView(
+                            section: _findSectionById('lodging_tab'),
+                            vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
                           ),
                           _SectionBlocksView(
                             section: _findSectionById('money_tab'),
                             vsync: this,
-                          ),
-                          _SectionBlocksView(
-                            section: _findSectionById('hostel_tab'),
-                            vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
                           ),
                           _SectionBlocksView(
                             section: _findSectionById('cv_tab'),
                             vsync: this,
+                            onNavigateToTab: widget.onNavigateToTab,
                           ),
                         ],
                       ),
@@ -320,7 +338,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         controller: _controller,
                         children: [
                           _InfoTab(blocks: widget.page.blocks),
-                          if (hasChecklist)
+                          if (hasChecklistTab)
                             _ChecklistTab(
                               checklist: _checklist,
                               onToggle: _toggleChecklist,
@@ -445,10 +463,12 @@ class _SectionBlocksView extends StatelessWidget {
   const _SectionBlocksView({
     required this.section,
     required this.vsync,
+    this.onNavigateToTab,
   });
 
   final GuidePageSection? section;
   final TickerProvider vsync;
+  final void Function(int index)? onNavigateToTab;
 
   @override
   Widget build(BuildContext context) {
@@ -463,6 +483,7 @@ class _SectionBlocksView extends StatelessWidget {
         context,
         section!.blocks[index],
         vsync: vsync,
+        onNavigateToTab: onNavigateToTab,
       ),
     );
   }
@@ -725,18 +746,76 @@ Future<void> _launchExternal(Uri uri) async {
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+Future<void> _openGuidePage(
+  BuildContext context,
+  String pageId, {
+  void Function(int index)? onNavigateToTab,
+}) async {
+  final manual = await GuideManualRepository().loadFromAssets();
+  for (final section in manual.sections) {
+    for (final page in section.pages) {
+      if (page.id == pageId) {
+        if (!context.mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuidePageScreen(
+              sectionId: section.id,
+              page: page,
+              onNavigateToTab: onNavigateToTab,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+  }
+}
+
 Widget _buildBlockWidget(
   BuildContext context,
   GuideBlock block, {
   TickerProvider? vsync,
   String? copyLabel,
+  void Function(int index)? onNavigateToTab,
 }) {
   Widget _buttonIfAny() {
     if (block.buttonLabel == null || block.buttonUrl == null) return const SizedBox.shrink();
+    final isCopyAction = block.buttonUrl!.startsWith('copy:');
+    final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: ElevatedButton(
-        onPressed: () => _launchExternal(Uri.parse(block.buttonUrl!)),
+        onPressed: () async {
+          if (isCopyAction) {
+            final textToCopy = block.content?.isNotEmpty == true
+                ? block.content!
+                : block.items.join('\n');
+            if (textToCopy.isNotEmpty) {
+              await Clipboard.setData(ClipboardData(text: textToCopy));
+              if (vsync != null) {
+                await OverlayHelper.showCopiedOverlay(
+                  context,
+                  vsync!,
+                  block.buttonLabel ?? 'Copiat',
+                );
+              }
+            }
+            return;
+          }
+          if (isGuideNavigation) {
+            final targetPageId = block.buttonUrl!.substring('guide:'.length);
+            if (targetPageId.isNotEmpty) {
+              await _openGuidePage(
+                context,
+                targetPageId,
+                onNavigateToTab: onNavigateToTab,
+              );
+            }
+            return;
+          }
+          await _launchExternal(Uri.parse(block.buttonUrl!));
+        },
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           shape: RoundedRectangleBorder(
@@ -745,6 +824,106 @@ Widget _buildBlockWidget(
         ),
         child: Text(block.buttonLabel!),
       ),
+    );
+  }
+
+  Widget _cvSheet(GuideBlock block) {
+    final lines = (block.content ?? '').split('\n');
+    final headings = ['PROFILE', 'WORK EXPERIENCE', 'SKILLS', 'AVAILABILITY'];
+
+    String _line(int index) => index >= 0 && index < lines.length ? lines[index] : '';
+    int _headingIndex(String heading) => lines.indexOf(heading);
+
+    List<String> _sectionContent(String heading) {
+      final start = _headingIndex(heading);
+      if (start == -1) return [];
+      final nextIndices =
+          headings.map(_headingIndex).where((i) => i > start).toList()..sort();
+      final end = nextIndices.isNotEmpty ? nextIndices.first : lines.length;
+      return lines.sublist(start + 1, end).where((l) => l.trim().isNotEmpty).toList();
+    }
+
+    Widget _section(String title, List<String> content) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...content.map(
+            (line) => line.trim().startsWith('•')
+                ? _BulletText(line.trim())
+                : Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(line),
+                  ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _line(0),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    [
+                      _line(1),
+                      _line(2),
+                    ].where((l) => l.isNotEmpty).join('\n'),
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                  const SizedBox(height: 16),
+                  _section('PROFILE', _sectionContent('PROFILE')),
+                  const SizedBox(height: 14),
+                  _section('WORK EXPERIENCE', _sectionContent('WORK EXPERIENCE')),
+                  const SizedBox(height: 14),
+                  _section('SKILLS', _sectionContent('SKILLS')),
+                  const SizedBox(height: 14),
+                  _section('AVAILABILITY', _sectionContent('AVAILABILITY')),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (block.buttonLabel != null && block.buttonUrl != null) ...[
+          const SizedBox(height: 12),
+          _buttonIfAny(),
+        ],
+      ],
     );
   }
 
@@ -813,6 +992,47 @@ Widget _buildBlockWidget(
         color: Colors.orange.shade50,
         leading: const Icon(Icons.warning_amber, color: Colors.orange),
         child: _textWithLinks(block.content),
+      );
+    case 'cv_sheet':
+      return _cvSheet(block);
+    case 'button':
+      IconData? _mapIcon(String? iconName) {
+        switch (iconName) {
+          case 'home':
+            return Icons.home;
+          default:
+            return null;
+        }
+      }
+      final iconData = _mapIcon(block.icon);
+      final onPressed = () async {
+        if (block.buttonUrl == null) return;
+        if (block.buttonUrl!.startsWith('guide:')) {
+          final targetPageId = block.buttonUrl!.substring('guide:'.length);
+          await _openGuidePage(context, targetPageId, onNavigateToTab: onNavigateToTab);
+          return;
+        }
+        await _launchExternal(Uri.parse(block.buttonUrl!));
+      };
+      final style = ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
+      return Center(
+        child: iconData != null
+            ? ElevatedButton.icon(
+                icon: Icon(iconData),
+                label: Text(block.buttonLabel ?? ''),
+                onPressed: onPressed,
+                style: style,
+              )
+            : ElevatedButton(
+                onPressed: onPressed,
+                style: style,
+                child: Text(block.buttonLabel ?? ''),
+              ),
       );
     case 'tip':
       final content = block.content ?? '';

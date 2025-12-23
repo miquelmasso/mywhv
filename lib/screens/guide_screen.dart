@@ -37,8 +37,11 @@ class _GuideScreenState extends State<GuideScreen> {
   }
 
   void _openSection(BuildContext context, GuideSection section) {
-    // Per a seccions que només tenen una pàgina (ex: visa), salta directament al contingut.
-    if (section.id == 'visa_requirements' && section.pages.isNotEmpty) {
+    // Per a seccions que només tenen una pàgina (ex: visa, abans d'arribar), salta directament al contingut.
+    final shouldOpenDirectly =
+        (section.id == 'visa_requirements' || section.id == 'before_arrival') &&
+            section.pages.isNotEmpty;
+    if (shouldOpenDirectly) {
       Navigator.push(
         context,
         MaterialPageRoute(

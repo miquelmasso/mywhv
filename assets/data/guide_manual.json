@@ -114,23 +114,50 @@
                   "type": "bullets",
                   "title": "Triar ciutat i temporada",
                   "content": [
-                    "Sydney: més oferta, més cara.",
-                    "Melbourne: equilibrada.",
-                    "Brisbane/Perth: més tranquil·les, potser més barates."
+                    "Sydney: més oferta, més cara",
+                    "Melbourne: equilibrada",
+                    "Brisbane/Perth: més tranquil·les, potser més barates"
                   ]
                 },
                 {
                   "type": "bullets",
                   "title": "Estratègia de temporada",
                   "content": [
-                    "Arriba 3–4 setmanes abans del pic.",
-                    "Evita arribar en dates punta si pots."
+                    "Arriba 3–4 setmanes abans temporada alta",
+                    "Nord al hivern, Sud al estiu"
                   ]
                 },
                 {
                   "type": "tip",
                   "title": "Tip",
                   "content": "Decideix la ciutat segons objectiu: feina ràpida, cost o ambient."
+                }
+              ]
+            },
+            {
+              "id": "lodging_tab",
+              "title": "Allotjament",
+              "blocks": [
+                {
+                  "type": "bullets",
+                  "title": "Hostal (primeres nits)",
+                  "content": [
+                    "Reserva 3–7 nits.",
+                    "Zona cèntrica o ben connectada."
+                  ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Tip",
+                  "content": "Pregunta si tenen descompte setmanal o habitació compartida estable."
+                },
+                {
+                  "type": "button",
+                  "icon": "home",
+                  "button": {
+                    "label": "Veure opcions d’habitatge (Casa)",
+                    "url": "guide:shared_housing_facebook"
+                  }
                 }
               ]
             },
@@ -144,29 +171,9 @@
                   "content": [
                     "Porta targeta física.",
                     "Avisa el banc si cal.",
-                    "Tingues un pla B.",
+                    "Banc internacional",
                     "Evita comissions: tria banc/app amb bons canvis."
                   ]
-                }
-              ]
-            },
-            {
-              "id": "hostel_tab",
-              "title": "Hostal",
-              "blocks": [
-                {
-                  "type": "bullets",
-                  "title": "Reserva",
-                  "content": [
-                    "Reserva 3–7 nits.",
-                    "No reservis l’última nit.",
-                    "Zona cèntrica o ben connectada."
-                  ]
-                },
-                {
-                  "type": "tip",
-                  "title": "Truc",
-                  "content": "Pregunta si tenen descompte setmanal o habitació compartida estable."
                 }
               ]
             },
@@ -178,10 +185,22 @@
                   "type": "bullets",
                   "title": "Prepara CVs",
                   "content": [
-                    "2–3 CVs: hospitality / general / construcció.",
-                    "Format australià: sense foto.",
-                    "PDF llest abans de volar."
+                    "2–3 CVs diferents: hospitality / general / construcció",
+                    "Format australià: sense foto",
+                    "PDF llest abans de volar"
                   ]
+                },
+                {
+                  "type": "tip",
+                  "title": "Tip",
+                  "content": "Porta els CVs impresos i també al mòbil (PDF)."
+                },
+                {
+                  "type": "button",
+                  "button": {
+                    "label": "Trobar feina online",
+                    "url": "guide:find_work_online"
+                  }
                 }
               ]
             }
@@ -399,7 +418,7 @@
         },
         {
           "id": "lease_agency",
-          "title": "Llogar un pis amb agència (lease)",
+          "title": "Lease",
           "summary": "Quan compensa i què és un lease transfer.",
           "blocks": [
             {
@@ -602,23 +621,7 @@
               "content": "Si vas just de dies i hores, pots quedar-te sense marge. Guarda tots els paylips."
             }
           ],
-          "checklist": [
-            {
-              "id": "c_ext_1",
-              "text": "He mirat la llista oficial de postcodes",
-              "done": false
-            },
-            {
-              "id": "c_ext_2",
-              "text": "Guardo tots els paylips",
-              "done": false
-            },
-            {
-              "id": "c_ext_3",
-              "text": "Tinc marge de temps (no vaig a última hora)",
-              "done": false
-            }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": "harvest",
             "forumTag": "extension",
@@ -649,18 +652,7 @@
               "content": "Si vas a picking per peça, al principi costa. Quan agafes ritme pots fer bons diners."
             }
           ],
-          "checklist": [
-            {
-              "id": "c_farm_1",
-              "text": "He triat quin tipus de granja busco",
-              "done": false
-            },
-            {
-              "id": "c_farm_2",
-              "text": "He revisat si és per hora o per peça",
-              "done": false
-            }
-          ],
+          "checklist": [],
           "cta": {
             "mapCategory": "harvest",
             "forumTag": "granja",
@@ -695,18 +687,61 @@
               "content": "Pot semblar temptador, però si peta al mig del no-res et surt caríssim."
             }
           ],
-          "checklist": [
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_rego",
+          "title": "Rego / registre",
+          "summary": "On comprovar registre i què passa si caduca.",
+          "blocks": [
             {
-              "id": "c_car_1",
-              "text": "He verificat rego + roadworthy",
-              "done": false
-            },
-            {
-              "id": "c_car_2",
-              "text": "He preguntat a l’oficina de trànsit del meu estat",
-              "done": false
+              "type": "text",
+              "title": "",
+              "content": "(pendent)"
             }
           ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_roadworthy",
+          "title": "Roadworthy",
+          "summary": "ITV local i canvis per estat.",
+          "blocks": [
+            {
+              "type": "text",
+              "title": "",
+              "content": "(pendent)"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_tips",
+          "title": "Consells",
+          "summary": "Manteniment i compra/venta segura.",
+          "blocks": [
+            {
+              "type": "text",
+              "title": "",
+              "content": "(pendent)"
+            }
+          ],
+          "checklist": [],
           "cta": {
             "mapCategory": null,
             "forumTag": "cotxe",
@@ -737,18 +772,30 @@
               "content": "Pots sol·licitar el DASP (super) quan ja has sortit d’Austràlia. Informa’t abans per fer-ho fàcil."
             }
           ],
-          "checklist": [
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "super_basics",
+          "title": "Super",
+          "summary": "Aportacions i què fer en marxar.",
+          "blocks": [
             {
-              "id": "c_tax_1",
-              "text": "Sé què és el superannuation",
-              "done": false
+              "type": "text",
+              "title": "Superannuation",
+              "content": "L’empresa aporta un percentatge del teu salari a un super fund. Guarda les dades del teu fons."
             },
             {
-              "id": "c_tax_2",
-              "text": "He guardat dades del meu super fund",
-              "done": false
+              "type": "tip",
+              "title": "Recuperar el super",
+              "content": "Quan marxis d’Austràlia, pots demanar el DASP. Tingues el TFN i dades del fons a mà."
             }
           ],
+          "checklist": [],
           "cta": {
             "mapCategory": null,
             "forumTag": "impostos",

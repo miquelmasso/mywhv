@@ -133,6 +133,7 @@ class GuideBlock {
   final List<String> items;
   final String? buttonLabel;
   final String? buttonUrl;
+  final String? icon;
 
   GuideBlock({
     required this.type,
@@ -141,6 +142,7 @@ class GuideBlock {
     this.items = const [],
     this.buttonLabel,
     this.buttonUrl,
+    this.icon,
   });
 
   factory GuideBlock.fromJson(Map<String, dynamic> json) {
@@ -149,6 +151,7 @@ class GuideBlock {
     String? contentStr;
     String? buttonLabel;
     String? buttonUrl;
+    String? icon;
 
     if (rawContent is List) {
       items.addAll(rawContent.whereType<String>());
@@ -163,6 +166,7 @@ class GuideBlock {
       buttonLabel = btn['label']?.toString();
       buttonUrl = btn['url']?.toString();
     }
+    icon = json['icon']?.toString();
 
     return GuideBlock(
       type: (json['type'] ?? 'text').toString(),
@@ -171,6 +175,7 @@ class GuideBlock {
       items: items,
       buttonLabel: buttonLabel,
       buttonUrl: buttonUrl,
+      icon: icon,
     );
   }
 
@@ -184,6 +189,7 @@ class GuideBlock {
             if (buttonLabel != null) 'label': buttonLabel,
             if (buttonUrl != null) 'url': buttonUrl,
           },
+        if (icon != null) 'icon': icon,
       };
 }
 
