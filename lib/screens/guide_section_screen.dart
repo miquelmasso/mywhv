@@ -9,10 +9,12 @@ class GuideSectionScreen extends StatelessWidget {
     super.key,
     required this.section,
     this.onNavigateToTab,
+    this.initialPageId,
   });
 
   final GuideSection section;
   final void Function(int index)? onNavigateToTab;
+  final String? initialPageId;
 
   bool get _isTabbedSection =>
       section.id == 'arrival_steps' ||
@@ -20,6 +22,12 @@ class GuideSectionScreen extends StatelessWidget {
       section.id == 'regional_and_extension' ||
       section.id == 'transport' ||
       section.id == 'money_taxes';
+
+  int get _initialTabIndex {
+    if (initialPageId == null) return 0;
+    final idx = section.pages.indexWhere((p) => p.id == initialPageId);
+    return idx == -1 ? 0 : idx;
+  }
 
   String _tabLabelForPage(GuidePage page) {
     if (section.id == 'arrival_steps') {
@@ -77,6 +85,7 @@ class GuideSectionScreen extends StatelessWidget {
       final tabs = section.pages.map((p) => Tab(text: _tabLabelForPage(p))).toList();
       return DefaultTabController(
         length: section.pages.length,
+        initialIndex: _initialTabIndex.clamp(0, section.pages.length - 1).toInt(),
         child: Builder(builder: (context) {
           final controller = DefaultTabController.of(context);
           return Scaffold(
@@ -135,15 +144,7 @@ class GuideSectionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(section.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // Placeholder search within section
-            },
-            tooltip: 'Search dins secció',
-          ),
-        ],
+        // No search icon for section pages (ex: work/feina).
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

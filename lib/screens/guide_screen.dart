@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
+import '../services/search_service.dart';
 import 'guide_page_screen.dart';
 import 'guide_section_screen.dart';
 
@@ -29,11 +32,21 @@ class _GuideScreenState extends State<GuideScreen> {
 
   late Future<GuideManual> _future;
   String _query = '';
+  Timer? _debounce;
+  bool _isSearching = false;
+  List<SearchResult> _results = [];
+  final SearchService _searchService = SearchService.instance;
 
   @override
   void initState() {
     super.initState();
     _future = GuideManualRepository().loadFromAssets();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   void _openSection(BuildContext context, GuideSection section) {
@@ -82,6 +95,116 @@ class _GuideScreenState extends State<GuideScreen> {
     return _iconMap[iconName] ?? Icons.menu_book_outlined;
   }
 
+  void _onQueryChanged(String val) {
+    setState(() => _query = val);
+    _debounce?.cancel();
+    if (val.trim().isEmpty) {
+      setState(() {
+        _results = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      setState(() => _isSearching = true);
+      await _searchService.init();
+      final res = _searchService.search(val);
+      setState(() {
+        _results = res;
+        _isSearching = false;
+      });
+    });
+  }
+
+  Widget _buildHighlighted(String text) {
+    final q = _query.trim();
+    if (q.isEmpty) {
+      return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis);
+    }
+    final lower = text.toLowerCase();
+    final queryLower = q.toLowerCase();
+    final idx = lower.indexOf(queryLower);
+    if (idx == -1) {
+      return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis);
+    }
+    final before = text.substring(0, idx);
+    final match = text.substring(idx, idx + q.length);
+    final after = text.substring(idx + q.length);
+    return RichText(
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: const TextStyle(color: Colors.black87),
+        children: [
+          TextSpan(text: before),
+          TextSpan(
+            text: match,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          TextSpan(text: after),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultsList(void Function(int index)? onNavigateToTab) {
+    if (_isSearching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_results.isEmpty) {
+      return const Center(child: Text('No s’han trobat resultats'));
+    }
+    return ListView.separated(
+      itemCount: _results.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final result = _results[index];
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            FocusScope.of(context).unfocus();
+            await _searchService.navigateToResult(result, context,
+                onNavigateToTab: onNavigateToTab);
+            setState(() {
+              _query = '';
+              _results = [];
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  result.subtitle,
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                _buildHighlighted(result.snippet),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,7 +217,7 @@ class _GuideScreenState extends State<GuideScreen> {
         child: Column(
           children: [
             TextField(
-              onChanged: (val) => setState(() => _query = val),
+              onChanged: _onQueryChanged,
               decoration: InputDecoration(
                 hintText: 'Cerca a la guia',
                 prefixIcon: const Icon(Icons.search),
@@ -135,6 +258,10 @@ class _GuideScreenState extends State<GuideScreen> {
                       ],
                     );
                   }
+                  if (_query.trim().isNotEmpty) {
+                    return _buildResultsList(widget.onNavigateToTab);
+                  }
+
                   final sections = _filterSections(snapshot.data!.sections);
                   if (sections.isEmpty) {
                     return const Center(child: Text('No s’han trobat seccions.'));

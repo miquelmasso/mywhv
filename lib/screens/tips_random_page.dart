@@ -11,18 +11,30 @@ class TipsRandomPage extends StatefulWidget {
 
 class _TipsRandomPageState extends State<TipsRandomPage> {
   final List<String> _tips = const [
-    'Demana sempre el TFN (Tax File Number) en arribar per poder treballar legalment.',
-    'Crea un compte bancari local (Commbank, Westpac, etc.) els primers dies per rebre nòmines.',
-    'Compra una SIM local amb dades il·limitades per poder buscar feina i navegar fàcilment.',
-    'A l’outback, porta sempre aigua extra i avisa algú del teu recorregut.',
-    'Actualitza el CV al format australià: curt, directe i amb referències locals si en tens.',
-    'Per feines de farm, pregunta pels drets: paga mínima, horaris i contracte ABN o TFN.',
-    'Explora hostels i grups de Facebook/WhatsApp per trobar feines ràpidament.',
-    'Si fas servir vehicle, revisa assegurança, revisió i Roadworthy abans de llargs trajectes.',
-    'Evita estafes: mai paguis per avançat per una feina; valida l’empresa i ABN.',
-    'Guarda un coixí d’estalvis per cobrir almenys 1 mes de despeses a l’arribada.',
-    'Per renovar la visa, documenta correctament les hores de farm amb payslips i formularis.',
-    'En feines d’hospitality, el RSA (Responsible Service of Alcohol) pot ser necessari per servir alcohol.',
+    'Austràlia té més cangurs que persones; en moltes zones rurals són part del dia a dia.',
+    'Els semàfors poden tardar molt en zones petites: la gent està acostumada a esperar.',
+    'És habitual fer barbacoes públiques gratis als parcs i platges (BBQ elèctrics).',
+    'En molts llocs no es paga mensualment: lloguer i salari solen ser setmanals.',
+    'Els australians fan servir molt les abreviacions: arvo (tarda), brekkie (esmorzar), servo (benzina).',
+    'El sol és molt fort: et pots cremar en 15 minuts fins i tot amb núvols.',
+    'Els animals salvatges no són una atracció: si veus un cangur a la carretera, redueix velocitat.',
+    'En pobles petits, tothom et saluda encara que no et conegui.',
+    'Els pubs rurals solen ser el centre social del poble.',
+    'És normal anar descalç en supermercats o gasolineres en zones costaneres.',
+    'Les distàncies són enormes: “a prop” pot voler dir 3 hores en cotxe.',
+    'Moltes feines no es troben online sinó preguntant directament al lloc.',
+    'Els hostels sovint funcionen com a borsa de treball informal.',
+    'L’aigua de l’aixeta és potable gairebé a tot el país.',
+    'Els animals poden aparèixer a carreteres de nit; conduir de fosca és arriscat.',
+    'La majoria de pagaments es fan amb targeta o mòbil, fins i tot imports molt petits.',
+    'Els australians valoren més l’actitud que l’experiència en moltes feines.',
+    'El “fair go” (joc just) és un valor cultural molt important.',
+    'Els dies festius (public holidays) es cobren molt més.',
+    'Moltes cases compartides es troben només via Facebook.',
+    'En zones remotes, la cobertura mòbil pot desaparèixer completament.',
+    'Els cafès tanquen d’hora; a partir de les 15–16h pot costar trobar-ne oberts.',
+    'És normal canviar sovint de ciutat i feina; no està mal vist.',
+    'Molts backpackers acaben treballant en feines que mai s’haurien imaginat abans de venir.',
   ];
 
   late String _currentTip;
@@ -53,7 +65,7 @@ class _TipsRandomPageState extends State<TipsRandomPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'Tip ràpid',
+              'Sabies que...',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

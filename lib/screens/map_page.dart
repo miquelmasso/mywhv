@@ -67,6 +67,72 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   static const double _minZoom = 3.8;
   static const double _maxZoom = 20;
 
+  Widget _buildCategoryPill({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final baseStyle = TextStyle(
+      color: selected ? Colors.white : Colors.black87,
+      fontWeight: FontWeight.w600,
+    );
+
+    TextStyle secondaryStyle = baseStyle;
+    const double height = 42;
+
+    Widget textWidget;
+    final lower = label.toLowerCase();
+    if (lower.contains('(soon)')) {
+      final mainText = label.replaceAll(RegExp(r'\s*\(soon\)', caseSensitive: false), '');
+      textWidget = RichText(
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: baseStyle,
+          children: [
+            TextSpan(text: mainText.trim()),
+            const TextSpan(text: ' '),
+            TextSpan(
+              text: '(soon)',
+              style: secondaryStyle.copyWith(
+                fontSize: baseStyle.fontSize != null ? baseStyle.fontSize! - 1 : null,
+                color: baseStyle.color?.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      textWidget = Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: baseStyle,
+      );
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(
+            minHeight: height,
+            maxHeight: height,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? Colors.blueAccent : Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          alignment: Alignment.center,
+          child: textWidget,
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -945,61 +1011,15 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _setCategory(true),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 10,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _isHospitality
-                                    ? Colors.blueAccent
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Hospitality',
-                                style: TextStyle(
-                                  color: _isHospitality
-                                      ? Colors.white
-                                      : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
+                        _buildCategoryPill(
+                          label: 'Hospitality',
+                          selected: _isHospitality,
+                          onTap: () => _setCategory(true),
                         ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _setCategory(false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 10,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: !_isHospitality
-                                    ? Colors.blueAccent
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Farm (soon)',
-                                style: TextStyle(
-                                  color: !_isHospitality
-                                      ? Colors.white
-                                      : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
+                        _buildCategoryPill(
+                          label: 'Farm (soon)',
+                          selected: !_isHospitality,
+                          onTap: () => _setCategory(false),
                         ),
                       ],
                     ),

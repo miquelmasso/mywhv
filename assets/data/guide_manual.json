@@ -43,7 +43,7 @@
                   "title": "Checklist",
                   "content": [
                     "Passaport en vigor",
-                    "Fons mínims (ex: 5.000 AUD habitualment)",
+                    "Fons mínims (5.000 AUD normalment)",
                     "Anglès (examen acceptat)",
                     "Assegurança mèdica (recomanable / sovint necessària)",
                     "Estudis superiors"
@@ -377,6 +377,11 @@
               "content": "A moltes ciutats, Facebook és el centre per trobar casa (grups locals + marketplace)."
             },
             {
+              "type": "text",
+              "title": "Preu habitual",
+              "content": "Entre 150 i 400 AUD per setmana."
+            },
+            {
               "type": "steps",
               "title": "Procés típic",
               "content": [
@@ -389,7 +394,7 @@
             },
             {
               "type": "warning",
-              "title": "Regla d’or",
+              "title": "Atenció",
               "content": "Mai paguis bond o setmanes per avançat abans de veure el pis i conèixer la persona."
             }
           ],
@@ -663,7 +668,7 @@
     },
     {
       "id": "transport",
-      "title": "Transport (cotxe/van)",
+      "title": "Vehicle",
       "icon": "directions_car",
       "description": "Comprar, rego, roadworthy i consells perquè no et deixi tirat.",
       "pages": [
@@ -672,6 +677,19 @@
           "title": "Comprar un cotxe",
           "summary": "Què mirar i com evitar un trasto.",
           "blocks": [
+            {
+              "type": "text",
+              "title": "📌 Abans de començar",
+              "content": "La majoria de WHV compren via Facebook Marketplace i grups locals. Vés amb calma i compara."
+            },
+            {
+              "type": "bullets",
+              "title": "Preus orientatius",
+              "content": [
+                "Cotxe senzill: ~3.000–6.000 AUD",
+                "Van camper: ~6.000–12.000 AUD"
+              ]
+            },
             {
               "type": "bullets",
               "title": "Paraules clau",
@@ -682,9 +700,19 @@
               ]
             },
             {
+              "type": "bullets",
+              "title": "Checklist ràpida",
+              "content": [
+                "PPSR check (VIN)",
+                "Rego actiu",
+                "Roadworthy (si toca al teu estat)",
+                "VIN coincideix amb els papers"
+              ]
+            },
+            {
               "type": "warning",
               "title": "Compte amb el massa barat",
-              "content": "Pot semblar temptador, però si peta al mig del no-res et surt caríssim."
+              "content": "Massa barat sol voler dir avaries ocultes. Si peten en ruta, et surt molt més car."
             }
           ],
           "checklist": [],
@@ -701,8 +729,31 @@
           "blocks": [
             {
               "type": "text",
-              "title": "",
-              "content": "(pendent)"
+              "title": "Què és el rego",
+              "content": "Registre del vehicle per circular; depèn de cada estat."
+            },
+            {
+              "type": "bullets",
+              "title": "✔️ Abans de comprar",
+              "content": [
+                "Comprova rego actiu i data de caducitat a la web oficial.",
+                "Mira en quin estat està registrat (canviar d’estat pot costar).",
+                "NSW: comprova també la greenslip (segur obligatori)."
+              ]
+            },
+            {
+              "type": "bullets",
+              "title": "🔁 Després de comprar",
+              "content": [
+                "Transfereix el rego dins termini: NSW ~14 dies, VIC ~14 dies, QLD ~14 dies.",
+                "Paga taxa de transferència i stamp duty si aplica.",
+                "Si caduca aviat, decideix qui paga la renovació abans de firmar."
+              ]
+            },
+            {
+              "type": "warning",
+              "title": "⚠️ Sense rego",
+              "content": "Circular sense rego = multes altes i l’assegurança pot no cobrir res."
             }
           ],
           "checklist": [],
@@ -719,8 +770,32 @@
           "blocks": [
             {
               "type": "text",
-              "title": "",
-              "content": "(pendent)"
+              "title": "Què és",
+              "content": "RWC = inspecció de seguretat bàsica feta per tallers autoritzats."
+            },
+            {
+              "type": "bullets",
+              "title": "Per estat",
+              "content": [
+                "VIC / QLD: obligatori per vendre o transferir.",
+                "NSW: només si el rego està caducat o ve d’un altre estat (blueslip).",
+                "Altres: el poden demanar per registres caducats o vehicles d’altres estats."
+              ]
+            },
+            {
+              "type": "bullets",
+              "title": "Fallades típiques",
+              "content": [
+                "Pneumàtics",
+                "Frens",
+                "Llums",
+                "Fuites"
+              ]
+            },
+            {
+              "type": "tip",
+              "title": "💡 Consell",
+              "content": "Millor pagar una inspecció abans de comprar que arreglar després."
             }
           ],
           "checklist": [],
@@ -737,8 +812,30 @@
           "blocks": [
             {
               "type": "text",
-              "title": "",
-              "content": "(pendent)"
+              "title": "🧾 Abans de comprar",
+              "content": "PPSR (VIN), rego actiu, RWC si toca, VIN igual que als papers."
+            },
+            {
+              "type": "bullets",
+              "title": "🔧 Manteniment mínim",
+              "content": [
+                "Oli i filtres al dia (cada 10–15k km).",
+                "Rodes, frens i llums abans de trajectes llargs.",
+                "Aigua/refrigerant i oli extra si vas a zones remotes."
+              ]
+            },
+            {
+              "type": "bullets",
+              "title": "🆘 Emergències",
+              "content": [
+                "Roadside assist (RACV, NRMA, RACQ...) és barat i útil lluny de tot.",
+                "Porta rodes en bon estat i eines bàsiques."
+              ]
+            },
+            {
+              "type": "tip",
+              "title": "💡 Missatge final",
+              "content": "Un cotxe fiable et pot salvar el viatge; un de dolent te’l pot arruïnar."
             }
           ],
           "checklist": [],
@@ -763,13 +860,56 @@
           "blocks": [
             {
               "type": "text",
-              "title": "Tax + super",
-              "content": "Treballant a Austràlia, pagaràs impostos i l’empresa aporta a superannuation (pensions)."
+              "title": "Ràpid",
+              "content": "Dona el TFN des del primer dia: retenció correcta i super al teu nom. Cada paga ha de venir amb payslip."
+            },
+            {
+              "type": "bullets",
+              "title": "Detalls importants",
+              "content": [
+                "Payslip: revisa hores, tarifa/h, tax retingut i super.",
+                "WHV tax: aprox. 15% al primer tram; pot canviar cada any (mira ATO).",
+                "Sense TFN retenen molt més.",
+                "Any fiscal: 1 juliol – 30 juny."
+              ]
             },
             {
               "type": "tip",
-              "title": "Quan marxes",
-              "content": "Pots sol·licitar el DASP (super) quan ja has sortit d’Austràlia. Informa’t abans per fer-ho fàcil."
+              "title": "Consells pràctics",
+              "content": "Si t’han retingut massa, ho pots recuperar a la tax return. No reps payslip? Demana’l; si no arriba, alerta."
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "wages",
+          "title": "Salaris",
+          "summary": "Referència ràpida de salaris típics.",
+          "blocks": [
+            {
+              "type": "text",
+              "title": "Essencial",
+              "content": "Salaris orientatius; varien per ciutat, experiència i contracte. El pagament sol ser setmanal o quinzenal."
+            },
+            {
+              "type": "bullets",
+              "title": "Detalls importants",
+              "content": [
+                "Hospitality: ~30 AUD/h",
+                "Granja: ~29 AUD/h",
+                "Construcció: ~32 AUD/h",
+                "Casual = més €/h però menys garanties; part-time/full-time = tarifa similar, més estabilitat."
+              ]
+            },
+            {
+              "type": "tip",
+              "title": "Consells pràctics",
+              "content": "Si no reps payslip, alerta i pregunta de seguida."
             }
           ],
           "checklist": [],
@@ -786,13 +926,27 @@
           "blocks": [
             {
               "type": "text",
-              "title": "Superannuation",
-              "content": "L’empresa aporta un percentatge del teu salari a un super fund. Guarda les dades del teu fons."
+              "title": "Essencial",
+              "content": "Super = pensió obligatòria. L’empresa paga aprox. un 11% extra al teu fons (no surt del teu salari). Dona el teu fons o te’n obriran un."
+            },
+            {
+              "type": "bullets",
+              "title": "Detalls importants",
+              "content": [
+                "Anota nom del fons i número de membre.",
+                "Comprova al payslip que hi ha aportació a super.",
+                "Nova feina: dona el mateix fons per no dispersar saldos."
+              ]
             },
             {
               "type": "tip",
-              "title": "Recuperar el super",
-              "content": "Quan marxis d’Austràlia, pots demanar el DASP. Tingues el TFN i dades del fons a mà."
+              "title": "Consells pràctics",
+              "content": "Quan marxis, demana el DASP (super) des de fora d’Austràlia: cal TFN, dades del fons i compte internacional."
+            },
+            {
+              "type": "tip",
+              "title": "Super perdut",
+              "content": "Diversos fons? Busca’ls a l’ATO online amb el TFN i consolida’ls."
             }
           ],
           "checklist": [],
