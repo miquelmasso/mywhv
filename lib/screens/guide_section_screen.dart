@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../services/main_tabs_controller.dart';
@@ -70,6 +71,8 @@ class GuideSectionScreen extends StatelessWidget {
     }
     if (section.id == 'money_taxes') {
       switch (page.id) {
+        case 'wages':
+          return 'Salaris';
         case 'taxes_and_super':
           return 'Impostos';
         case 'super_basics':
@@ -252,6 +255,15 @@ class _PageBlocksView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (sectionId == 'money_taxes' && page.id == 'wages') {
+      return _WagesPageView(page: page, onNavigateToTab: onNavigateToTab);
+    }
+    if (sectionId == 'money_taxes' && page.id == 'taxes_and_super') {
+      return _TaxesPageView(page: page, onNavigateToTab: onNavigateToTab);
+    }
+    if (sectionId == 'money_taxes' && page.id == 'super_basics') {
+      return _SuperPageView(page: page, onNavigateToTab: onNavigateToTab);
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: page.blocks.length,
@@ -412,6 +424,353 @@ class _InfoCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WagesPageView extends StatelessWidget {
+  const _WagesPageView({required this.page, this.onNavigateToTab});
+
+  final GuidePage page;
+  final void Function(int index)? onNavigateToTab;
+
+  Future<void> _openFairWork(BuildContext context) async {
+    final uri = Uri.parse('https://www.fairwork.gov.au/employment-conditions/awards');
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No s’ha pogut obrir l’enllaç.')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No s’ha pogut obrir l’enllaç.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      children: [
+        
+        const SizedBox(height: 12),
+        const ContractComparisonCard(),
+        const SizedBox(height: 6),
+        
+        const SizedBox(height: 12),
+        _InfoCard(
+          color: Colors.green.shade50,
+          leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
+          title: 'Consells pràctics',
+          child: const Text('Si no reps payslip o falta info, pregunta de seguida.'),
+        ),
+        const SizedBox(height: 12),
+        OfficialLinkTile(onTap: (ctx) => _openFairWork(ctx)),
+      ],
+    );
+  }
+}
+
+class ContractComparisonCard extends StatelessWidget {
+  const ContractComparisonCard({super.key});
+
+  Widget _pill(String text, {required bool positive}) {
+    final icon = positive ? Icons.check_circle_outline : Icons.remove_circle_outline;
+    final iconColor = positive ? Colors.green : Colors.red.shade400;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: iconColor, size: 18),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _column(String title, Color color, List<Widget> points, {required String highlight}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            highlight,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          ...points.map(
+            (p) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: p,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 520;
+        final content = Row(
+          children: [
+            Expanded(
+              child: _column(
+                'Casual',
+                Colors.orange.shade50,
+                [
+                  _pill('Sou/h lleugerament més alt', positive: true),
+                  _pill('Menys hores garantides', positive: false),
+                  _pill('Menys estabilitat', positive: false),
+                ],
+                highlight: '~30 AUD/h',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _column(
+                'Part-time / Full-time',
+                Colors.blue.shade50,
+                [
+                  _pill('Sou/h similar', positive: true),
+                  _pill('Més estabilitat', positive: true),
+                  _pill('Hores més previsibles', positive: true),
+                ],
+                highlight: '~24 AUD/h',
+              ),
+            ),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            children: [
+              _column(
+                'Casual',
+                Colors.orange.shade50,
+                [
+                  _pill('Sou/h lleugerament més alt', positive: true),
+                  _pill('Menys hores garantides', positive: false),
+                  _pill('Menys estabilitat', positive: false),
+                ],
+                highlight: '~30 AUD/h',
+              ),
+              const SizedBox(height: 10),
+              _column(
+                'Part-time / Full-time',
+                Colors.blue.shade50,
+                [
+                  _pill('Sou/h similar', positive: true),
+                  _pill('Més estabilitat', positive: true),
+                  _pill('Hores més previsibles', positive: true),
+                ],
+                highlight: '~24 AUD/h',
+              ),
+            ],
+          );
+        }
+
+        return content;
+      },
+    );
+  }
+}
+
+class OfficialLinkTile extends StatelessWidget {
+  const OfficialLinkTile({super.key, required this.onTap});
+
+  final Future<void> Function(BuildContext) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => onTap(context),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: Colors.blue.withOpacity(0.15)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.open_in_new, color: Colors.blue),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Consulta salaris oficials (Fair Work)',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.blue[700]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxesPageView extends StatelessWidget {
+  const _TaxesPageView({required this.page, this.onNavigateToTab});
+
+  final GuidePage page;
+  final void Function(int index)? onNavigateToTab;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      children: const [
+        _InfoCard(
+          title: 'WHV tax',
+          child: Text('~15% al primer tram (pot canviar, mira ATO).'),
+        ),
+        SizedBox(height: 12),
+        _InfoCard(
+          title: 'Ràpid',
+          child: Text('Dona el TFN des del primer dia. Cada paga ha de venir amb payslip.'),
+        ),
+        SizedBox(height: 12),
+        _InfoCard(
+          title: 'Claus',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ChecklistRow('Any fiscal: 1 juliol – 30 juny'),
+              _ChecklistRow('Sense TFN retenen molt més'),
+              _ChecklistRow('Revisa al payslip: hores, tarifa/h, tax i super'),
+            ],
+          ),
+        ),
+        SizedBox(height: 12),
+        _InfoCard(
+          color: Colors.greenAccent,
+          title: 'Consells pràctics',
+          child: Text('Si t’han retingut massa, recupera-ho a la tax return.'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperPageView extends StatelessWidget {
+  const _SuperPageView({required this.page, this.onNavigateToTab});
+
+  final GuidePage page;
+  final void Function(int index)? onNavigateToTab;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      children: const [
+        _InfoCard(
+          title: 'Essencial',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Super = pensió obligatòria (~11% extra).',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              SizedBox(height: 6),
+              Text('Dona el teu fons o te’n crearan un.'),
+            ],
+          ),
+        ),
+        SizedBox(height: 12),
+        _InfoCard(
+          title: 'Detalls importants',
+          child: Column(
+            children: [
+              _ChecklistRow('Anota nom del fons i número de membre.'),
+              _ChecklistRow('Comprova al payslip que hi ha aportació a super.'),
+              _ChecklistRow('Nova feina: dona el mateix fons per no dispersar saldos.'),
+            ],
+          ),
+        ),
+        SizedBox(height: 12),
+        _InfoCard(
+          color: Color(0xFFE8F5E9),
+          leading: Icon(Icons.flight_takeoff, color: Colors.green),
+          title: 'Consells pràctics',
+          child: Text('Quan marxis, demana el DASP (super) des de fora d’Austràlia.'),
+        ),
+        SizedBox(height: 10),
+        _InfoCard(
+          color: Color(0xFFE8F5E9),
+          leading: Icon(Icons.search, color: Colors.green),
+          title: 'Super perdut',
+          child: Text('Busca fons a l’ATO amb el TFN i consolida’ls.'),
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'mail_setup_page.dart';
 import 'admin_page.dart';
+import 'favorites_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -41,6 +42,24 @@ class ProfilePage extends StatelessWidget {
                     label: const Text('Configurar correu automàtic'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.favorite_outline),
+                    label: const Text('Preferits'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.pinkAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),

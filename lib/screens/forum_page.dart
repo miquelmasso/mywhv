@@ -8,7 +8,7 @@ class ForumPage extends StatelessWidget {
     return const Scaffold(
       body: Center(
         child: Text(
-          'Forum',
+          'Forum (soon)',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
       ),

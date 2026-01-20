@@ -579,23 +579,6 @@
             "forumTag": "cv",
             "externalLinks": []
           }
-        },
-        {
-          "id": "contracts_and_pay",
-          "title": "Contractes i salaris",
-          "summary": "Casual vs part-time i com entendre els rates.",
-          "blocks": [],
-          "checklist": [],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "contractes",
-            "externalLinks": [
-              {
-                "label": "Fair Work",
-                "url": "https://www.fairwork.gov.au/"
-              }
-            ]
-          }
         }
       ]
     },
@@ -680,14 +663,14 @@
             {
               "type": "text",
               "title": "📌 Abans de començar",
-              "content": "La majoria de WHV compren via Facebook Marketplace i grups locals. Vés amb calma i compara."
+              "content": "La majoria de WHV compren via Facebook Marketplace i grups locals"
             },
             {
               "type": "bullets",
               "title": "Preus orientatius",
               "content": [
-                "Cotxe senzill: ~3.000–6.000 AUD",
-                "Van camper: ~6.000–12.000 AUD"
+                "Cotxe senzill: ~2.000–6.000 AUD",
+                "Van camper: ~5.000–12.000 AUD"
               ]
             },
             {
@@ -695,18 +678,7 @@
               "title": "Paraules clau",
               "content": [
                 "Rego: registre",
-                "Roadworthy: ITV (estat-dependent)",
-                "Compra/venda: sovint via Facebook"
-              ]
-            },
-            {
-              "type": "bullets",
-              "title": "Checklist ràpida",
-              "content": [
-                "PPSR check (VIN)",
-                "Rego actiu",
-                "Roadworthy (si toca al teu estat)",
-                "VIN coincideix amb els papers"
+                "Roadworthy: ITV revisió vehicle"
               ]
             },
             {
@@ -831,11 +803,6 @@
                 "Roadside assist (RACV, NRMA, RACQ...) és barat i útil lluny de tot.",
                 "Porta rodes en bon estat i eines bàsiques."
               ]
-            },
-            {
-              "type": "tip",
-              "title": "💡 Missatge final",
-              "content": "Un cotxe fiable et pot salvar el viatge; un de dolent te’l pot arruïnar."
             }
           ],
           "checklist": [],
@@ -849,10 +816,44 @@
     },
     {
       "id": "money_taxes",
-      "title": "Diners, impostos i super",
+      "title": "Salaris, impostos i super",
       "icon": "attach_money",
       "description": "Taxes, superannuation i com entendre el que et queda net.",
       "pages": [
+        {
+          "id": "wages",
+          "title": "Salaris",
+          "summary": "Referència ràpida de salaris típics.",
+          "blocks": [
+            {
+              "type": "text",
+              "title": "Essencial",
+              "content": "Salaris orientatius; varien per ciutat, experiència i contracte. El pagament sol ser setmanal o quinzenal."
+            },
+            {
+              "type": "bullets",
+              "title": "Detalls importants",
+              "content": [
+                "Hospitality: ~30 AUD/h",
+                "Granja: ~29 AUD/h",
+                "Construcció: ~32 AUD/h",
+                "Casual: + €/h però menys garanties.",
+                "Part-time/full-time: tarifa similar, més estabilitat."
+              ]
+            },
+            {
+              "type": "tip",
+              "title": "Consells pràctics",
+              "content": "Si no reps payslip, alerta i pregunta de seguida."
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
         {
           "id": "taxes_and_super",
           "title": "Impostos i superannuation",
@@ -876,40 +877,7 @@
             {
               "type": "tip",
               "title": "Consells pràctics",
-              "content": "Si t’han retingut massa, ho pots recuperar a la tax return. No reps payslip? Demana’l; si no arriba, alerta."
-            }
-          ],
-          "checklist": [],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "impostos",
-            "externalLinks": []
-          }
-        },
-        {
-          "id": "wages",
-          "title": "Salaris",
-          "summary": "Referència ràpida de salaris típics.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Essencial",
-              "content": "Salaris orientatius; varien per ciutat, experiència i contracte. El pagament sol ser setmanal o quinzenal."
-            },
-            {
-              "type": "bullets",
-              "title": "Detalls importants",
-              "content": [
-                "Hospitality: ~30 AUD/h",
-                "Granja: ~29 AUD/h",
-                "Construcció: ~32 AUD/h",
-                "Casual = més €/h però menys garanties; part-time/full-time = tarifa similar, més estabilitat."
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Consells pràctics",
-              "content": "Si no reps payslip, alerta i pregunta de seguida."
+              "content": "Si t’han retingut massa, ho pots recuperar a la tax return."
             }
           ],
           "checklist": [],

@@ -9,11 +9,14 @@ import '../services/map_markers_service.dart';
 import '../services/harvest_places_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/overlay_helper.dart';
+import '../services/favorites_service.dart';
 import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'profile_page.dart';
+import 'favorites_screen.dart';
+import 'mail_setup_page.dart';
+import 'admin_page.dart';
 //import '../widgets/filter_button.dart';
 
 class MapPage extends StatefulWidget {
@@ -51,6 +54,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Offset? _harvestScreenOffset;
   bool _pendingCameraUpdate = false;
   Timer? _cameraDebounce;
+  StreamSubscription<Set<String>>? _favoritesSub;
 
   Future<BitmapDescriptor> _getCachedIcon(int count) async {
     if (_iconCache.containsKey(count)) return _iconCache[count]!;
@@ -139,6 +143,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _loadMapStyle();
     _listenMarkers();
     _loadFavorites();
+    _favoritesSub = FavoritesService.changes.listen((ids) {
+      setState(() => _favoritePlaces = ids);
+      _updateMarkers(_currentZoom);
+    });
   }
 
   Future<void> _loadMapStyle() async {
@@ -151,6 +159,69 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     setState(() {
       _favoritePlaces = list.toSet();
     });
+  }
+
+  void _openMailSetup() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MailSetupPage()),
+    );
+  }
+
+  void _openFavorites() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+    );
+  }
+
+  void _openAdmin() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AdminPage()),
+    );
+  }
+
+  void _showProfilePopup() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Perfil',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, __) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, top: 70, right: 16),
+              child: ProfilePopupMenu(
+                onMail: () {
+                  Navigator.of(context).pop();
+                  _openMailSetup();
+                },
+                onFavorites: () {
+                  Navigator.of(context).pop();
+                  _openFavorites();
+                },
+                onAdmin: () {
+                  Navigator.of(context).pop();
+                  _openAdmin();
+                },
+                showAdmin: true, // Mateixa condició que l'accés anterior (ara era sempre visible).
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondary, child) {
+        final curved = Curves.easeOutCubic.transform(animation.value);
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.scale(
+            scale: 0.95 + 0.05 * curved,
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   void _listenMarkers() {
@@ -604,14 +675,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     debugPrint('❤️ Toggle favorite $restaurantId -> $added; total=${current.length}');
     setState(() => _favoritePlaces = current);
     _updateMarkers(_currentZoom);
+    FavoritesService.broadcast(_favoritePlaces);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          added ? 'Afegit a preferits' : 'Eliminat de preferits',
-        ),
-      ),
-    );
+    // No Snackbar: l'usuari veu el cor canviat i manté la lògica de preferits.
   }
 
   Future<void> _copyToClipboard(String text, String label) async {
@@ -881,6 +947,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   void dispose() {
     _closeFilterOverlay();
     _cameraDebounce?.cancel();
+    _favoritesSub?.cancel();
     super.dispose();
   }
 
@@ -942,13 +1009,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                 color: Colors.white,
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ProfilePage(),
-                      ),
-                    );
-                  },
+                  onTap: _showProfilePopup,
                   child: const SizedBox(
                     height: 48,
                     width: 48,
@@ -1335,4 +1396,125 @@ class _TrianglePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class ProfilePopupMenu extends StatelessWidget {
+  const ProfilePopupMenu({
+    super.key,
+    required this.onMail,
+    required this.onFavorites,
+    required this.onAdmin,
+    required this.showAdmin,
+  });
+
+  final VoidCallback onMail;
+  final VoidCallback onFavorites;
+  final VoidCallback onAdmin;
+  final bool showAdmin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: 260,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ProfileTile(
+              icon: Icons.email_outlined,
+              iconColor: Colors.redAccent,
+              iconBg: Colors.redAccent.withOpacity(0.12),
+              text: 'Configurar correu automàtic',
+              onTap: onMail,
+            ),
+            const SizedBox(height: 14),
+            _ProfileTile(
+              icon: Icons.favorite_outline,
+              iconColor: Colors.pinkAccent,
+              iconBg: Colors.pinkAccent.withOpacity(0.12),
+              text: 'Preferits',
+              onTap: onFavorites,
+            ),
+            if (showAdmin) ...[
+              const SizedBox(height: 14),
+              _ProfileTile(
+                icon: Icons.admin_panel_settings,
+                iconColor: Colors.black87,
+                iconBg: Colors.grey.shade200,
+                text: 'Admin',
+                onTap: onAdmin,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  const _ProfileTile({
+    required this.icon,
+    required this.text,
+    this.iconColor = Colors.black87,
+    this.iconBg = Colors.black12,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color iconColor;
+  final Color iconBg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  text,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.black45),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -148,66 +148,92 @@ class _MailSetupPageState extends State<MailSetupPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Configurar correu automàtic')),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Text per al correu automàtic:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const Text(
+                'Text per al correu automàtic',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _controller,
-                maxLines: 5,
+                minLines: 6,
+                maxLines: 10,
                 decoration: InputDecoration(
                   hintText: 'Escriu aquí el missatge que vols enviar...',
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.blueGrey.shade400, width: 1.2),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: _saveMessage,
-                icon: const Icon(Icons.save),
-                label: const Text('Desar missatge'),
-              ),
-              const SizedBox(height: 20),
-
-              Row(
+              const SizedBox(height: 22),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _pickAndSaveCV,
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('Pujar CV (PDF)'),
+                  OutlinedButton.icon(
+                    onPressed: _saveMessage,
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Desar missatge'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  if (_cvPath != null)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _deleteCV,
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Eliminar CV'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade300,
-                          foregroundColor: Colors.black87,
-                        ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _pickAndSaveCV,
+                    icon: const Icon(Icons.upload_file_outlined),
+                    label: const Text('Pujar CV (PDF)'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  if (_cvPath != null) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _deleteCV,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Eliminar CV'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        backgroundColor: Colors.grey.shade100,
                       ),
                     ),
+                  ],
                 ],
               ),
-
               if (_cvPath != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   'CV actual: ${_cvPath!.split('/').last}',
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
-
-              const Divider(height: 32),
+              const SizedBox(height: 28),
               Center(
                 child: ElevatedButton.icon(
                   onPressed: _testEmailSend,
@@ -216,7 +242,9 @@ class _MailSetupPageState extends State<MailSetupPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueGrey,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
                   ),
                 ),
               ),
