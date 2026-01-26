@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/restaurant_import_service.dart';
 
@@ -17,6 +19,8 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
   bool _isImporting = false;
   int _processed = 0;
   int _total = 0;
+  String? _currentPostcode;
+  Completer<void>? _skipCompleter;
 
   Map<String, (int start, int end)> get _stateRanges => {
         'QLD': (4000, 4999),
@@ -40,6 +44,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
       _isImporting = true;
       _processed = 0;
       _total = 0;
+      _currentPostcode = null;
     });
 
     try {
@@ -55,10 +60,15 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
 
       for (int pc = start; pc <= end; pc++) {
         final postcodeStr = pc.toString().padLeft(4, '0');
-        final isRemote =
-            await _importService.isRemoteTourismPostcode(postcodeStr);
-        if (isRemote) {
-          await _importService.importAllRestaurantsForPostcode(postcodeStr);
+        final isRemote = await _awaitOrSkip(
+          _importService.isRemoteTourismPostcode(postcodeStr),
+          postcodeStr,
+        );
+        if (isRemote == true) {
+          await _awaitOrSkip(
+            _importService.importAllRestaurantsForPostcode(postcodeStr),
+            postcodeStr,
+          );
         }
         setState(() => _processed++);
       }
@@ -76,6 +86,33 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
       );
     } finally {
       setState(() => _isImporting = false);
+      _skipCompleter = null;
+      _currentPostcode = null;
+    }
+  }
+
+  Future<T?> _awaitOrSkip<T>(Future<T> future, String postcode) async {
+    final completer = Completer<void>();
+    setState(() {
+      _skipCompleter = completer;
+      _currentPostcode = postcode;
+    });
+
+    await Future.any([future, completer.future]);
+    if (completer.isCompleted) {
+      // Ignore result/possible errors from the original future after skipping.
+      future.catchError((_) {});
+      return null;
+    }
+    return await future;
+  }
+
+  void _skipCurrentPostcode() {
+    if (_skipCompleter != null && !_skipCompleter!.isCompleted) {
+      _skipCompleter!.complete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saltant el codi $_currentPostcode...')),
+      );
     }
   }
 
@@ -149,6 +186,23 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
                     : 'Important $_processed/$_total codis postals per ${_selectedState ?? ''}...',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
+              if (_currentPostcode != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Codi actual: $_currentPostcode',
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: _skipCurrentPostcode,
+                    icon: const Icon(Icons.fast_forward_rounded),
+                    label: const Text('Saltar i seguir'),
+                  ),
+                ),
+              ] else
+                const SizedBox(height: 12),
             ],
             const SizedBox(height: 16),
             Text(
