@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../widgets/map_place_popup.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
@@ -55,6 +57,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   bool _pendingCameraUpdate = false;
   Timer? _cameraDebounce;
   StreamSubscription<Set<String>>? _favoritesSub;
+  bool _isLoadingData = true;
+  String? _dataStatusMessage;
 
   Future<BitmapDescriptor> _getCachedIcon(int count) async {
     if (_iconCache.containsKey(count)) return _iconCache[count]!;
@@ -141,7 +145,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadMapStyle();
-    _listenMarkers();
+    _loadInitialData();
     _loadFavorites();
     _favoritesSub = FavoritesService.changes.listen((ids) {
       setState(() => _favoritePlaces = ids);
@@ -159,6 +163,182 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     setState(() {
       _favoritePlaces = list.toSet();
     });
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoadingData = true);
+    await _loadData(fromServer: false);
+    if (mounted) setState(() => _isLoadingData = false);
+  }
+
+  Future<void> _loadData({required bool fromServer}) async {
+    String? statusLog;
+    try {
+      if (fromServer) statusLog = '🌐 Restaurants des del servidor...';
+      final restaurantDocs =
+          await MapMarkersService.loadRestaurants(fromServer: fromServer);
+      if (restaurantDocs.isNotEmpty) {
+        _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
+      } else if (!fromServer) {
+        final seeded = await _loadSeedRestaurantsFromAsset();
+        if (seeded.isNotEmpty) {
+          debugPrint('🌱 Restaurants carregats des de seed local: ${seeded.length}');
+          _restaurantLocations = _buildRestaurantLocations(seeded);
+        } else {
+          debugPrint('⚠️ Sense restaurants al cache ni seed local');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error carregant restaurants (${fromServer ? 'server' : 'cache'}): $e');
+    }
+
+    try {
+      if (fromServer) statusLog = '🌐 Harvest des del servidor...';
+      final harvestPlaces =
+          await HarvestPlacesService.loadHarvestPlaces(fromServer: fromServer);
+      if (harvestPlaces.isNotEmpty) {
+        _harvestLocations = _buildHarvestLocations(harvestPlaces);
+      } else if (!fromServer) {
+        final seeded = await _loadSeedHarvestFromAsset();
+        if (seeded.isNotEmpty) {
+          debugPrint('🌱 Harvest carregat des de asset: ${seeded.length}');
+          _harvestLocations = _buildHarvestLocations(seeded);
+        } else {
+          debugPrint('⚠️ Sense harvest al cache ni seed local');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error carregant harvest (${fromServer ? 'server' : 'cache'}): $e');
+    }
+
+    if (!fromServer &&
+        _restaurantLocations.isEmpty &&
+        _harvestLocations.isEmpty &&
+        _markers.isEmpty) {
+      _dataStatusMessage =
+          'Sense dades locals. Prem “Actualitzar” quan tinguis internet o inclou un seed JSON.';
+    } else if (_restaurantLocations.isNotEmpty || _harvestLocations.isNotEmpty) {
+      _dataStatusMessage = null;
+    }
+
+    if (statusLog != null) debugPrint(statusLog);
+    _updateMarkers(_currentZoom);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadSeedRestaurantsFromAsset() async {
+    try {
+      final raw = await rootBundle.loadString('assets/data/restaurants_seed.json');
+      final data = jsonDecode(raw);
+      final List list;
+      if (data is List) {
+        list = data;
+      } else if (data is Map && data['restaurants'] is List) {
+        list = data['restaurants'] as List;
+      } else {
+        return [];
+      }
+      return list
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map((e) {
+            e['docId'] ??= e['id'];
+            return e;
+          })
+          .where((e) => (e['docId'] ?? '').toString().isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('ℹ️ Cap seed local de restaurants (optional): $e');
+    }
+    return [];
+  }
+
+  Future<List<HarvestPlace>> _loadSeedHarvestFromAsset() async {
+    try {
+      final raw = await rootBundle.loadString('assets/data/harvest_places_2025.json');
+      final data = jsonDecode(raw);
+      if (data is List) {
+        return data
+            .map((entry) => HarvestPlace(
+                  id: entry['id']?.toString() ?? '',
+                  name: (entry['name'] ?? '').toString(),
+                  postcode: (entry['postcode'] ?? '').toString(),
+                  state: (entry['state'] ?? '').toString(),
+                  latitude: (entry['latitude'] ?? entry['lat'])?.toDouble() ?? 0,
+                  longitude: (entry['longitude'] ?? entry['lng'])?.toDouble() ?? 0,
+                  description: entry['description']?.toString(),
+                ))
+            .where((p) => p.id.isNotEmpty)
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Cap seed local de harvest (optional): $e');
+    }
+    return [];
+  }
+
+  List<Map<String, Object?>> _buildRestaurantLocations(
+    List<Map<String, dynamic>> docs,
+  ) {
+    final List<Map<String, Object?>> locations = [];
+
+    for (final data in docs) {
+      final double? lat = (data['latitude'] ?? data['lat'])?.toDouble();
+      final double? lng = (data['longitude'] ?? data['lng'])?.toDouble();
+      if (lat == null || lng == null) continue;
+
+      final docId = (data['docId'] ?? '').toString();
+      if (docId.isEmpty) continue;
+      if (data['blocked'] == true) continue;
+
+      final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+          (data['instagram_url'] ?? '').toString().isNotEmpty ||
+          (data['email'] ?? '').toString().isNotEmpty ||
+          (data['careers_page'] ?? '').toString().isNotEmpty);
+      if (!_showAllRestaurants && !hasData) continue;
+
+      final marker = Marker(
+        markerId: MarkerId(docId),
+        position: LatLng(lat, lng),
+        infoWindow: const InfoWindow(title: ''),
+        onTap: () => _showRestaurantDetails(data),
+      );
+
+      locations.add({
+        'id': docId,
+        'lat': lat,
+        'lng': lng,
+        'data': marker,
+        'worked_here_count': data['worked_here_count'] ?? 0,
+        'sources': _extractSources(data),
+        // Les dades originals es conserven per al popup
+        ...data,
+      });
+    }
+
+    return locations;
+  }
+
+  List<Map<String, Object?>> _buildHarvestLocations(
+    List<HarvestPlace> places,
+  ) {
+    final List<Map<String, Object?>> locations = [];
+
+    for (final p in places) {
+      final marker = Marker(
+        markerId: MarkerId(p.id),
+        position: LatLng(p.latitude, p.longitude),
+        infoWindow: const InfoWindow(title: ''),
+        onTap: () => _showHarvestDetails({'data': p}),
+      );
+      locations.add({
+        'id': p.id,
+        'lat': p.latitude,
+        'lng': p.longitude,
+        'data': marker,
+        'worked_here_count': 0,
+      });
+    }
+
+    return locations;
   }
 
   void _openMailSetup() {
@@ -224,69 +404,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
   }
 
-  void _listenMarkers() {
-    MapMarkersService.getMarkers(_showRestaurantDetails).listen((newMarkers) async {
-      final firestore = FirebaseFirestore.instance;
-      final snapshot = await firestore.collection('restaurants').get();
-      final Map<String, Map<String, dynamic>> restaurantMap = {
-        for (var doc in snapshot.docs) doc.id: doc.data(),
-      };
-
-      _restaurantLocations = [];
-      for (final m in newMarkers) {
-        final data = restaurantMap[m.markerId.value];
-        if (data == null) continue;
-        if (data['blocked'] == true) continue;
-
-        final hasData =
-            ((data['facebook_url'] ?? '').toString().isNotEmpty ||
-                (data['instagram_url'] ?? '').toString().isNotEmpty ||
-                (data['email'] ?? '').toString().isNotEmpty ||
-                (data['careers_page'] ?? '').toString().isNotEmpty);
-        if (!_showAllRestaurants && !hasData) continue;
-
-        _restaurantLocations.add({
-          'id': m.markerId.value,
-          'lat': m.position.latitude,
-          'lng': m.position.longitude,
-          'data': m,
-          'worked_here_count': data['worked_here_count'] ?? 0,
-          'sources': _extractSources(data),
-        });
-      }
-
-      _updateMarkers(_currentZoom);
-    });
-
-    HarvestPlacesService.streamHarvestPlaces().listen((places) async {
-      _harvestLocations = [];
-      for (final p in places) {
-        final marker = Marker(
-          markerId: MarkerId(p.id),
-          position: LatLng(p.latitude, p.longitude),
-          infoWindow: const InfoWindow(title: ''),
-          onTap: () => _showHarvestDetails({'data': p}),
-        );
-        _harvestLocations.add({
-          'id': p.id,
-          'lat': p.latitude,
-          'lng': p.longitude,
-          'data': marker,
-          'worked_here_count': 0,
-        });
-      }
-      _updateMarkers(_currentZoom);
-    });
-  }
-
   Future<void> _updateMarkers(double zoom) async {
     if (!_isHospitality) {
       // 🔹 Mode Harvest
       if (_harvestLocations.isEmpty) {
         setState(() {
-          _markers.clear();
           _selectedRestaurant = null;
           _selectedHarvest = null;
+          _dataStatusMessage ??= 'Sense dades de Harvest al cache.';
         });
         return;
       }
@@ -295,7 +420,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     }
 
     // 🔹 Mode Hospitality
-    if (_restaurantLocations.isEmpty) return;
+    if (_restaurantLocations.isEmpty) {
+      setState(() {
+        _selectedRestaurant = null;
+        _dataStatusMessage ??= 'Sense dades locals. Prem “Actualitzar”.';
+      });
+      return;
+    }
 
     final filteredRestaurants =
         _restaurantLocations.where(_passesFilter).toList();
@@ -362,6 +493,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       _markers
         ..clear()
         ..addAll(updatedMarkers);
+      if (_markers.isNotEmpty) _dataStatusMessage = null;
     });
   }
 
@@ -872,6 +1004,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               .update({'worked_here_count': FieldValue.increment(-1)});
           workedList.remove(restaurantId);
           await prefs.setStringList('worked_places', workedList);
+          _updateLocalWorkedHere(restaurantId, -1);
+          _updateMarkers(_currentZoom);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -928,6 +1062,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             .update({'worked_here_count': FieldValue.increment(1)});
         workedList.add(restaurantId);
         await prefs.setStringList('worked_places', workedList);
+        _updateLocalWorkedHere(restaurantId, 1);
+        _updateMarkers(_currentZoom);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -940,6 +1076,24 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
         );
       }
+    }
+  }
+
+  void _updateLocalWorkedHere(String restaurantId, int delta) {
+    for (final loc in _restaurantLocations) {
+      if (loc['id'] == restaurantId) {
+        final raw = loc['worked_here_count'] ?? 0;
+        final current =
+            (raw is num) ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+        loc['worked_here_count'] = current + delta;
+      }
+    }
+    if (_selectedRestaurant != null &&
+        _selectedRestaurant?['docId'] == restaurantId) {
+      final raw = _selectedRestaurant?['worked_here_count'] ?? 0;
+      final current =
+          (raw is num) ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+      _selectedRestaurant!['worked_here_count'] = current + delta;
     }
   }
 
@@ -1109,6 +1263,34 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               radius: 52,
               visible: true,
             ),
+          if (_dataStatusMessage != null)
+            Positioned(
+              top: 80,
+              left: 16,
+              right: 16,
+              child: SafeArea(
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.offline_pin, color: Colors.blueAccent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _dataStatusMessage!,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // ---------- 🔹 POP up Restaurant ----------
           if (_selectedRestaurant != null) _buildRestaurantPopup(),
           // ---------- 🔹 POP up Harvest ----------
@@ -1119,213 +1301,35 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   Widget _buildRestaurantPopup() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 14,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    _truncateTitle(
-                      _selectedRestaurant!['name'] ?? 'Sense nom',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.person,
-                        color: Colors.grey,
-                      ),
-                      tooltip: 'He treballat aquí',
-                      onPressed: () => _showWorkedDialog(
-                        _selectedRestaurant!['docId'] ?? '',
-                        _selectedRestaurant!['name'] ?? 'aquest lloc',
-                      ),
-                    ),
-                    if ((_selectedRestaurant!['worked_here_count'] ?? 0) > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${_selectedRestaurant!['worked_here_count']}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if ((_selectedRestaurant!['phone'] ?? '').isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.phone,
-                      color: Colors.blueAccent,
-                    ),
-                    tooltip: 'Copiar telèfon',
-                    onPressed: () => _copyToClipboard(
-                      _selectedRestaurant!['phone'],
-                      'Telèfon',
-                    ),
-                  ),
-                if ((_selectedRestaurant!['email'] ?? '').isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.email_outlined,
-                      color: Colors.redAccent,
-                    ),
-                    tooltip: 'Opcions de correu',
-                    onPressed: () => _showEmailOptions(
-                      _selectedRestaurant!['email'],
-                    ),
-                  ),
-                if ((_selectedRestaurant!['facebook_url'] ?? '').isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.facebook,
-                      color: Colors.blue,
-                    ),
-                    tooltip: 'Obrir Facebook',
-                    onPressed: () => _openUrl(_selectedRestaurant!['facebook_url']),
-                  ),
-                if ((_selectedRestaurant!['careers_page'] ?? '').isNotEmpty)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.work_outline,
-                      color: Colors.green,
-                    ),
-                    tooltip: 'Veure ofertes de feina',
-                    onPressed: () => _openUrl(_selectedRestaurant!['careers_page']),
-                  ),
-                if ((_selectedRestaurant!['instagram_url'] ?? '').toString().isNotEmpty)
-                  IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.purple),
-                    tooltip: 'Obrir Instagram',
-                    onPressed: () => _openUrl(
-                      _selectedRestaurant!['instagram_url'],
-                    ),
-                  ),
-                const Spacer(),
-                Builder(
-                  builder: (context) {
-                    final id = _selectedRestaurant!['docId'] ?? '';
-                    final isFav = _favoritePlaces.contains(id);
-                    return IconButton(
-                      icon: Icon(
-                        isFav ? Icons.favorite : Icons.favorite_border,
-                        color: isFav ? Colors.red : Colors.grey,
-                        size: 28,
-                      ),
-                      tooltip: 'Preferit',
-                      onPressed: () => _toggleFavorite(id),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
+    final r = _selectedRestaurant!;
+    final docId = r['docId'] ?? '';
+    return MapRestaurantPopup(
+      data: r,
+      workedCount: (r['worked_here_count'] ?? 0) as int,
+      isFavorite: _favoritePlaces.contains(docId),
+      onClose: () => setState(() => _selectedRestaurant = null),
+      onWorkedHere: () => _showWorkedDialog(
+        docId,
+        r['name'] ?? 'aquest lloc',
       ),
+      onCopyPhone: () => _copyToClipboard(r['phone'], 'Telèfon'),
+      onEmail: () => _showEmailOptions(r['email']),
+      onFacebook: () => _openUrl(r['facebook_url']),
+      onCareers: () => _openUrl(r['careers_page']),
+      onInstagram: () => _openUrl(r['instagram_url']),
+      onFavorite: () => _toggleFavorite(docId),
     );
   }
 
   Widget _buildHarvestPopup() {
     if (_selectedHarvest == null) return const SizedBox.shrink();
     final harvest = _selectedHarvest!;
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _truncateTitle(harvest.name),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Postcode: ${harvest.postcode} • ${harvest.state}',
-              style: const TextStyle(color: Colors.black54),
-            ),
-            if (harvest.description != null && harvest.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                harvest.description!,
-                style: const TextStyle(color: Colors.black87),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return MapHarvestPopup(
+      name: _truncateTitle(harvest.name),
+      postcode: harvest.postcode,
+      state: harvest.state,
+      description: harvest.description,
+      onClose: () => setState(() => _selectedHarvest = null),
     );
   }
 

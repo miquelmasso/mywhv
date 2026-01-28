@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'screens/screens.dart';
+import 'screens/map_osm_vector_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 
@@ -13,12 +15,13 @@ import 'models/visa_postcodes_uploader.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  //await FirebaseFirestore.instance.disableNetwork();
-
+  await dotenv.load(fileName: ".env");
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Mantén la xarxa de Firestore desactivada per defecte
+  //await FirebaseFirestore.instance.disableNetwork();
   print('✅ Firebase initialized correctly');
   
 
@@ -70,7 +73,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _selectedIndex = initialIndex;
     _pages = <Widget>[
-      const MapPage(),
+      const MapOSMVectorPage(),
       GuideScreen(onNavigateToTab: _onItemTapped),
       const TipsRandomPage(),
       const ForumPage(),

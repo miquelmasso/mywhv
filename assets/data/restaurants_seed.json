@@ -1,0 +1,17 @@
+[
+  {
+    "docId": "seed_restaurant_1",
+    "name": "Sample Cafe",
+    "address": "123 Seed Street, Sydney",
+    "state": "NSW",
+    "postcode": "2000",
+    "latitude": -33.8688,
+    "longitude": 151.2093,
+    "email": "hello@samplecafe.test",
+    "facebook_url": "",
+    "instagram_url": "",
+    "careers_page": "",
+    "worked_here_count": 0,
+    "source": "seed"
+  }
+]

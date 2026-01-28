@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../screens/restaurant_edit_page.dart';
 
 class CareersListPage extends StatefulWidget {
   const CareersListPage({super.key});
@@ -30,9 +31,9 @@ class _CareersListPageState extends State<CareersListPage> {
         final data = doc.data();
         return {
           'name': data['name'] ?? 'Sense nom',
-          'careers_page': data['careers_page'] ?? '',
+          'careers_page': (data['careers_page'] ?? '').toString(),
         };
-      }).toList();
+      }).where((r) => (r['careers_page'] as String).trim().isNotEmpty).toList();
 
       setState(() {
         _restaurants = list;
@@ -97,6 +98,20 @@ class _CareersListPageState extends State<CareersListPage> {
                                   ),
                                 ),
                               ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          tooltip: 'Editar restaurant',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RestaurantEditPage(
+                                  initialSearch: name,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     );
                   },

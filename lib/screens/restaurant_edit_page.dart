@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RestaurantEditPage extends StatefulWidget {
-  const RestaurantEditPage({super.key});
+  const RestaurantEditPage({super.key, this.initialSearch});
+
+  final String? initialSearch;
 
   @override
   State<RestaurantEditPage> createState() => _RestaurantEditPageState();
@@ -15,12 +17,23 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _facebookController = TextEditingController();
+  final TextEditingController _instagramController = TextEditingController();
   final TextEditingController _careersController = TextEditingController();
 
   bool _loading = false;
   bool _isBlocked = false;
 
-  Future<void> _searchRestaurants(String query) async {
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialSearch?.trim();
+    if (initial != null && initial.isNotEmpty) {
+      _searchController.text = initial;
+      _searchRestaurants(initial, autoSelect: true);
+    }
+  }
+
+  Future<void> _searchRestaurants(String query, {bool autoSelect = false}) async {
     if (query.isEmpty) {
       setState(() => _results = []);
       return;
@@ -38,10 +51,9 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
     }).toList();
 
     if (results.isEmpty) {
-      final allDocs = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .limit(100)
-          .get();
+      // 🔎 Si no hi ha coincidències per prefix, carrega TOT i filtra per substring.
+      final allDocs =
+          await FirebaseFirestore.instance.collection('restaurants').get();
       final filtered = allDocs.docs
           .where((d) {
             final name = (d['name'] ?? '').toString().toLowerCase();
@@ -53,6 +65,15 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
     } else {
       setState(() => _results = results);
     }
+
+    if (autoSelect && _results.isNotEmpty) {
+      final lowerQuery = query.toLowerCase();
+      final exact = _results.firstWhere(
+        (r) => (r['name'] ?? '').toString().toLowerCase() == lowerQuery,
+        orElse: () => _results.first,
+      );
+      _selectRestaurant(exact);
+    }
   }
 
   void _selectRestaurant(Map<String, dynamic> restaurant) {
@@ -60,6 +81,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
       _selectedRestaurant = restaurant;
       _emailController.text = restaurant['email'] ?? '';
       _facebookController.text = restaurant['facebook_url'] ?? '';
+      _instagramController.text = restaurant['instagram_url'] ?? '';
       _careersController.text = restaurant['careers_page'] ?? '';
       _isBlocked = restaurant['blocked'] ?? false;
       _results = [];
@@ -78,6 +100,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
           .update({
             'email': _emailController.text.trim(),
             'facebook_url': _facebookController.text.trim(),
+            'instagram_url': _instagramController.text.trim(),
             'careers_page': _careersController.text.trim(),
             'blocked': _isBlocked,
           });
@@ -97,9 +120,21 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
   Widget _buildClearableField({
     required TextEditingController controller,
     required String label,
+    TextInputAction action = TextInputAction.next,
+    FocusNode? focusNode,
+    FocusNode? nextFocus,
   }) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
+      textInputAction: action,
+      onSubmitted: (_) {
+        if (nextFocus != null) {
+          FocusScope.of(context).requestFocus(nextFocus);
+        } else {
+          FocusScope.of(context).unfocus();
+        }
+      },
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
@@ -118,15 +153,25 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final emailFocus = FocusNode();
+    final facebookFocus = FocusNode();
+    final instagramFocus = FocusNode();
+    final careersFocus = FocusNode();
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('Editar restaurants')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
+            child: Column(
+              children: [
             TextField(
               controller: _searchController,
-              onChanged: _searchRestaurants,
+              onChanged: (value) => _searchRestaurants(value),
               decoration: InputDecoration(
                 labelText: 'Cerca un restaurant',
                 border: const OutlineInputBorder(),
@@ -178,16 +223,29 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
               _buildClearableField(
                 controller: _emailController,
                 label: 'Correu electrònic',
+                focusNode: emailFocus,
+                nextFocus: facebookFocus,
               ),
               const SizedBox(height: 12),
               _buildClearableField(
                 controller: _facebookController,
                 label: 'Enllaç de Facebook',
+                focusNode: facebookFocus,
+                nextFocus: instagramFocus,
+              ),
+              const SizedBox(height: 12),
+              _buildClearableField(
+                controller: _instagramController,
+                label: 'Enllaç d\'Instagram',
+                focusNode: instagramFocus,
+                nextFocus: careersFocus,
               ),
               const SizedBox(height: 12),
               _buildClearableField(
                 controller: _careersController,
                 label: 'Pàgina de feina (careers)',
+                focusNode: careersFocus,
+                action: TextInputAction.done,
               ),
               const SizedBox(height: 20),
               SwitchListTile(
@@ -203,6 +261,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                     // 🔹 Buida els camps i marca com bloquejat
                     _emailController.clear();
                     _facebookController.clear();
+                    _instagramController.clear();
                     _careersController.clear();
 
                     await FirebaseFirestore.instance
@@ -211,6 +270,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                         .update({
                           'email': '',
                           'facebook_url': '',
+                          'instagram_url': '',
                           'careers_page': '',
                           'blocked': true,
                         });
@@ -243,6 +303,8 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
               ),
             ],
           ],
+            ),
+          ),
         ),
       ),
     );

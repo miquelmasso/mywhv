@@ -947,20 +947,12 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         }
 
         final style = snapshot.data!;
-        assert(() {
-          debugPrint('✅ OSM: Style loaded.');
-          return true;
-        }());
         final hasProviders = true;
 
         if (!_didKickstartRender) {
           _didKickstartRender = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            assert(() {
-              debugPrint('🌀 OSM: kickstart render');
-              return true;
-            }());
             // Força petició inicial de tiles al centre d'Austràlia
             _mapController.move(_initialCenter, _initialZoom);
           });
@@ -1119,33 +1111,38 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
             left: 80,
             right: 80,
             child: SafeArea(
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+              child: Center(
+                child: IntrinsicWidth(
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: Colors.blue.shade100, width: 1.4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
-                  border: Border.all(color: Colors.blue.shade100, width: 2),
-                ),
-                child: Row(
-                  children: [
-                    _CategoryPill(
-                      label: 'Hospitality',
-                      selected: _isHospitality,
-                      onTap: () => _toggleCategory(true),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _CategoryPill(
+                          label: 'Hospitality',
+                          selected: _isHospitality,
+                          onTap: () => _toggleCategory(true),
+                        ),
+                        _CategoryPill(
+                          label: 'Farm (soon)',
+                          selected: !_isHospitality,
+                          onTap: () => _toggleCategory(false),
+                        ),
+                      ],
                     ),
-                    _CategoryPill(
-                      label: 'Farm (soon)',
-                      selected: !_isHospitality,
-                      onTap: () => _toggleCategory(false),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

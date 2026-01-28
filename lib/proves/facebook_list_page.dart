@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../screens/restaurant_edit_page.dart';
 
-class EmailsListPage extends StatefulWidget {
-  const EmailsListPage({super.key});
+class FacebookListPage extends StatefulWidget {
+  const FacebookListPage({super.key});
 
   @override
-  State<EmailsListPage> createState() => _EmailsListPageState();
+  State<FacebookListPage> createState() => _FacebookListPageState();
 }
 
-class _EmailsListPageState extends State<EmailsListPage> {
+class _FacebookListPageState extends State<FacebookListPage> {
   bool _loading = true;
   List<Map<String, dynamic>> _restaurants = [];
 
   @override
   void initState() {
     super.initState();
-    _loadEmails();
+    _loadFacebookLinks();
   }
 
-  Future<void> _loadEmails() async {
+  Future<void> _loadFacebookLinks() async {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('restaurants')
@@ -30,17 +32,29 @@ class _EmailsListPageState extends State<EmailsListPage> {
         final data = doc.data();
         return {
           'name': data['name'] ?? 'Sense nom',
-          'email': (data['email'] ?? '').toString(),
+          'facebook_url': (data['facebook_url'] ?? '').toString(),
         };
-      }).where((r) => (r['email'] as String).trim().isNotEmpty).toList();
+      }).where((r) => (r['facebook_url'] as String).trim().isNotEmpty).toList();
 
       setState(() {
         _restaurants = list;
         _loading = false;
       });
     } catch (e) {
-      print('❌ Error carregant correus: $e');
+      print('❌ Error carregant enllaços de Facebook: $e');
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openUrl(String url) async {
+    if (url.isEmpty) return;
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No s’ha pogut obrir l’enllaç')),
+      );
     }
   }
 
@@ -48,8 +62,8 @@ class _EmailsListPageState extends State<EmailsListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Correus dels restaurants'),
-        backgroundColor: Colors.blueAccent,
+        title: const Text('Enllaços de Facebook'),
+        backgroundColor: Colors.indigo,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -61,7 +75,7 @@ class _EmailsListPageState extends State<EmailsListPage> {
                   itemBuilder: (context, i) {
                     final r = _restaurants[i];
                     final name = r['name'];
-                    final email = r['email'];
+                    final link = r['facebook_url'];
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
@@ -72,10 +86,14 @@ class _EmailsListPageState extends State<EmailsListPage> {
                             fontSize: 16,
                           ),
                         ),
-                        subtitle: SelectableText(
-                          email.isEmpty ? '— Sense correu —' : email,
-                          style: TextStyle(
-                            color: email.isEmpty ? Colors.grey : Colors.black87,
+                        subtitle: InkWell(
+                          onTap: () => _openUrl(link),
+                          child: Text(
+                            link,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                         trailing: IconButton(

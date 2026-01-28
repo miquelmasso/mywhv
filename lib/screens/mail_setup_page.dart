@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -111,38 +110,6 @@ class _MailSetupPageState extends State<MailSetupPage> {
     );
   }
 
-  Future<void> _testEmailSend() async {
-    final prefs = await SharedPreferences.getInstance();
-    final message = prefs.getString('emailMessage') ?? 'Hola, adjunto mi currículum.';
-    final cvPath = prefs.getString('cvPath');
-
-    if (cvPath == null || !File(cvPath).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Has de pujar el teu CV abans d’enviar el correu.')),
-      );
-      return;
-    }
-
-    final email = Email(
-      body: message,
-      subject: 'Working with you',
-      recipients: [''],
-      attachmentPaths: [cvPath],
-      isHTML: false,
-    );
-
-    try {
-      await FlutterEmailSender.send(email);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Correu obert amb èxit!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en enviar el correu: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,21 +200,6 @@ class _MailSetupPageState extends State<MailSetupPage> {
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
-              const SizedBox(height: 28),
-              Center(
-                child: ElevatedButton.icon(
-                  onPressed: _testEmailSend,
-                  icon: const Icon(Icons.mark_email_read_outlined),
-                  label: const Text('Provar missatge'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                  ),
-                ),
-              ),
             ],
           ),
         ),

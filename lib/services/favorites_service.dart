@@ -19,7 +19,9 @@ class FavoritesService {
   }
 
   /// Carrega un snapshot únic dels restaurants que estan a preferits.
-  static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> fetchFavoriteRestaurantsOnce() async {
+  static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> fetchFavoriteRestaurantsOnce({
+    bool forceServer = false,
+  }) async {
     final ids = await loadFavoriteIds();
     if (ids.isEmpty) return [];
     final firestore = FirebaseFirestore.instance;
@@ -31,10 +33,11 @@ class FavoritesService {
       batches.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
     }
     for (final batch in batches) {
+      final source = forceServer ? Source.server : Source.cache;
       final snapshot = await firestore
           .collection('restaurants')
           .where(FieldPath.documentId, whereIn: batch)
-          .get();
+          .get(GetOptions(source: source));
       docs.addAll(snapshot.docs);
     }
     return docs;

@@ -8,3 +8,5 @@ export 'tips_random_page.dart';
 export 'guide_screen.dart';
 export 'guide_section_screen.dart';
 export 'guide_page_screen.dart';
+export 'map_osm_page.dart';
+export 'map_osm_vector_page.dart';

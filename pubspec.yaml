@@ -35,9 +35,13 @@ dependencies:
   http: ^1.2.2
   html: ^0.15.5
   google_maps_flutter: ^2.7.0
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.1
+  flutter_map_marker_cluster: ^1.2.0
+  vector_map_tiles: ^8.0.0
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.0
-  flutter_dotenv: ^5.1.0
+  flutter_dotenv: ^6.0.0
   flutter_email_sender: ^6.0.3
   path_provider: ^2.1.2
   shared_preferences: ^2.2.3
@@ -74,6 +78,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - .env
     - assets/map_style_dark.json
     - assets/map_style_australia.json
     - assets/map_style_australia_only.json
@@ -81,6 +86,7 @@ flutter:
     - assets/harvest/harvest_2025.json
     - assets/data/harvest_places_2025.json
     - assets/data/guide_manual.json
+    - assets/data/restaurants_seed.json
 
   # To add assets to your application, add an assets section, like this:
   #. assets:

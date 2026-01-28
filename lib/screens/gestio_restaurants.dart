@@ -1,9 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/map_markers_service.dart';
 import 'add_restaurants_by_postcode_page.dart';
 import 'add_restaurants_by_state_page.dart';
 
-class TipsPage extends StatelessWidget {
+class TipsPage extends StatefulWidget {
   const TipsPage({super.key});
+
+  @override
+  State<TipsPage> createState() => _TipsPageState();
+}
+
+class _TipsPageState extends State<TipsPage> {
+  bool _isRefreshing = false;
+
+  Future<void> _refreshRestaurants() async {
+    setState(() => _isRefreshing = true);
+    try {
+      await FirebaseFirestore.instance.enableNetwork();
+      final restaurants = await MapMarkersService.loadRestaurants(fromServer: true);
+      if (!mounted) return;
+
+      final total = restaurants.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            total == 0
+                ? '⚠️ No s’han trobat restaurants al servidor.'
+                : '✅ $total restaurants actualitzats des del servidor.',
+          ),
+          backgroundColor: total == 0 ? Colors.orange : Colors.green.shade700,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error actualitzant restaurants: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      await FirebaseFirestore.instance.disableNetwork();
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +111,26 @@ class TipsPage extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _isRefreshing ? null : _refreshRestaurants,
+              icon: _isRefreshing
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.sync),
+              label: Text(_isRefreshing ? 'Actualitzant...' : 'Actualitzar restaurants'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                backgroundColor: Colors.orange.shade700,
                 foregroundColor: Colors.white,
               ),
             ),

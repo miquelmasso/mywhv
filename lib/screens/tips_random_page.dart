@@ -55,10 +55,7 @@ class _TipsRandomPageState extends State<TipsRandomPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tips'),
-        centerTitle: true,
-      ),
+      appBar: null,
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
