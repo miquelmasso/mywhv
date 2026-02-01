@@ -127,7 +127,7 @@ class MapRestaurantPopup extends StatelessWidget {
                 if ((data['facebook_url'] ?? '').toString().isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.facebook, color: Colors.blue),
-                    tooltip: 'Obrir Facebook',
+                    tooltip: 'Open Facebook',
                     onPressed: onFacebook,
                   ),
                 if ((data['careers_page'] ?? '').toString().isNotEmpty)

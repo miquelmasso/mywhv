@@ -867,11 +867,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           OverlayHelper.showCopiedOverlay(
                             context,
                             this,
-                            'Correu copiat',
+                            'copied email',
                           );
                         },
                         child: const Text(
-                          'Copiar correu',
+                          'Copy email',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -896,7 +896,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           entry.remove();
                         },
                         child: const Text(
-                          'Enviar correu',
+                          'Send email',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -968,7 +968,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text(
-            'Vols desfer?',
+            'You want to undo',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
@@ -990,7 +990,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sí'),
+              child: const Text('Yes'),
             ),
           ],
         ),
@@ -1442,7 +1442,7 @@ class ProfilePopupMenu extends StatelessWidget {
               icon: Icons.email_outlined,
               iconColor: Colors.redAccent,
               iconBg: Colors.redAccent.withOpacity(0.12),
-              text: 'Configurar correu automàtic',
+              text: 'Edit automatic mail',
               onTap: onMail,
             ),
             const SizedBox(height: 14),
@@ -1450,7 +1450,7 @@ class ProfilePopupMenu extends StatelessWidget {
               icon: Icons.favorite_outline,
               iconColor: Colors.pinkAccent,
               iconBg: Colors.pinkAccent.withOpacity(0.12),
-              text: 'Preferits',
+              text: 'Favourites',
               onTap: onFavorites,
             ),
             if (showAdmin) ...[

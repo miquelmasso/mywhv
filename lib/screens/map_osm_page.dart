@@ -387,16 +387,7 @@ class _MapPageOSMState extends State<MapPageOSM> {
                   },
                 ),
               ),
-              RichAttributionWidget(
-                alignment: AttributionAlignment.bottomRight,
-                attributions: [
-                  TextSourceAttribution(
-                    '© OpenStreetMap contributors',
-                    onTap: () =>
-                        launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
-                  ),
-                ],
-              ),
+              
             ],
           ),
           Positioned(

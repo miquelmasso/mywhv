@@ -126,20 +126,20 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     final tabs = isFindWorkPage
         ? const [
             Tab(text: 'Facebook'),
-            Tab(text: 'Webs'),
-            Tab(text: 'Mapa'),
+            Tab(text: 'Websites'),
+            Tab(text: 'Map'),
           ]
         : isVisaPage
             ? const [
-                Tab(text: 'Requisits'),
-                Tab(text: 'Passos per aplicar'),
+                Tab(text: 'Requirements'),
+                Tab(text: 'Steps to apply'),
               ]
             : isBeforeArrivalPage
                 ? const [
-                    Tab(text: 'Preparació'),
-                    Tab(text: 'Allotjament'),
-                    Tab(text: 'Diners'),
-                    Tab(text: 'Feina'),
+                    Tab(text: 'Preparation'),
+                    Tab(text: 'Accomodation'),
+                    Tab(text: 'Money'),
+                    Tab(text: 'CV'),
                   ]
                 : isFaceToFacePage
                     ? const [
@@ -410,7 +410,7 @@ class _FindWorkTabContent extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () => _launchExternal(Uri.parse('https://www.facebook.com/groups')),
               icon: const Icon(Icons.open_in_new),
-              label: const Text('Obrir Facebook Groups'),
+              label: const Text('Open Facebook Groups'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -428,7 +428,7 @@ class _FindWorkTabContent extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: goToMailSetup,
                   icon: const Icon(Icons.email_outlined),
-                  label: const Text('Editar email'),
+                  label: const Text('Edit email'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -442,7 +442,7 @@ class _FindWorkTabContent extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: goToMap,
                   icon: const Icon(Icons.map_outlined),
-                  label: const Text('Anar al mapa'),
+                  label: const Text('Go to map'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -556,15 +556,15 @@ class _CvTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _InfoCard(
-          title: 'Què posar al CV',
+          title: 'What to include in your CV',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              _BulletText('Dades bàsiques (nom, telèfon, email)'),
-              _BulletText('Disponibilitat immediata'),
-              _BulletText('Experiència rellevant (hospitality / cleaning / farm)'),
+              _BulletText('Basic details (name, phone, email)'),
+              _BulletText('Immediate availability'),
+              _BulletText('Relevant experience (hospitality / cleaning / farm)'),
               _BulletText('Visa type (WHV)'),
-              _BulletText('Localització actual'),
+              _BulletText('Current location'),
             ],
           ),
         ),
@@ -573,7 +573,7 @@ class _CvTab extends StatelessWidget {
           title: 'Tip',
           color: Colors.green.shade50,
           leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
-          child: const Text('CV simple, 1 pàgina, sense foto és acceptable a Austràlia.'),
+          child: const Text('Keep it simple: 1-page CV, no photo is fine in Australia.'),
         ),
       ],
     );
@@ -817,9 +817,12 @@ Widget _buildBlockWidget(
           await _launchExternal(Uri.parse(block.buttonUrl!));
         },
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          backgroundColor: const Color(0xFFF8EDEA),
+          foregroundColor: const Color(0xFF8A4A3A),
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: Text(block.buttonLabel!),
@@ -996,43 +999,57 @@ Widget _buildBlockWidget(
     case 'cv_sheet':
       return _cvSheet(block);
     case 'button':
-      IconData? _mapIcon(String? iconName) {
-        switch (iconName) {
-          case 'home':
-            return Icons.home;
-          default:
-            return null;
+      final isCopyAction = block.buttonUrl?.startsWith('copy:') ?? false;
+      final isGuideNavigation = block.buttonUrl?.startsWith('guide:') ?? false;
+      Future<void> _handleTap() async {
+        if (block.buttonLabel == null || block.buttonUrl == null) return;
+        if (isCopyAction) {
+          final textToCopy =
+              block.content?.isNotEmpty == true ? block.content! : block.items.join('\n');
+          if (textToCopy.isNotEmpty) {
+            await Clipboard.setData(ClipboardData(text: textToCopy));
+            if (vsync != null) {
+              await OverlayHelper.showCopiedOverlay(
+                context,
+                vsync!,
+                block.buttonLabel ?? 'Copied',
+              );
+            }
+          }
+          return;
         }
-      }
-      final iconData = _mapIcon(block.icon);
-      final onPressed = () async {
-        if (block.buttonUrl == null) return;
-        if (block.buttonUrl!.startsWith('guide:')) {
+        if (isGuideNavigation) {
           final targetPageId = block.buttonUrl!.substring('guide:'.length);
-          await _openGuidePage(context, targetPageId, onNavigateToTab: onNavigateToTab);
+          if (targetPageId.isNotEmpty) {
+            await _openGuidePage(context, targetPageId, onNavigateToTab: onNavigateToTab);
+          }
           return;
         }
         await _launchExternal(Uri.parse(block.buttonUrl!));
-      };
-      final style = ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      );
-      return Center(
-        child: iconData != null
-            ? ElevatedButton.icon(
-                icon: Icon(iconData),
-                label: Text(block.buttonLabel ?? ''),
-                onPressed: onPressed,
-                style: style,
-              )
-            : ElevatedButton(
-                onPressed: onPressed,
-                style: style,
-                child: Text(block.buttonLabel ?? ''),
+      }
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Material(
+            color: const Color(0xFFF8EDEA),
+            shape: const StadiumBorder(),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: block.buttonLabel != null && block.buttonUrl != null ? _handleTap : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                child: Text(
+                  block.buttonLabel ?? '',
+                  style: const TextStyle(
+                    color: Color(0xFF8A4A3A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
+            ),
+          ),
+        ),
       );
     case 'tip':
       final content = block.content ?? '';
@@ -1114,7 +1131,7 @@ class _ActionsTab extends StatelessWidget {
             onPressed: goToForum,
             icon: const Icon(Icons.forum_outlined),
             label: Text(
-              'Preguntar al fòrum${forumTag != null ? ' (#$forumTag)' : ''}',
+              'Ask forum${forumTag != null ? ' (#$forumTag)' : ''}',
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -1149,7 +1166,7 @@ Widget? _buildForumButton({required String? tag, required VoidCallback onPressed
     child: ElevatedButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.forum_outlined),
-      label: Text('Preguntar al fòrum (#$tag)'),
+      label: Text('Ask forum (#$tag)'),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,

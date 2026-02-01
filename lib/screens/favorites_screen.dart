@@ -134,7 +134,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     _removedIds.contains(doc.id) ? Icons.favorite_border : Icons.favorite,
                     color: _removedIds.contains(doc.id) ? Colors.grey : Colors.red,
                   ),
-                  tooltip: _removedIds.contains(doc.id) ? 'Afegir a preferits' : 'Treure de preferits',
+                  tooltip: _removedIds.contains(doc.id) ? 'Add to favourites' : 'Remove from favourites',
                 ),
               ],
             ),
@@ -172,7 +172,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Preferits')),
+      appBar: AppBar(title: const Text('Favourites')),
       body: FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
         future: _future,
         builder: (context, snapshot) {
@@ -181,12 +181,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text('Error carregant preferits: ${snapshot.error}'),
+              child: Text('error loading favourites: ${snapshot.error}'),
             );
           }
           final docs = snapshot.data ?? [];
           if (docs.isEmpty) {
-            return const Center(child: Text('Encara no tens preferits.'));
+            return const Center(child: Text('No favourites yet'));
           }
           final ordered = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs.reversed);
           return ListView.builder(

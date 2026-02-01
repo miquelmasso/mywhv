@@ -39,7 +39,7 @@ class ProfilePage extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.email_outlined),
-                    label: const Text('Configurar correu automàtic'),
+                    label: const Text('Edit automatic mail'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
@@ -57,7 +57,7 @@ class ProfilePage extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.favorite_outline),
-                    label: const Text('Preferits'),
+                    label: const Text('Favourites'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.pinkAccent,
                       foregroundColor: Colors.white,

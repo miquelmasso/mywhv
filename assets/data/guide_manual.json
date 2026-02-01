@@ -5,36 +5,36 @@
   "sections": [
     {
       "id": "visa_requirements",
-      "title": "Visat i requisits",
+      "title": "Visa & requirements",
       "icon": "passport",
-      "description": "417/462, requisits, cost i passos.",
+      "description": "417/462, requirements, cost and steps.",
       "pages": [
         {
           "id": "visa_overview",
-          "title": "Visat i requisits",
-          "summary": "417/462, requisits, cost i passos.",
+          "title": "Visa & requirements",
+          "summary": "417/462, requirements, cost and steps.",
           "blocks": [
             {
               "type": "text",
               "title": "",
-              "content": "Comprova sempre la web oficial: els requisits canvien."
+              "content": "Always check the official website: requirements change."
             }
           ],
           "sections": [
             {
               "id": "requirements_tab",
-              "title": "Requisits",
+              "title": "Requirements",
               "blocks": [
                 {
                   "type": "bullets",
-                  "title": "Quin visat tinc? (417 o 462)",
+                  "title": "Which visa do I have? (417 or 462)",
                   "content": [
-                    "Depèn del teu país.",
-                    "Edat: normalment 18–30 (fins 35 en alguns països).",
-                    "Requisits poden variar (estudis / anglès)."
+                    "Depends on your country.",
+                    "Age: usually 18–30 (up to 35 for some countries).",
+                    "Requirements may vary (studies / English)."
                   ],
                   "button": {
-                    "label": "Obrir llista oficial (417/462)",
+                    "label": "Check official list (417/462)",
                     "url": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing"
                   }
                 },
@@ -42,39 +42,39 @@
                   "type": "steps",
                   "title": "Checklist",
                   "content": [
-                    "Passaport en vigor",
-                    "Fons mínims (5.000 AUD normalment)",
-                    "Anglès (examen acceptat)",
-                    "Assegurança mèdica (recomanable / sovint necessària)",
-                    "Estudis superiors"
+                    "Valid passport",
+                    "Minimum funds (usually 5,000 AUD)",
+                    "English (accepted exam)",
+                    "Health insurance (recommended / often required)",
+                    "Superior studies"
                   ]
                 },
                 {
                   "type": "warning",
                   "title": "Important",
-                  "content": "Els requisits canvien. Verifica sempre a la web oficial"
+                  "content": "Requirements change. Always verify on the official website."
                 }
               ]
             },
             {
               "id": "apply_steps_tab",
-              "title": "Passos per aplicar",
+              "title": "How to apply",
               "blocks": [
                 {
                   "type": "steps",
-                  "title": "Passos per aplicar (resum)",
+                  "title": "How to apply (summary)",
                   "content": [
-                    "Crear ImmiAccount",
-                    "Omplir formulari",
-                    "Pujar documents",
-                    "Pagar",
-                    "Revisar correu i respondre si demanen extra"
+                    "Create an ImmiAccount",
+                    "Fill in the form",
+                    "Upload documents",
+                    "Pay",
+                    "Check email and respond if they request more info"
                   ]
                 },
                 {
                   "type": "tip",
-                  "title": "Consell",
-                  "content": "Guarda documents a Drive + còpia offline al mòbil."
+                  "title": "Tip",
+                  "content": "Save documents to Drive + an offline copy on your phone."
                 }
               ]
             }
@@ -90,72 +90,72 @@
     },
     {
       "id": "before_arrival",
-      "title": "Abans d’arribar",
+      "title": "Before arrival",
       "icon": "flight_takeoff",
-      "description": "Targetes, hostal, CV, i preparar-te perquè arribar sigui fàcil.",
+      "description": "Cards, hostel, CV, and prep to arrive smoothly.",
       "pages": [
         {
           "id": "before_arrival_overview",
-          "title": "Abans d’arribar",
-          "summary": "Preparació, diners, hostal i CV en un cop d’ull.",
+          "title": "Before arrival",
+          "summary": "Prep, money, hostel and CV at a glance.",
           "blocks": [
             {
               "type": "text",
               "title": "",
-              "content": "Abans d’arribar: prepara ciutat, diners, hostal i CVs."
+              "content": "Before you arrive: choose city, plan money, book hostel, prep CVs."
             }
           ],
           "sections": [
             {
               "id": "preparation_tab",
-              "title": "Preparació",
+              "title": "Preparation",
               "blocks": [
                 {
                   "type": "bullets",
-                  "title": "Triar ciutat i temporada",
+                  "title": "Pick city and season",
                   "content": [
-                    "Sydney: més oferta, més cara",
-                    "Melbourne: equilibrada",
-                    "Brisbane/Perth: més tranquil·les, potser més barates"
+                    "Sydney: more offers, more expensive",
+                    "Melbourne: balanced",
+                    "Brisbane/Perth: calmer, often cheaper"
                   ]
                 },
                 {
                   "type": "bullets",
-                  "title": "Estratègia de temporada",
+                  "title": "Season strategy",
                   "content": [
-                    "Arriba 3–4 setmanes abans temporada alta",
-                    "Nord al hivern, Sud al estiu"
+                    "Arrive 3–4 weeks before high season",
+                    "North in winter, South in summer"
                   ]
                 },
                 {
                   "type": "tip",
                   "title": "Tip",
-                  "content": "Decideix la ciutat segons objectiu: feina ràpida, cost o ambient."
+                  "content": "Pick the city based on your goal: quick job, cost, or vibe."
                 }
               ]
             },
             {
               "id": "lodging_tab",
-              "title": "Allotjament",
+              "title": "Lodging",
               "blocks": [
                 {
                   "type": "bullets",
-                  "title": "Hostal (primeres nits)",
+                  "title": "Hostel (first nights)",
                   "content": [
-                    "Reserva 3–7 nits.",
-                    "Zona cèntrica o ben connectada."
+                    "Book 3–7 nights.",
+                    "Central area or well connected."
                   ]
                 },
                 {
                   "type": "tip",
                   "title": "Tip",
-                  "content": "Pregunta si tenen descompte setmanal o habitació compartida estable."
+                  "content": "Ask for weekly discount or a stable shared room. Also, look for jobs on online boards while you stay there."
                 },
                 {
                   "type": "button",
                   "icon": "home",
                   "button": {
-                    "label": "Veure opcions d’habitatge (Casa)",
+                    "label": "See housing options",
                     "url": "guide:shared_housing_facebook"
                   }
                 }
@@ -163,16 +163,16 @@
             },
             {
               "id": "money_tab",
-              "title": "Diners",
+              "title": "Money",
               "blocks": [
                 {
                   "type": "bullets",
-                  "title": "Targeta",
+                  "title": "Card",
                   "content": [
-                    "Porta targeta física.",
-                    "Avisa el banc si cal.",
-                    "Banc internacional",
-                    "Evita comissions: tria banc/app amb bons canvis."
+                    "Bring a physical card.",
+                    "Warn your bank if needed.",
+                    "International-friendly bank",
+                    "Avoid fees: choose bank/app with good FX rates."
                   ]
                 }
               ]
@@ -183,22 +183,22 @@
               "blocks": [
                 {
                   "type": "bullets",
-                  "title": "Prepara CVs",
+                  "title": "Prep your CVs",
                   "content": [
-                    "2–3 CVs diferents: hospitality / general / construcció",
-                    "Format australià: sense foto",
-                    "PDF llest abans de volar"
+                    "2–3 CVs: hospitality / general / construction",
+                    "Australian format: no photo",
+                    "PDF ready before you fly"
                   ]
                 },
                 {
                   "type": "tip",
                   "title": "Tip",
-                  "content": "Porta els CVs impresos i també al mòbil (PDF)."
+                  "content": "Bring printed copies and keep PDFs on your phone."
                 },
                 {
                   "type": "button",
                   "button": {
-                    "label": "Trobar feina online",
+                    "label": "Find work online",
                     "url": "guide:find_work_online"
                   }
                 }
@@ -216,43 +216,44 @@
     },
     {
       "id": "arrival_steps",
-      "title": "Arribada i tràmits",
+      "title": "Arrival & paperwork",
       "icon": "how_to_reg",
-      "description": "SIM, internet, TFN, certificats i primers passos reals.",
+      "description": "SIM, internet, TFN, certificates and first real steps.",
       "pages": [
         {
           "id": "sim_and_internet",
-          "title": "SIM i internet",
-          "summary": "Com tenir dades i no quedar-te venut el primer dia.",
+          "title": "SIM & internet",
+          "summary": "How to get data and not be stranded on day one.",
           "blocks": [
             {
               "type": "text",
-              "title": "Situació típica",
-              "content": "Arribes sense internet o amb roaming car. Millor SIM local si estaràs temps a Austràlia."
+              "title": "Typical scenario",
+              "content": "You arrive with no internet. Get a local SIM in town"
             },
             {
               "type": "bullets",
-              "title": "Quan importa Telstra",
+              "title": "Popular company: Telstra",
               "content": [
-                "Zones remotes / rural: millor cobertura",
-                "Ciutats: quasi totes funcionen bé"
+                "Remote / rural areas: best coverage",
+                "Cities: most providers work fine",
+                "more expensive"
               ]
             },
             {
               "type": "tip",
-              "title": "Abans d’aterrar",
-              "content": "Descarrega Google Maps offline de la zona i mira com anar a l’hostal."
+              "title": "Before landing",
+              "content": "Download offline Google Maps for the area and check how to get to your hostel."
             }
           ],
           "checklist": [
             {
               "id": "c_sim_1",
-              "text": "He descarregat el mapa offline de la ciutat",
+              "text": "I downloaded the city offline map",
               "done": false
             },
             {
               "id": "c_sim_2",
-              "text": "Tinc pla per comprar SIM el primer dia",
+              "text": "I have a plan to buy a SIM on day one",
               "done": false
             }
           ],
@@ -265,37 +266,48 @@
         {
           "id": "tfn",
           "title": "TFN (Tax File Number)",
-          "summary": "Com demanar-lo i què passa si encara no el tens.",
+          "summary": "How to apply and what happens if you don’t have it yet.",
           "blocks": [
             {
               "type": "text",
-              "title": "Què és?",
-              "content": "El TFN és el teu número fiscal per treballar i pagar impostos."
+              "title": "What is it?",
+              "content": "TFN is your tax number to work and pay taxes."
             },
             {
               "type": "steps",
-              "title": "Com fer-ho",
+              "title": "How to do it",
               "content": [
-                "Entra a la web oficial (ATO)",
-                "Sol·licita el TFN",
-                "Dona una adreça per rebre’l (pot trigar fins 2 setmanes)"
+                "Go to the official ATO website",
+                "Apply for the TFN",
+                "Provide an address to receive it (can take up to 2 weeks)"
               ]
+            },
+            {
+              "type": "bullets",
+              "title": "Set up ATO",
+              "content": [
+                "Open the official ATO page to apply online."
+              ],
+              "button": {
+                "label": "Set up ATO",
+                "url": "https://www.ato.gov.au/individuals-and-families/tax-file-number"
+              }
             },
             {
               "type": "tip",
               "title": "Important",
-              "content": "Pots començar a treballar mentre el TFN està en procés, però avisa l’empresa."
+              "content": "You can start working while the TFN is in process, but tell the employer."
             }
           ],
           "checklist": [
             {
               "id": "c_tfn_1",
-              "text": "He sol·licitat el TFN",
+              "text": "I applied for the TFN",
               "done": false
             },
             {
               "id": "c_tfn_2",
-              "text": "Tinc una adreça segura per rebre el TFN",
+              "text": "I have a safe address to receive the TFN",
               "done": false
             }
           ],
@@ -312,43 +324,44 @@
         },
         {
           "id": "certificates",
-          "title": "Certificats (RSA, White Card, USI)",
-          "summary": "Quan els necessites i com no equivocar-te d’estat.",
+          "title": "Certificates (RSA, White Card, USI)",
+          "summary": "When you need them and how not to pick the wrong state.",
           "blocks": [
             {
               "type": "bullets",
-              "title": "Els típics",
+              "title": "The usual ones",
               "content": [
-                "RSA: servir alcohol",
-                "White Card: construcció",
-                "USI: alguns cursos/certificats"
+                "some jobs require specific certificates",
+                "RSA: serve alcohol",
+                "White Card: construction",
+                "USI: some courses/certificates"
               ]
             },
             {
               "type": "warning",
-              "title": "Compte!",
-              "content": "Alguns certificats poden variar per estat. Revisa que sigui vàlid per on treballaràs."
+              "title": "Heads up!",
+              "content": "Some certificates vary by state. Check if it’s valid where you’ll work."
             },
             {
               "type": "tip",
-              "title": "Estratègia",
-              "content": "No cal fer-los tots el primer dia: fes els que desbloquegen feines ràpides al teu estat."
+              "title": "Strategy",
+              "content": "No need to do them all on day one: get the ones that unlock quick jobs in your state."
             }
           ],
           "checklist": [
             {
               "id": "c_cert_1",
-              "text": "He decidit si necessito RSA ara",
+              "text": "I decided if I need RSA now",
               "done": false
             },
             {
               "id": "c_cert_2",
-              "text": "He decidit si necessito White Card ara",
+              "text": "I decided if I need White Card now",
               "done": false
             },
             {
               "id": "c_cert_3",
-              "text": "He revisat que el curs sigui del meu estat",
+              "text": "I checked the course is for my state",
               "done": false
             }
           ],
@@ -361,98 +374,97 @@
       ]
     },
     {
-      "id": "housing",
-      "title": "Casa",
-      "icon": "home",
-      "description": "Com trobar habitació, lloguer, bond i evitar estafes.",
-      "pages": [
+  "id": "housing",
+  "title": "Housing",
+  "icon": "home",
+  "description": "How to find a room, rent, bond and avoid scams.",
+  "pages": [
+    {
+      "id": "shared_housing_facebook",
+      "title": "Room in shared flat (Facebook)",
+      "summary": "Groups, marketplace and how to do inspections right.",
+      "blocks": [
         {
-          "id": "shared_housing_facebook",
-          "title": "Habitació en pis compartit (Facebook)",
-          "summary": "Grups, marketplace i com fer inspections bé.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "On es mou tot",
-              "content": "A moltes ciutats, Facebook és el centre per trobar casa (grups locals + marketplace)."
-            },
-            {
-              "type": "text",
-              "title": "Preu habitual",
-              "content": "Entre 150 i 400 AUD per setmana."
-            },
-            {
-              "type": "steps",
-              "title": "Procés típic",
-              "content": [
-                "Troba grups de la ciutat (accommodation/rooms)",
-                "Escriu al post i demana inspection",
-                "Ves a veure el pis",
-                "No paguis res abans de veure’l",
-                "Acorda bond i data d’entrada"
-              ]
-            },
-            {
-              "type": "warning",
-              "title": "Atenció",
-              "content": "Mai paguis bond o setmanes per avançat abans de veure el pis i conèixer la persona."
-            }
-          ],
-          "checklist": [
-            {
-              "id": "c_house_1",
-              "text": "He entrat als grups de Facebook de la meva ciutat",
-              "done": false
-            },
-            {
-              "id": "c_house_2",
-              "text": "He fet 2–3 inspections",
-              "done": false
-            },
-            {
-              "id": "c_house_3",
-              "text": "No he pagat res abans de veure el pis",
-              "done": false
-            }
-          ],
+          "type": "text",
+          "title": "Where it all happens",
+          "content": "In many cities, Facebook is the hub to find housing (local groups + marketplace)."
+        },
+        {
+          "type": "text",
+          "title": "Usual price",
+          "content": "Between 150 and 400 AUD per week."
+        },
+        {
+          "type": "steps",
+          "title": "Process",
+          "content": [
+            "Find local city groups (accommodation/rooms)",
+            "Write on the post and ask for an inspection",
+            "Go see the place",
+            "Agree on bond and move-in date"
+          ]
+        },
+        {
+          "type": "warning",
+          "title": "Warning",
+          "content": "Never pay bond or weeks in advance before seeing the place and meeting the person."
+        }
+      ],
+      "checklist": [
+        {
+          "id": "c_house_1",
+          "text": "I joined my city's Facebook housing groups",
+          "done": false
+        },
+        {
+          "id": "c_house_2",
+          "text": "I attended 2–3 inspections",
+          "done": false
+        },
+        {
+          "id": "c_house_3",
+          "text": "I didn't pay anything before seeing the place",
+          "done": false
+        }
+      ],
           "cta": {
             "mapCategory": null,
-            "forumTag": "casa",
+            "forumTag": "house",
             "externalLinks": []
           }
         },
         {
-          "id": "lease_agency",
-          "title": "Lease",
-          "summary": "Quan compensa i què és un lease transfer.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Quan té sentit",
-              "content": "Si et quedaràs 6–12 mesos en un mateix lloc, llogar amb agència pot ser més estable."
-            },
-            {
-              "type": "bullets",
-              "title": "Conceptes clau",
-              "content": [
-                "Bond: fiança (setmanes)",
-                "Contracte: sovint 6 o 12 mesos",
-                "Lease transfer: canviar titular si marxes abans (segons condicions)"
-              ]
-            }
-          ],
-          "checklist": [
-            {
-              "id": "c_lease_1",
-              "text": "He mirat opcions d’agència (Real Estate, etc.)",
-              "done": false
-            },
-            {
-              "id": "c_lease_2",
-              "text": "Entenc bond + condicions del contracte",
-              "done": false
-            }
-          ],
+      "id": "lease_agency",
+      "title": "Lease",
+      "summary": "When it’s worth it and what a lease transfer is.",
+      "blocks": [
+        {
+          "type": "text",
+          "title": "When it makes sense",
+          "content": "If you’ll stay 6–12 months in the same place, renting via real state agency can be cheaper and better."
+        },
+        {
+          "type": "bullets",
+          "title": "Key concepts",
+          "content": [
+            "Bond: deposit (weeks)",
+            "Contract: often 6 or 12 months",
+            "Lease transfer: change tenant if you leave early (per conditions)"
+          ]
+        }
+      ],
+      "checklist": [
+        {
+          "id": "c_lease_1",
+          "text": "I checked agency options (Real Estate, etc.)",
+          "done": false
+        },
+        {
+          "id": "c_lease_2",
+          "text": "I understand bond + contract terms",
+          "done": false
+        }
+      ],
           "cta": {
             "mapCategory": null,
             "forumTag": "lease",
@@ -463,119 +475,120 @@
     },
     {
       "id": "work",
-      "title": "Feina",
+      "title": "Job",
       "icon": "work",
-      "description": "Com més apliquis més opcions tindrás",
+      "description": "Apply more to have more options",
       "pages": [
         {
-          "id": "find_work_online",
-          "title": "Online",
-          "summary": "3 canals top: Facebook groups, webs locals i el mapa de l’app per enviar CVs per correu.",
-          "blocks": [],
-          "sections": [
-            {
-              "id": "facebook",
-              "title": "Facebook groups (jobs)",
-              "icon": "groups",
-              "blocks": [
-                {
-                  "type": "bullets",
-                  "title": "Com buscar",
-                  "content": [
-                    "Entra a grups de Facebook de ciutat/estat + “jobs / work / backpacker”.",
-                    "Mira ofertes i escriu missatge / envia CV.",
-                    "Repeteix sovint (posts nous)."
-                  ]
-                },
-                {
-                  "type": "tip",
-                  "title": "Missatge ràpid (copiar)",
-                  "content": "Hi! I’m arriving on (date). Experience in hospitality/cleaning. Available immediately. I send you my CV. Thanks!"
-                }
-              ]
-            },
-            {
-              "id": "webs",
-              "title": "Webs locals (aplicar ràpid)",
-              "icon": "language",
-              "blocks": [
-                {
-                  "type": "bullets",
-                  "title": "Webs",
-                  "content": [
-                    "Jora",
-                    "Seek",
-                    "Indeed",
-                    "Gumtree"
-                  ]
-                },
-                {
-                  "type": "bullets",
-                  "title": "Altres webs",
-                  "content": [
-                    "Webs d’empreses (careers pages)"
-                  ]
-                },
-                {
-                  "type": "text",
-                  "title": "",
-                  "content": "Filtra per zona + “immediate start” + “casual”"
-                }
-              ]
-            },
-            {
-              "id": "map",
-              "title": "Mapa de l’app",
-              "icon": "map_outlined",
-              "blocks": [
-                {
-                  "type": "steps",
-                  "title": "Passos ràpids",
-                  "content": [
-                    "Troba el contacte al mapa.",
-                    "Envia el mail + CV."
-                  ]
-                },
-                {
-                  "type": "tip",
-                  "title": "Email (copiar)",
-                  "content": "Hi, I’m (Name). I’m available from (date) and I have experience in (…). CV attached. Thank you!"
-                }
-              ]
+  "id": "find_work_online",
+  "title": "Online",
+  "summary": "Top 3 channels: Facebook groups, local job sites, and the app map to email CVs.",
+  "blocks": [],
+  "sections": [
+    {
+      "id": "facebook",
+      "title": "Facebook groups (jobs)",
+      "icon": "groups",
+      "blocks": [
+        {
+          "type": "bullets",
+          "title": "How to search",
+          "content": [
+            "Join city/state Facebook groups + “jobs / work / backpacker”.",
+            "Check posts and send a message / CV.",
+            "Repeat often (new posts every day)."
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Quick message (click to copy)",
+          "content": "Hi! I’m arriving on (date). Experience in hospitality/cleaning. Available immediately. I send you my CV. Thanks!"
+        }
+      ]
+    },
+    {
+      "id": "webs",
+      "title": "Local job sites (apply fast)",
+      "icon": "language",
+      "blocks": [
+        {
+          "type": "bullets",
+          "title": "Websites",
+          "content": [
+            "Jora",
+            "Seek",
+            "Indeed",
+            "Gumtree",
+            "Career One"
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "Other sites",
+          "content": [
+            "Company career pages"
+          ]
+        },
+        {
+          "type": "text",
+          "title": "",
+          "content": "Filter by area + “immediate start” + “casual”."
+        }
+      ]
+    },
+    {
+      "id": "map",
+      "title": "App map",
+      "icon": "map_outlined",
+      "blocks": [
+        {
+          "type": "steps",
+          "title": "Quick steps",
+          "content": [
+            "Find the contact on the map.",
+            "Send the email + CV."
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Email (click to copy)",
+          "content": "Hi, I’m (Name). I’m available from (date) and I have experience in (…). CV attached. Thank you!"
+        }
+      ]
             }
           ],
           "checklist": [],
           "cta": {
             "mapCategory": "hospitality",
-            "forumTag": "feina",
+            "forumTag": "job",
             "externalLinks": []
           }
         },
+    {
+      "id": "work_face_to_face",
+      "title": "Face to face",
+      "summary": "How to hand out CVs and talk to the manager.",
+      "blocks": [
         {
-          "id": "work_face_to_face",
-          "title": "Cara a cara",
-          "summary": "Com repartir CV i parlar amb el manager.",
-          "blocks": [
-            {
-              "type": "steps",
-              "title": "Rutina",
-              "content": [
-                "Imprimeix 10–20 CVs",
-                "Ves porta a porta",
-                "Demana pel manager",
-                "Presentació curta + actitud",
-                "Preguntar a tothom si están buscant a algun lloc"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Tip",
-              "content": "Reparteix a molts llocs encara que sembli que no et pillaran."
-            }
-          ],
-          "checklist": [],
-          "cta": {
-            "mapCategory": "hospitality",
+          "type": "steps",
+          "title": "Routine",
+          "content": [
+            "Print 10–20 CVs",
+            "Go door to door",
+            "Ask for the manager",
+            "Short intro + attitude",
+            "Ask everyone if they’re hiring somewhere"
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Tip",
+          "content": "Drop CVs at many places even if it seems unlikely they’ll hire you."
+        }
+      ],
+      "checklist": [],
+      "cta": {
+        "mapCategory": "hospitality",
             "forumTag": "cv",
             "externalLinks": []
           }
@@ -583,63 +596,63 @@
       ]
     },
     {
-      "id": "regional_and_extension",
-      "title": "Regional, granja i extensió",
-      "icon": "agriculture",
-      "description": "88 dies, 6 mesos, postcodes, paylips i com quadrar-ho.",
-      "pages": [
+  "id": "regional_and_extension",
+  "title": "Regional, farm & extension",
+  "icon": "agriculture",
+  "description": "88 days, 6 months, postcodes, paylips and how to make it count.",
+  "pages": [
+    {
+      "id": "extension_rules",
+      "title": "How the extension works",
+      "summary": "88 days (2nd year) and 6 months (3rd year), postcodes and hours.",
+      "blocks": [
         {
-          "id": "extension_rules",
-          "title": "Com funciona l’extensió",
-          "summary": "88 dies (2n any) i 6 mesos (3r any), postcodes i hores.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Resum",
-              "content": "Per passar de 1r a 2n any: 88 dies regional. Per passar de 2n a 3r: 6 mesos regional."
-            },
-            {
-              "type": "warning",
-              "title": "Condició clau",
-              "content": "No és només el tipus de feina: el postcode ha d’estar dins la llista oficial."
-            },
-            {
-              "type": "tip",
-              "title": "No ho deixis pel final",
-              "content": "Si vas just de dies i hores, pots quedar-te sense marge. Guarda tots els paylips."
-            }
-          ],
-          "checklist": [],
-          "cta": {
-            "mapCategory": "harvest",
-            "forumTag": "extension",
-            "externalLinks": [
-              {
-                "label": "Immi (postcodes i condicions)",
-                "url": "https://immi.homeaffairs.gov.au/"
-              }
-            ]
-          }
+          "type": "text",
+          "title": "Summary",
+          "content": "To go from 1st to 2nd year: 88 days regional. From 2nd to 3rd year: 6 months regional."
         },
         {
-          "id": "farm_types_pay",
-          "title": "Tipus de granja i sous",
-          "summary": "Cosecha vs farm-hand, per hora vs per peça.",
-          "blocks": [
-            {
-              "type": "bullets",
-              "title": "Tipus",
-              "content": [
-                "Cosecha (fruit picking): per hora o per peça",
-                "Farm-hand / general labour: sovint per hora, moltes hores"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Estratègia",
-              "content": "Si vas a picking per peça, al principi costa. Quan agafes ritme pots fer bons diners."
-            }
-          ],
+          "type": "warning",
+          "title": "Key condition",
+          "content": "It’s not just the job type: the postcode must be on the official list."
+        },
+        {
+          "type": "tip",
+          "title": "Don’t leave it to the end",
+          "content": "If you’re tight on days/hours you’ll have no buffer. Keep all paylips."
+        }
+      ],
+      "checklist": [],
+      "cta": {
+        "mapCategory": "harvest",
+        "forumTag": "extension",
+        "externalLinks": [
+          {
+            "label": "Immi (postcodes and conditions)",
+            "url": "https://immi.homeaffairs.gov.au/"
+          }
+        ]
+      }
+    },
+    {
+      "id": "farm_types_pay",
+      "title": "Farm types & pay",
+      "summary": "Harvest vs farm-hand, hourly vs piece rate.",
+      "blocks": [
+        {
+          "type": "bullets",
+          "title": "Types",
+          "content": [
+            "Harvest / fruit picking: hourly or piece rate",
+            "Farm-hand / general labour: often hourly, many hours"
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Strategy",
+          "content": "If you do piece-rate picking, it’s hard at first. Once you get rhythm you can earn well."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": "harvest",
@@ -650,43 +663,43 @@
       ]
     },
     {
-      "id": "transport",
-      "title": "Vehicle",
-      "icon": "directions_car",
-      "description": "Comprar, rego, roadworthy i consells perquè no et deixi tirat.",
-      "pages": [
+  "id": "transport",
+  "title": "Vehicle",
+  "icon": "directions_car",
+  "description": "Buying, rego, roadworthy and tips so it doesn’t let you down.",
+  "pages": [
+    {
+      "id": "buying_car",
+      "title": "Buying a car",
+      "summary": "What to check and how to avoid a lemon.",
+      "blocks": [
         {
-          "id": "buying_car",
-          "title": "Comprar un cotxe",
-          "summary": "Què mirar i com evitar un trasto.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "📌 Abans de començar",
-              "content": "La majoria de WHV compren via Facebook Marketplace i grups locals"
-            },
-            {
-              "type": "bullets",
-              "title": "Preus orientatius",
-              "content": [
-                "Cotxe senzill: ~2.000–6.000 AUD",
-                "Van camper: ~5.000–12.000 AUD"
-              ]
-            },
-            {
-              "type": "bullets",
-              "title": "Paraules clau",
-              "content": [
-                "Rego: registre",
-                "Roadworthy: ITV revisió vehicle"
-              ]
-            },
-            {
-              "type": "warning",
-              "title": "Compte amb el massa barat",
-              "content": "Massa barat sol voler dir avaries ocultes. Si peten en ruta, et surt molt més car."
-            }
-          ],
+          "type": "text",
+          "title": "📌 Before you start",
+          "content": "Most WHVs buy via Facebook Marketplace and local groups."
+        },
+        {
+          "type": "bullets",
+          "title": "Indicative prices",
+          "content": [
+            "Simple car: ~2,000–6,000 AUD",
+            "Camper van: ~5,000–12,000 AUD"
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "Keywords",
+          "content": [
+            "Rego: registration",
+            "Roadworthy: safety inspection (state-based)"
+          ]
+        },
+        {
+          "type": "warning",
+          "title": "Beware of “too cheap”",
+          "content": "Too cheap often means hidden issues. If it breaks on the road, it’ll cost you more."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,
@@ -694,40 +707,40 @@
             "externalLinks": []
           }
         },
+    {
+      "id": "car_rego",
+      "title": "Rego / registration",
+      "summary": "Where to check rego and what happens if it expires.",
+      "blocks": [
         {
-          "id": "car_rego",
-          "title": "Rego / registre",
-          "summary": "On comprovar registre i què passa si caduca.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Què és el rego",
-              "content": "Registre del vehicle per circular; depèn de cada estat."
-            },
-            {
-              "type": "bullets",
-              "title": "✔️ Abans de comprar",
-              "content": [
-                "Comprova rego actiu i data de caducitat a la web oficial.",
-                "Mira en quin estat està registrat (canviar d’estat pot costar).",
-                "NSW: comprova també la greenslip (segur obligatori)."
-              ]
-            },
-            {
-              "type": "bullets",
-              "title": "🔁 Després de comprar",
-              "content": [
-                "Transfereix el rego dins termini: NSW ~14 dies, VIC ~14 dies, QLD ~14 dies.",
-                "Paga taxa de transferència i stamp duty si aplica.",
-                "Si caduca aviat, decideix qui paga la renovació abans de firmar."
-              ]
-            },
-            {
-              "type": "warning",
-              "title": "⚠️ Sense rego",
-              "content": "Circular sense rego = multes altes i l’assegurança pot no cobrir res."
-            }
-          ],
+          "type": "text",
+          "title": "What is rego",
+          "content": "Vehicle registration to drive; depends on each state."
+        },
+        {
+          "type": "bullets",
+          "title": "✔️ Before buying",
+          "content": [
+            "Check active rego and expiry date on the official site.",
+            "See which state it’s registered in (changing state can cost).",
+            "NSW: also check the greenslip (mandatory insurance)."
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "🔁 After buying",
+          "content": [
+            "Transfer rego within deadline: NSW ~14 days, VIC ~14 days, QLD ~14 days.",
+            "Pay transfer fee and stamp duty if applicable.",
+            "If it expires soon, agree who pays the renewal before signing."
+          ]
+        },
+        {
+          "type": "warning",
+          "title": "⚠️ No rego",
+          "content": "Driving without rego = big fines and insurance may not cover anything."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,
@@ -735,41 +748,41 @@
             "externalLinks": []
           }
         },
+    {
+      "id": "car_roadworthy",
+      "title": "Roadworthy",
+      "summary": "Local RWC and differences by state.",
+      "blocks": [
         {
-          "id": "car_roadworthy",
-          "title": "Roadworthy",
-          "summary": "ITV local i canvis per estat.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Què és",
-              "content": "RWC = inspecció de seguretat bàsica feta per tallers autoritzats."
-            },
-            {
-              "type": "bullets",
-              "title": "Per estat",
-              "content": [
-                "VIC / QLD: obligatori per vendre o transferir.",
-                "NSW: només si el rego està caducat o ve d’un altre estat (blueslip).",
-                "Altres: el poden demanar per registres caducats o vehicles d’altres estats."
+          "type": "text",
+          "title": "What it is",
+          "content": "RWC = basic safety inspection done by authorized workshops."
+        },
+        {
+          "type": "bullets",
+          "title": "By state",
+          "content": [
+            "VIC / QLD: mandatory to sell or transfer.",
+            "NSW: only if rego is expired or from another state (blueslip).",
+            "Others: may require it for expired rego or out-of-state vehicles."
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "Common fails",
+          "content": [
+            "Pneumàtics",
+            "Frens",
+            "Llums",
+            "Fuites"
               ]
             },
-            {
-              "type": "bullets",
-              "title": "Fallades típiques",
-              "content": [
-                "Pneumàtics",
-                "Frens",
-                "Llums",
-                "Fuites"
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "💡 Consell",
-              "content": "Millor pagar una inspecció abans de comprar que arreglar després."
-            }
-          ],
+        {
+          "type": "tip",
+          "title": "💡 Tip",
+          "content": "Better pay for an inspection before buying than fix later."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,
@@ -777,34 +790,34 @@
             "externalLinks": []
           }
         },
+    {
+      "id": "car_tips",
+      "title": "Tips",
+      "summary": "Maintenance and safe buying/selling.",
+      "blocks": [
         {
-          "id": "car_tips",
-          "title": "Consells",
-          "summary": "Manteniment i compra/venta segura.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "🧾 Abans de comprar",
-              "content": "PPSR (VIN), rego actiu, RWC si toca, VIN igual que als papers."
-            },
-            {
-              "type": "bullets",
-              "title": "🔧 Manteniment mínim",
-              "content": [
-                "Oli i filtres al dia (cada 10–15k km).",
-                "Rodes, frens i llums abans de trajectes llargs.",
-                "Aigua/refrigerant i oli extra si vas a zones remotes."
-              ]
-            },
-            {
-              "type": "bullets",
-              "title": "🆘 Emergències",
-              "content": [
-                "Roadside assist (RACV, NRMA, RACQ...) és barat i útil lluny de tot.",
-                "Porta rodes en bon estat i eines bàsiques."
-              ]
-            }
-          ],
+          "type": "text",
+          "title": "🧾 Before buying",
+          "content": "PPSR (VIN), active rego, RWC if needed, VIN matches papers."
+        },
+        {
+          "type": "bullets",
+          "title": "🔧 Minimum maintenance",
+          "content": [
+            "Oil and filters up to date (every 10–15k km).",
+            "Tyres, brakes and lights before long trips.",
+            "Extra water/coolant and oil if going remote."
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "🆘 Emergencies",
+          "content": [
+            "Roadside assist (RACV, NRMA, RACQ...) is cheap and useful far away.",
+            "Carry good tyres and basic tools."
+          ]
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,
@@ -816,37 +829,70 @@
     },
     {
       "id": "money_taxes",
-      "title": "Salaris, impostos i super",
-      "icon": "attach_money",
-      "description": "Taxes, superannuation i com entendre el que et queda net.",
-      "pages": [
+  "title": "Wages, taxes & super",
+  "icon": "attach_money",
+  "description": "Taxes, superannuation and how to understand your net pay.",
+  "pages": [
+    {
+      "id": "wages",
+      "title": "Wages",
+      "summary": "Quick reference for typical wages.",
+      "blocks": [
         {
-          "id": "wages",
-          "title": "Salaris",
-          "summary": "Referència ràpida de salaris típics.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Essencial",
-              "content": "Salaris orientatius; varien per ciutat, experiència i contracte. El pagament sol ser setmanal o quinzenal."
-            },
-            {
-              "type": "bullets",
-              "title": "Detalls importants",
-              "content": [
-                "Hospitality: ~30 AUD/h",
-                "Granja: ~29 AUD/h",
-                "Construcció: ~32 AUD/h",
-                "Casual: + €/h però menys garanties.",
-                "Part-time/full-time: tarifa similar, més estabilitat."
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Consells pràctics",
-              "content": "Si no reps payslip, alerta i pregunta de seguida."
-            }
-          ],
+          "type": "text",
+          "title": "Essential",
+          "content": "Indicative wages; vary by city, experience and contract. Pay is usually weekly or fortnightly."
+        },
+        {
+          "type": "bullets",
+          "title": "Key details",
+          "content": [
+            "Hospitality: ~30 AUD/h",
+            "Farm: ~29 AUD/h",
+            "Construction: ~32 AUD/h",
+            "Casual: a bit more $/h but fewer guarantees.",
+            "Part-time/full-time: similar rate, more stability."
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Practical tip",
+          "content": "If you don’t get a payslip, flag it and ask right away."
+        }
+      ],
+      "checklist": [],
+      "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
+    {
+      "id": "taxes_and_super",
+      "title": "Taxes and superannuation",
+      "summary": "What gets withheld and how to claim super when leaving.",
+      "blocks": [
+        {
+          "type": "text",
+          "title": "Quick",
+          "content": "Give your TFN from day one: correct withholding and super in your name. Every pay must come with a payslip."
+        },
+        {
+          "type": "bullets",
+          "title": "Key details",
+          "content": [
+            "Payslip: check hours, rate/h, tax withheld and super.",
+            "WHV tax: ~15% first bracket; can change yearly (check ATO).",
+            "Without TFN they withhold much more.",
+            "Fiscal year: 1 July – 30 June."
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Practical tip",
+          "content": "If they withheld too much, you can recover it in the tax return."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,
@@ -854,69 +900,36 @@
             "externalLinks": []
           }
         },
+    {
+      "id": "super_basics",
+      "title": "Super",
+      "summary": "Contributions and what to do when you leave.",
+      "blocks": [
         {
-          "id": "taxes_and_super",
-          "title": "Impostos i superannuation",
-          "summary": "Què et retenen i com reclamar el super en marxar.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Ràpid",
-              "content": "Dona el TFN des del primer dia: retenció correcta i super al teu nom. Cada paga ha de venir amb payslip."
-            },
-            {
-              "type": "bullets",
-              "title": "Detalls importants",
-              "content": [
-                "Payslip: revisa hores, tarifa/h, tax retingut i super.",
-                "WHV tax: aprox. 15% al primer tram; pot canviar cada any (mira ATO).",
-                "Sense TFN retenen molt més.",
-                "Any fiscal: 1 juliol – 30 juny."
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Consells pràctics",
-              "content": "Si t’han retingut massa, ho pots recuperar a la tax return."
-            }
-          ],
-          "checklist": [],
-          "cta": {
-            "mapCategory": null,
-            "forumTag": "impostos",
-            "externalLinks": []
-          }
+          "type": "text",
+          "title": "Essential",
+          "content": "Super = mandatory pension. Employer pays ~11% extra to your fund (not from your wage). Give them your fund or they’ll open one."
         },
         {
-          "id": "super_basics",
-          "title": "Super",
-          "summary": "Aportacions i què fer en marxar.",
-          "blocks": [
-            {
-              "type": "text",
-              "title": "Essencial",
-              "content": "Super = pensió obligatòria. L’empresa paga aprox. un 11% extra al teu fons (no surt del teu salari). Dona el teu fons o te’n obriran un."
-            },
-            {
-              "type": "bullets",
-              "title": "Detalls importants",
-              "content": [
-                "Anota nom del fons i número de membre.",
-                "Comprova al payslip que hi ha aportació a super.",
-                "Nova feina: dona el mateix fons per no dispersar saldos."
-              ]
-            },
-            {
-              "type": "tip",
-              "title": "Consells pràctics",
-              "content": "Quan marxis, demana el DASP (super) des de fora d’Austràlia: cal TFN, dades del fons i compte internacional."
-            },
-            {
-              "type": "tip",
-              "title": "Super perdut",
-              "content": "Diversos fons? Busca’ls a l’ATO online amb el TFN i consolida’ls."
-            }
-          ],
+          "type": "bullets",
+          "title": "Key details",
+          "content": [
+            "Note fund name and member number.",
+            "Check payslip shows super contribution.",
+            "New job: give the same fund to avoid scattered balances."
+          ]
+        },
+        {
+          "type": "tip",
+          "title": "Practical tip",
+          "content": "When you leave, request DASP (super) from outside Australia: need TFN, fund details and international account."
+        },
+        {
+          "type": "tip",
+          "title": "Lost super",
+          "content": "Multiple funds? Find them on ATO online with TFN and consolidate."
+        }
+      ],
           "checklist": [],
           "cta": {
             "mapCategory": null,

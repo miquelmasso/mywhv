@@ -12,18 +12,16 @@ class EmailSenderService {
         prefs.getString('emailMessage') ?? 'Hola, adjunto mi currículum.';
     final cvPath = prefs.getString('cvPath');
 
-    if (cvPath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Has de pujar el teu CV abans d’enviar el correu.')),
-      );
-      return;
+    final attachments = <String>[];
+    if (cvPath != null && cvPath.isNotEmpty) {
+      attachments.add(cvPath);
     }
 
     final emailToSend = Email(
       body: message,
       subject: 'Working with you',
       recipients: [email.trim()],
-      attachmentPaths: [cvPath],
+      attachmentPaths: attachments,
       isHTML: false,
     );
 

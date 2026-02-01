@@ -38,43 +38,43 @@ class GuideSectionScreen extends StatelessWidget {
         case 'tfn':
           return 'TFN';
         case 'certificates':
-          return 'Certificats';
+          return 'Certificates';
       }
     }
     if (section.id == 'housing') {
       switch (page.id) {
         case 'shared_housing_facebook':
-          return 'Compartit';
+          return 'Shared';
         case 'lease':
-          return 'Agència';
+          return 'Agencies';
       }
     }
     if (section.id == 'regional_and_extension') {
       switch (page.id) {
         case 'extension_rules':
-          return 'Extensió';
+          return 'Extension';
         case 'farm_types_pay':
-          return 'Feines i sous';
+          return 'Jobs and Salaries';
       }
     }
     if (section.id == 'transport') {
       switch (page.id) {
         case 'buying_car':
-          return 'Comprar';
+          return 'Buy';
         case 'car_rego':
           return 'Rego';
         case 'car_roadworthy':
           return 'Roadworthy';
         case 'car_tips':
-          return 'Consells';
+          return 'Tips';
       }
     }
     if (section.id == 'money_taxes') {
       switch (page.id) {
         case 'wages':
-          return 'Salaris';
+          return 'Salaries';
         case 'taxes_and_super':
-          return 'Impostos';
+          return 'Tax';
         case 'super_basics':
           return 'Super';
       }
@@ -358,7 +358,7 @@ Widget? _forumButton(String? tag, VoidCallback onPressed) {
     child: ElevatedButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.forum_outlined),
-      label: Text('Preguntar al fòrum (#$tag)'),
+      label: Text('Ask forum (#$tag)'),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
@@ -464,10 +464,10 @@ class _WagesPageView extends StatelessWidget {
         
         const SizedBox(height: 12),
         _InfoCard(
-          color: Colors.green.shade50,
+          color: Color(0xFFE8F5E9),
           leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
-          title: 'Consells pràctics',
-          child: const Text('Si no reps payslip o falta info, pregunta de seguida.'),
+          title: 'Remember',
+          child: const Text('If you do not receive a payslip or missing information, ask immediately.'),
         ),
         const SizedBox(height: 12),
         OfficialLinkTile(onTap: (ctx) => _openFairWork(ctx)),
@@ -551,9 +551,9 @@ class ContractComparisonCard extends StatelessWidget {
                 'Casual',
                 Colors.orange.shade50,
                 [
-                  _pill('Sou/h lleugerament més alt', positive: true),
-                  _pill('Menys hores garantides', positive: false),
-                  _pill('Menys estabilitat', positive: false),
+                  _pill('Slightly higher salary/h', positive: true),
+                  _pill('Fewer guaranteed hours', positive: false),
+                  _pill('Less stability', positive: false),
                 ],
                 highlight: '~30 AUD/h',
               ),
@@ -564,9 +564,9 @@ class ContractComparisonCard extends StatelessWidget {
                 'Part-time / Full-time',
                 Colors.blue.shade50,
                 [
-                  _pill('Sou/h similar', positive: true),
-                  _pill('Més estabilitat', positive: true),
-                  _pill('Hores més previsibles', positive: true),
+                  _pill('Similar salary/h', positive: true),
+                  _pill('More stability', positive: true),
+                  _pill('More predictable hours', positive: true),
                 ],
                 highlight: '~24 AUD/h',
               ),
@@ -581,9 +581,9 @@ class ContractComparisonCard extends StatelessWidget {
                 'Casual',
                 Colors.orange.shade50,
                 [
-                  _pill('Sou/h lleugerament més alt', positive: true),
-                  _pill('Menys hores garantides', positive: false),
-                  _pill('Menys estabilitat', positive: false),
+                  _pill('Slightly higher salary/h', positive: true),
+                  _pill('Fewer guaranteed hours', positive: false),
+                  _pill('Less stability', positive: false),
                 ],
                 highlight: '~30 AUD/h',
               ),
@@ -592,9 +592,9 @@ class ContractComparisonCard extends StatelessWidget {
                 'Part-time / Full-time',
                 Colors.blue.shade50,
                 [
-                  _pill('Sou/h similar', positive: true),
-                  _pill('Més estabilitat', positive: true),
-                  _pill('Hores més previsibles', positive: true),
+                  _pill('Similar salary/h', positive: true),
+                  _pill('More stability', positive: true),
+                  _pill('More predictable hours', positive: true),
                 ],
                 highlight: '~24 AUD/h',
               ),
@@ -638,7 +638,7 @@ class OfficialLinkTile extends StatelessWidget {
             const SizedBox(width: 10),
             const Expanded(
               child: Text(
-                'Consulta salaris oficials (Fair Work)',
+                'Check official wages (Fair Work)',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: Colors.black87,
@@ -666,30 +666,30 @@ class _TaxesPageView extends StatelessWidget {
       children: const [
         _InfoCard(
           title: 'WHV tax',
-          child: Text('~15% al primer tram (pot canviar, mira ATO).'),
+          child: Text('~15% first bracket (can change, check ATO).'),
         ),
         SizedBox(height: 12),
         _InfoCard(
-          title: 'Ràpid',
-          child: Text('Dona el TFN des del primer dia. Cada paga ha de venir amb payslip.'),
+          title: 'Quick',
+          child: Text('Give TFN from day one. Every pay must come with a payslip.'),
         ),
         SizedBox(height: 12),
         _InfoCard(
-          title: 'Claus',
+          title: 'Key points',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ChecklistRow('Any fiscal: 1 juliol – 30 juny'),
-              _ChecklistRow('Sense TFN retenen molt més'),
-              _ChecklistRow('Revisa al payslip: hores, tarifa/h, tax i super'),
+              _ChecklistRow('Fiscal year: 1 July – 30 June'),
+              _ChecklistRow('Without TFN they withhold a lot more'),
+              _ChecklistRow('Check payslip: hours, rate/h, tax and super'),
             ],
           ),
         ),
         SizedBox(height: 12),
         _InfoCard(
-          color: Colors.greenAccent,
-          title: 'Consells pràctics',
-          child: Text('Si t’han retingut massa, recupera-ho a la tax return.'),
+          color: Color(0xFFE8F5E9),
+          title: 'Practical tip',
+          child: Text('If they withheld too much, recover it in the tax return.'),
         ),
       ],
     );
@@ -732,27 +732,27 @@ class _SuperPageView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: const [
         _InfoCard(
-          title: 'Essencial',
+          title: 'Essential',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Super = pensió obligatòria (~11% extra).',
+                'Super = mandatory pension (~11% extra).',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               SizedBox(height: 6),
-              Text('Dona el teu fons o te’n crearan un.'),
+              Text('Provide your fund or they will create one.'),
             ],
           ),
         ),
         SizedBox(height: 12),
         _InfoCard(
-          title: 'Detalls importants',
+          title: 'Key details',
           child: Column(
             children: [
-              _ChecklistRow('Anota nom del fons i número de membre.'),
-              _ChecklistRow('Comprova al payslip que hi ha aportació a super.'),
-              _ChecklistRow('Nova feina: dona el mateix fons per no dispersar saldos.'),
+              _ChecklistRow('Write down fund name and member number.'),
+              _ChecklistRow('Check payslip shows super contribution.'),
+              _ChecklistRow('New job: give same fund to avoid scattered balances.'),
             ],
           ),
         ),
@@ -760,15 +760,15 @@ class _SuperPageView extends StatelessWidget {
         _InfoCard(
           color: Color(0xFFE8F5E9),
           leading: Icon(Icons.flight_takeoff, color: Colors.green),
-          title: 'Consells pràctics',
-          child: Text('Quan marxis, demana el DASP (super) des de fora d’Austràlia.'),
+          title: 'Practical tip',
+          child: Text('When leaving, apply for DASP (super) from outside Australia.'),
         ),
         SizedBox(height: 10),
         _InfoCard(
           color: Color(0xFFE8F5E9),
           leading: Icon(Icons.search, color: Colors.green),
-          title: 'Super perdut',
-          child: Text('Busca fons a l’ATO amb el TFN i consolida’ls.'),
+          title: 'Lost super',
+          child: Text('Find funds via ATO with TFN and consolidate them.'),
         ),
       ],
     );

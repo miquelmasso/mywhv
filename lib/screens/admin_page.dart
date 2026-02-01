@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'gestio_restaurants.dart';
 import 'manage_farms_page.dart';
 import 'restaurant_edit_page.dart';
@@ -168,6 +168,20 @@ class AdminPage extends StatelessWidget {
                     vertical: 12,
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Signed out')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Sign out'),
               ),
             ],
           ),

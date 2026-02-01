@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_restaurant_manual_page.dart';
 
 class RestaurantEditPage extends StatefulWidget {
   const RestaurantEditPage({super.key, this.initialSearch});
@@ -169,6 +170,21 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
             child: Column(
               children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AddRestaurantManualPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Afegir restaurant manualment'),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _searchController,
               onChanged: (value) => _searchRestaurants(value),

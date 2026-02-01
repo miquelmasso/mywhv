@@ -1090,27 +1090,6 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                   ),
                 ],
               ),
-              if (!_isHospitality)
-                Positioned.fill(
-                  child: AbsorbPointer(
-                    absorbing: true,
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                      child: Container(
-                        color: Colors.white.withOpacity(0.55),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'I said soon',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               Positioned(
                 top: 16,
                 left: 12,

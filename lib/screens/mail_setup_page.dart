@@ -32,7 +32,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('emailMessage', _controller.text);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Missatge desat correctament')),
+      const SnackBar(content: Text('Message saved successfully')),
     );
   }
 
@@ -44,7 +44,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
       final status = await Permission.manageExternalStorage.request();
       if (!status.isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permís denegat per accedir als fitxers.')),
+          const SnackBar(content: Text('Permission denied to access files.')),
         );
         return;
       }
@@ -59,7 +59,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
 
   if (result == null || result.files.single.path == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No s’ha seleccionat cap fitxer.')),
+      const SnackBar(content: Text('No file selected.')),
     );
     return;
   }
@@ -91,12 +91,12 @@ class _MailSetupPageState extends State<MailSetupPage> {
 
     // ✅ 6. Confirmació visual
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ CV desat correctament a: ${newFile.path}')),
+      SnackBar(content: Text('✅ CV saved')),
     );
   } catch (e) {
     // ⚠️ Error durant la còpia
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('❌ Error en copiar el fitxer: $e')),
+      SnackBar(content: Text('❌ Error copying file')),
     );
   }
 }
@@ -106,14 +106,14 @@ class _MailSetupPageState extends State<MailSetupPage> {
     await prefs.remove('cvPath');
     setState(() => _cvPath = null);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('CV eliminat correctament')),
+      const SnackBar(content: Text('CV deleted successfully')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurar correu automàtic')),
+      appBar: AppBar(title: const Text('Edit automatic mail')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
@@ -121,7 +121,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Text per al correu automàtic',
+                'Text for the mail',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
               ),
               const SizedBox(height: 8),
@@ -130,7 +130,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
                 minLines: 6,
                 maxLines: 10,
                 decoration: InputDecoration(
-                  hintText: 'Escriu aquí el missatge que vols enviar...',
+                  hintText: 'Write here your message...',
                   hintStyle: TextStyle(color: Colors.grey.shade500),
                   filled: true,
                   fillColor: Colors.grey.shade100,
@@ -156,7 +156,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
                   OutlinedButton.icon(
                     onPressed: _saveMessage,
                     icon: const Icon(Icons.save_outlined),
-                    label: const Text('Desar missatge'),
+                    label: const Text('Save message'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -168,7 +168,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
                   OutlinedButton.icon(
                     onPressed: _pickAndSaveCV,
                     icon: const Icon(Icons.upload_file_outlined),
-                    label: const Text('Pujar CV (PDF)'),
+                    label: const Text('Upload CV (PDF)'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -196,7 +196,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
               if (_cvPath != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'CV actual: ${_cvPath!.split('/').last}',
+                  'current CV: ${_cvPath!.split('/').last}',
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
