@@ -11,6 +11,11 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'dart:ui' as ui;
+import 'package:geolocator/geolocator.dart';
 
 import '../config/maptiler_config.dart';
 import '../widgets/map_place_popup.dart';
@@ -19,11 +24,14 @@ import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/email_sender_service.dart';
+import '../services/tile_cache_service.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
 import 'admin_page.dart';
+import '../config/admin_config.dart';
 
 enum MapStyleChoice { streets, minimal }
+enum Category { hospitality, farm }
 
 class MapOSMVectorPage extends StatefulWidget {
   const MapOSMVectorPage({super.key});
@@ -56,6 +64,8 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   Timer? _moveDebounce;
   Set<String> _favoritePlaces = {};
   StreamSubscription<Set<String>>? _favoritesSub;
+  BaseCacheManager? _tileCache;
+  bool _isLocating = false;
   final Set<String> _selectedSources = {};
   final List<Map<String, dynamic>> _sourceOptions = const [
     {'key': 'gmail', 'label': 'Gmail', 'icon': Icons.email},
@@ -78,6 +88,14 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   void initState() {
     super.initState();
     streetsStyleUrl = 'https://api.maptiler.com/maps/base-v4/style.json?key=$mapTilerKey';
+    minimalStyleUrl = 'https://api.maptiler.com/maps/bright/style.json?key=$mapTilerKey';
+    TileCacheService.instance.init().then((cache) {
+      if (mounted) {
+        setState(() => _tileCache = cache);
+      } else {
+        _tileCache = cache;
+      }
+    });
     _styleFuture = _loadStyle();
     _loadFavorites();
     _favoritesSub = FavoritesService.changes.listen((ids) {
@@ -351,6 +369,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _showProfilePopup() {
+    final isAdmin = isAdminSession;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -376,7 +395,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                   Navigator.of(context).pop();
                   _openAdmin();
                 },
-                showAdmin: true,
+                showAdmin: isAdmin,
               ),
             ),
           ),
@@ -464,7 +483,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         context: context,
         builder: (context) => AlertDialog(
           title: const Text(
-            'Vols desfer?',
+            'You want to undo?',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
@@ -486,7 +505,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sí'),
+              child: const Text('Yes'),
             ),
           ],
         ),
@@ -498,22 +517,15 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
               .collection('restaurants')
               .doc(restaurantId)
               .update({'worked_here_count': FieldValue.increment(-1)});
-          workedList.remove(restaurantId);
-          await prefs.setStringList('worked_places', workedList);
-          _updateLocalWorkedHere(restaurantId, -1);
-          _updateMarkers();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '❎ Has tret $restaurantName de la teva llista de llocs on has treballat.',
-              ),
-            ),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('❌ Error en desfer: $e')));
-        }
+        workedList.remove(restaurantId);
+        await prefs.setStringList('worked_places', workedList);
+        _updateLocalWorkedHere(restaurantId, -1);
+        _updateMarkers();
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error en desfer: $e')));
+      }
       }
       return;
     }
@@ -522,7 +534,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text(
-          'Has treballat aquí?',
+          'Have you worked here?',
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -544,7 +556,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sí'),
+            child: const Text('Yes'),
           ),
         ],
       ),
@@ -560,13 +572,6 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         await prefs.setStringList('worked_places', workedList);
         _updateLocalWorkedHere(restaurantId, 1);
         _updateMarkers();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Gràcies! Hem afegit $restaurantName com a lloc on has treballat.',
-            ),
-          ),
-        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
@@ -625,10 +630,10 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                           OverlayHelper.showCopiedOverlay(
                             context,
                             this,
-                            'Correu copiat',
+                            'copied email',
                           );
                         },
-                        child: const Text('Copiar correu'),
+                        child: const Text('Copy email'),
                       ),
                       const SizedBox(height: 8),
                       ElevatedButton(
@@ -647,7 +652,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                           );
                           entry.remove();
                         },
-                        child: const Text('Enviar correu'),
+                        child: const Text('Send email'),
                       ),
                     ],
                   ),
@@ -663,6 +668,32 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   void _recenter() {
     _mapController.move(_initialCenter, _initialZoom);
+  }
+
+  Future<void> _goToUserLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _isLocating = false);
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setState(() => _isLocating = false);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final target = LatLng(pos.latitude, pos.longitude);
+      _mapController.move(target, 15);
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
   Widget _buildRestaurantPopup() {
@@ -960,6 +991,14 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
 
         // Mantenim el centre inicial d'Austràlia; no auto-fit a marcadors
 
+        if (!_isHospitality) {
+          // TODO: restore Farm map view when ready; placeholder for now.
+          return const Scaffold(
+            appBar: null,
+            body: FarmPlaceholderView(),
+          );
+        }
+
         return Scaffold(
           appBar: null,
           body: Stack(
@@ -988,6 +1027,10 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     _moveDebounce?.cancel();
                     _moveDebounce = Timer(const Duration(milliseconds: 250), () {
                       _isUserMoving = false;
+                      if (_tileCache != null && position.center != null && position.zoom != null) {
+                        final z = position.zoom!.round().clamp(10, 16);
+                        TileCacheService.instance.prefetchArea(position.center!, z);
+                      }
                     });
                   },
                 ),
@@ -1001,18 +1044,35 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mywhv.app',
-                    ),
+                      tileProvider: _tileCache != null
+                          ? _CachedTileProvider(_tileCache!)
+                          : NetworkTileProvider(),
+                      keepBuffer: 1,
+                      panBuffer: 0,
+                      maxNativeZoom: 19,
+                      maxZoom: 19,
+                  ),
                   MarkerClusterLayerWidget(
                     options: MarkerClusterLayerOptions(
                       markers: _markers,
-                      maxClusterRadius: 45,
-                      size: const Size(46, 46),
-                      padding: const EdgeInsets.all(50),
+                      maxClusterRadius: 32, // clusters a bit tighter for faster zoom redraws
+                      size: const Size(36, 36),
+                      padding: const EdgeInsets.all(24),
+                      disableClusteringAtZoom: 16, // avoid heavy re-clustering when zoomed in
                       showPolygon: false, // evita dibuixar el polígon verd del clúster
                       builder: (context, cluster) {
+                        final count = cluster.length;
+                        Color bg;
+                        if (count < 10) {
+                          bg = Colors.green.shade600;
+                        } else if (count < 50) {
+                          bg = Colors.orange.shade700;
+                        } else {
+                          bg = Colors.red.shade700;
+                        }
                         return Container(
                           decoration: BoxDecoration(
-                            color: _isHospitality ? Colors.redAccent : Colors.green.shade700,
+                            color: bg,
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
@@ -1020,19 +1080,13 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                             cluster.length.toString(),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
                             ),
                           ),
                         );
                       },
                     ),
-                  ),
-                  RichAttributionWidget(
-                    alignment: AttributionAlignment.bottomRight,
-                    attributions: const [
-                      TextSourceAttribution('© OpenStreetMap contributors'),
-                      TextSourceAttribution('Map tiles © MapTiler'),
-                    ],
                   ),
                 ],
               ),
@@ -1046,7 +1100,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                         color: Colors.white.withOpacity(0.55),
                         alignment: Alignment.center,
                         child: const Text(
-                          'he dit soon',
+                          'I said soon',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -1057,93 +1111,60 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     ),
                   ),
                 ),
-          Positioned(
-            top: 16,
-            left: 16,
-            child: SafeArea(
-              child: Material(
-                elevation: 4,
-                shape: const CircleBorder(),
-                color: Colors.white,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _showProfilePopup,
-                  child: const SizedBox(
-                    height: 48,
-                    width: 48,
-                    child: Icon(
-                      Icons.person_outline,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
               Positioned(
-            top: 16,
-            right: 16,
-            child: SafeArea(
-              child: CompositedTransformTarget(
-                link: _filterLink,
-                child: Material(
-                  elevation: 4,
-                  shape: const CircleBorder(),
-                  color: Colors.white,
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _toggleFilterOverlay,
-                    child: const SizedBox(
-                      height: 48,
-                      width: 48,
-                      child: Icon(
-                        Icons.filter_list,
-                        color: Colors.black87,
+                top: 16,
+                left: 12,
+                right: 12,
+                child: SafeArea(
+              child: Row(
+                children: [
+                  Material(
+                    elevation: 4,
+                    shape: const CircleBorder(),
+                    color: Colors.white,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _showProfilePopup,
+                      child: const SizedBox(
+                        height: 48,
+                        width: 48,
+                        child: Icon(
+                          Icons.person_outline,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 16,
-            left: 80,
-            right: 80,
-            child: SafeArea(
-              child: Center(
-                child: IntrinsicWidth(
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(color: Colors.blue.shade100, width: 1.4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _CategoryPill(
-                          label: 'Hospitality',
-                          selected: _isHospitality,
-                          onTap: () => _toggleCategory(true),
-                        ),
-                        _CategoryPill(
-                          label: 'Farm (soon)',
-                          selected: !_isHospitality,
-                          onTap: () => _toggleCategory(false),
-                        ),
-                      ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CompactCategorySwitch(
+                      selected: _isHospitality ? Category.hospitality : Category.farm,
+                      onChanged: (cat) => _toggleCategory(cat == Category.hospitality),
+                      farmEnabled: true,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  CompositedTransformTarget(
+                    link: _filterLink,
+                    child: Material(
+                      elevation: 4,
+                      shape: const CircleBorder(),
+                      color: Colors.white,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _toggleFilterOverlay,
+                        child: const SizedBox(
+                          height: 48,
+                          width: 48,
+                          child: Icon(
+                            Icons.filter_list,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1183,9 +1204,28 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
               _buildHarvestPopup(),
               if (_isHospitality)
                 Positioned(
+                  bottom: 240,
+                  right: 16,
+                  child: FloatingActionButton(
+                    onPressed: _isLocating ? null : _goToUserLocation,
+                    heroTag: 'fab_location',
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.blueGrey.shade700,
+                    child: _isLocating
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                  ),
+                ),
+              if (_isHospitality)
+                Positioned(
                   bottom: 180,
                   right: 16,
                   child: FloatingActionButton(
+                    heroTag: 'fab_recenter',
                     onPressed: _recenter,
                     child: const Icon(Icons.my_location),
                   ),
@@ -1198,37 +1238,158 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 }
 
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({
-    required this.label,
+class CompactCategorySwitch extends StatelessWidget {
+  const CompactCategorySwitch({
+    super.key,
     required this.selected,
-    required this.onTap,
+    required this.onChanged,
+    this.farmEnabled = false,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final Category selected;
+  final ValueChanged<Category> onChanged;
+  final bool farmEnabled;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? Colors.blueAccent : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.transparent),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pillWidth = constraints.maxWidth.clamp(0, 420).toDouble();
+        const animDuration = Duration(milliseconds: 180);
+        const baseTextStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 13);
+
+        Widget buildSegment({
+          required Category category,
+          required String label,
+          String? badge,
+          bool enabled = true,
+        }) {
+          final isSelected = selected == category;
+          return Expanded(
+            child: AnimatedContainer(
+              duration: animDuration,
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.blueAccent : Colors.transparent,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: InkWell(
+                onTap: enabled ? () => onChanged(category) : null,
+                borderRadius: BorderRadius.circular(22),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: baseTextStyle.copyWith(
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                          if (badge != null && pillWidth >= 200)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 6, top: 1),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.white24
+                                      : Colors.grey.shade300.withOpacity(0.75),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Text(
+                                  badge,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: isSelected ? Colors.white70 : Colors.black54,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: pillWidth,
+              minHeight: 48,
+              maxHeight: 48,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.blueGrey.withOpacity(0.2), width: 1),
+              ),
+              child: Row(
+                children: [
+                  buildSegment(
+                    category: Category.hospitality,
+                    label: 'Hospitality',
+                    enabled: true,
+                  ),
+                  buildSegment(
+                    category: Category.farm,
+                    label: 'Farm',
+                    badge: 'SOON',
+                    enabled: farmEnabled,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class FarmPlaceholderView extends StatelessWidget {
+  const FarmPlaceholderView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/farm_placeholder_map.png',
+            fit: BoxFit.cover,
           ),
         ),
-      ),
+        Positioned.fill(
+          child: Container(color: Colors.white.withOpacity(0.12)),
+        ),
+        const Center(
+          child: Text(
+            'I said soon',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1273,7 +1434,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               icon: Icons.email_outlined,
               iconColor: Colors.redAccent,
               iconBg: Colors.redAccent.withOpacity(0.12),
-              text: 'Configurar correu automàtic',
+              text: 'Edit automatic mail',
               onTap: onMail,
             ),
             const SizedBox(height: 14),
@@ -1281,7 +1442,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               icon: Icons.favorite_outline,
               iconColor: Colors.pinkAccent,
               iconBg: Colors.pinkAccent.withOpacity(0.12),
-              text: 'Preferits',
+              text: 'Favourites',
               onTap: onFavorites,
             ),
             if (showAdmin) ...[
@@ -1352,6 +1513,73 @@ class _ProfileTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CachedTileProvider extends TileProvider {
+  _CachedTileProvider(this.cacheManager);
+  final BaseCacheManager cacheManager;
+  final http.Client _client = http.Client();
+
+  @override
+  ImageProvider getImage(TileCoordinates coords, TileLayer options) {
+    final url = getTileUrl(coords, options);
+    return _CacheImageProvider(url, cacheManager, _client);
+  }
+}
+
+class _CacheImageProvider extends ImageProvider<_CacheImageProvider> {
+  const _CacheImageProvider(this.url, this.cacheManager, this.httpClient);
+  final String url;
+  final BaseCacheManager cacheManager;
+  final http.Client httpClient;
+
+  @override
+  Future<_CacheImageProvider> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<_CacheImageProvider>(this);
+
+  @override
+  ImageStreamCompleter loadImage(_CacheImageProvider key, ImageDecoderCallback decode) {
+    return MultiFrameImageStreamCompleter(
+      codec: _loadAsync(key, decode),
+      scale: 1.0,
+    );
+  }
+
+  Future<ui.Codec> _loadAsync(_CacheImageProvider key, ImageDecoderCallback decode) async {
+    try {
+      final file = await cacheManager.getSingleFile(url);
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) throw Exception('Empty tile');
+      return decode(await ui.ImmutableBuffer.fromUint8List(bytes));
+    } catch (_) {
+      try {
+        final response = await httpClient.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final bytes = response.bodyBytes;
+          await cacheManager.putFile(url, bytes, fileExtension: 'png');
+          return decode(await ui.ImmutableBuffer.fromUint8List(bytes));
+        }
+      } catch (_) {
+        // Swallow cancellation / network errors to avoid noisy logs
+      }
+      // Return a tiny blank image to keep the map stable
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      canvas.drawRect(const ui.Rect.fromLTWH(0, 0, 1, 1), ui.Paint()..color = Colors.transparent);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(1, 1);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return decode(await ui.ImmutableBuffer.fromUint8List(byteData!.buffer.asUint8List()));
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _CacheImageProvider && other.url == url && other.cacheManager == cacheManager;
+
+  @override
+  int get hashCode => Object.hash(url, cacheManager);
 }
 
 class _TrianglePainter extends CustomPainter {
