@@ -144,7 +144,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
               const SizedBox(height: 12),
               Text(
                 _total == 0
-                    ? 'Preparant importació per ${_selectedState ?? ''}...'
+                    ? 'Preparing import for ${_selectedState ?? ''}...'
                     : 'Important $_processed/$_total codis postals per ${_selectedState ?? ''}...',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),

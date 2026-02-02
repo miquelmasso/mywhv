@@ -49,7 +49,7 @@ class DataListsPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.work_outline),
-                label: const Text('Pàgines de feina'),
+                label: const Text('Job pages'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,

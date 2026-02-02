@@ -76,7 +76,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Importació completada: $_processed/$_total codis per ${_selectedState!}.',
+            'Import completed: $_processed/$_total postcodes for ${_selectedState!}.',
           ),
         ),
       );
@@ -182,7 +182,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
               const SizedBox(height: 12),
               Text(
                 _total == 0
-                    ? 'Preparant importació per ${_selectedState ?? ''}...'
+                    ? 'Preparing import for ${_selectedState ?? ''}...'
                     : 'Important $_processed/$_total codis postals per ${_selectedState ?? ''}...',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),

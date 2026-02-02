@@ -786,7 +786,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Future<void> _toggleFavorite(String restaurantId) async {
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: restaurant has no valid ID.')),
       );
       return;
     }
@@ -814,7 +814,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Future<void> _copyToClipboard(String text, String label) async {
     await Clipboard.setData(ClipboardData(text: text));
-    OverlayHelper.showCopiedOverlay(context, this, '$label copiat');
+    OverlayHelper.showCopiedOverlay(context, this, '$label copied');
   }
 
   void _showEmailOptions(String email) {
@@ -944,7 +944,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No s’ha pogut obrir l’enllaç')),
+        const SnackBar(content: Text('Could not open the link')),
       );
     }
   }
@@ -958,7 +958,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: restaurant has no valid ID.')),
       );
       return;
     }
@@ -1009,14 +1009,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '❎ Has tret $restaurantName de la teva llista de llocs on has treballat.',
+                '❎ You removed $restaurantName from your list of places you\'ve worked.',
               ),
             ),
           );
         } catch (e) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('❌ Error en desfer: $e')));
+          ).showSnackBar(SnackBar(content: Text('❌ Error removing: $e')));
         }
       }
       return;
@@ -1026,7 +1026,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text(
-          'Has treballat aquí?',
+          'Have you worked here?',
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -1067,13 +1067,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Gràcies! Hem afegit $restaurantName com a lloc on has treballat.',
+              '✅ Thanks! $restaurantName added',
             ),
           ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
+          SnackBar(content: Text('❌ Error registering: $e')),
         );
       }
     }
@@ -1312,7 +1312,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         docId,
         r['name'] ?? 'aquest lloc',
       ),
-      onCopyPhone: () => _copyToClipboard(r['phone'], 'Telèfon'),
+      onCopyPhone: () => _copyToClipboard(r['phone'], 'Phone copied'),
       onEmail: () => _showEmailOptions(r['email']),
       onFacebook: () => _openUrl(r['facebook_url']),
       onCareers: () => _openUrl(r['careers_page']),

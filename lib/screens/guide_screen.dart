@@ -209,7 +209,7 @@ class _GuideScreenState extends State<GuideScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Guia Austràlia'),
+        title: const Text('Australia Guide'),
         centerTitle: true,
       ),
       body: Padding(
@@ -219,7 +219,7 @@ class _GuideScreenState extends State<GuideScreen> {
             TextField(
               onChanged: _onQueryChanged,
               decoration: InputDecoration(
-                hintText: 'Cerca a la guia',
+                hintText: 'Search anything',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,

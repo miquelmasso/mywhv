@@ -113,7 +113,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit automatic mail')),
+      appBar: AppBar(title: const Text('Automatic email editing')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
@@ -121,7 +121,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Text for the mail',
+                'Email content',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
               ),
               const SizedBox(height: 8),

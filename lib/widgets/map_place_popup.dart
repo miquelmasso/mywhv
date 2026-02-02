@@ -82,7 +82,7 @@ class MapRestaurantPopup extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.person, color: Colors.grey),
-                      tooltip: 'He treballat aquí',
+                      tooltip: 'I worked here',
                       onPressed: onWorkedHere,
                     ),
                     if (workedCount > 0)
@@ -115,13 +115,13 @@ class MapRestaurantPopup extends StatelessWidget {
                 if ((data['phone'] ?? '').toString().isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.phone, color: Colors.blueAccent),
-                    tooltip: 'Copiar telèfon',
+                    tooltip: 'Copy phone',
                     onPressed: onCopyPhone,
                   ),
                 if ((data['email'] ?? '').toString().isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.email_outlined, color: Colors.redAccent),
-                    tooltip: 'Opcions de correu',
+                    tooltip: 'Email options',
                     onPressed: onEmail,
                   ),
                 if ((data['facebook_url'] ?? '').toString().isNotEmpty)
@@ -133,13 +133,13 @@ class MapRestaurantPopup extends StatelessWidget {
                 if ((data['careers_page'] ?? '').toString().isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.work_outline, color: Colors.green),
-                    tooltip: 'Veure ofertes de feina',
+                    tooltip: 'View job offers',
                     onPressed: onCareers,
                   ),
                 if ((data['instagram_url'] ?? '').toString().isNotEmpty)
                   IconButton(
                     icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.purple),
-                    tooltip: 'Obrir Instagram',
+                    tooltip: 'open instagram',
                     onPressed: onInstagram,
                   ),
                 const Spacer(),

@@ -16,7 +16,7 @@ class ForumPage extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'una comunitat per ajudar-nos entre tots',
+              'a community to help each other',
               style: TextStyle(fontSize: 14, color: Colors.black54),
               textAlign: TextAlign.center,
             ),

@@ -130,7 +130,7 @@ class _AddRestaurantsByPostcodePageState
       final result = await _importService.importRestaurantsForPostcode(input);
 
       if (!result.valid) {
-        _showSnack('❌ Codi postal invàlid.');
+        _showSnack('❌ Invalid postcode.');
         return;
       }
 
@@ -199,7 +199,7 @@ class _AddRestaurantsByPostcodePageState
 
       if (snapshot.docs.length <= 1) {
         _showSnack(
-          '⚠️ Només hi ha un restaurant, res per eliminar.',
+          '⚠️ Only one restaurant, nothing to remove.',
           color: Colors.orange,
         );
         return;
@@ -232,7 +232,7 @@ class _AddRestaurantsByPostcodePageState
     if (postcodeNum == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Codi postal invàlid.')));
+      ).showSnackBar(const SnackBar(content: Text('Invalid postcode.')));
       return;
     }
 
@@ -274,7 +274,7 @@ class _AddRestaurantsByPostcodePageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestió de restaurants',
+        title: const Text('Restaurant management',
             style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

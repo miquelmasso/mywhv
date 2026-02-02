@@ -22,7 +22,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Des d’aquí pots configurar el teu correu automàtic, editar la informació dels restaurants o accedir a les eines de gestió i comprovació.',
+              'From here you can set up your automatic email, edit restaurant info, or access the management and verification tools.',
               style: TextStyle(fontSize: 15),
             ),
             const SizedBox(height: 24),
@@ -39,7 +39,7 @@ class ProfilePage extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.email_outlined),
-                    label: const Text('Edit automatic mail'),
+                    label: const Text('Automatic email editing'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
