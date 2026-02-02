@@ -991,105 +991,102 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
 
         // Mantenim el centre inicial d'Austràlia; no auto-fit a marcadors
 
-        if (!_isHospitality) {
-          // TODO: restore Farm map view when ready; placeholder for now.
-          return const Scaffold(
-            appBar: null,
-            body: FarmPlaceholderView(),
-          );
-        }
+       final Widget backgroundLayer = _isHospitality
+    ? FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: _initialCenter,
+          initialZoom: _initialZoom,
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+          ),
+          onTap: (_, __) {
+            setState(() {
+              _selectedRestaurant = null;
+              _selectedHarvest = null;
+            });
+          },
+          onPositionChanged: (position, _) {
+            final rotation = position.rotation ?? 0;
+            if (rotation.abs() > 0.0001) _mapController.rotate(0);
+            if (position.center != null) {
+              _currentCenter = position.center!;
+            }
+            _isUserMoving = true;
+            _moveDebounce?.cancel();
+            _moveDebounce = Timer(const Duration(milliseconds: 250), () {
+              _isUserMoving = false;
+              if (_tileCache != null && position.center != null && position.zoom != null) {
+                final z = position.zoom!.round().clamp(10, 16);
+                TileCacheService.instance.prefetchArea(position.center!, z);
+              }
+            });
+          },
+        ),
+        children: [
+          if (hasProviders)
+            VectorTileLayer(
+              theme: style.theme,
+              tileProviders: style.providers,
+            )
+          else
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.mywhv.app',
+              tileProvider: _tileCache != null
+                  ? _CachedTileProvider(_tileCache!)
+                  : NetworkTileProvider(),
+              keepBuffer: 1,
+              panBuffer: 0,
+              maxNativeZoom: 19,
+              maxZoom: 19,
+            ),
+          MarkerClusterLayerWidget(
+            options: MarkerClusterLayerOptions(
+              markers: _markers,
+              maxClusterRadius: 32,
+              size: const Size(36, 36),
+              padding: const EdgeInsets.all(24),
+              disableClusteringAtZoom: 16,
+              showPolygon: false,
+              builder: (context, cluster) {
+                final count = cluster.length;
+                Color bg;
+                if (count < 10) {
+                  bg = Colors.green.shade600;
+                } else if (count < 50) {
+                  bg = Colors.orange.shade700;
+                } else {
+                  bg = Colors.red.shade700;
+                }
+                return Container(
+                  decoration: BoxDecoration(
+                    color: bg,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    cluster.length.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      )
+    : const FarmPlaceholderView();
+
 
         return Scaffold(
           appBar: null,
           body: Stack(
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _initialCenter,
-                  initialZoom: _initialZoom,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                  ),
-                  onTap: (_, __) {
-                    setState(() {
-                      _selectedRestaurant = null;
-                      _selectedHarvest = null;
-                    });
-                  },
-                  onPositionChanged: (position, _) {
-                    final rotation = position.rotation ?? 0;
-                    if (rotation.abs() > 0.0001) _mapController.rotate(0);
-                    if (position.center != null) {
-                      _currentCenter = position.center!;
-                    }
-                    _isUserMoving = true;
-                    _moveDebounce?.cancel();
-                    _moveDebounce = Timer(const Duration(milliseconds: 250), () {
-                      _isUserMoving = false;
-                      if (_tileCache != null && position.center != null && position.zoom != null) {
-                        final z = position.zoom!.round().clamp(10, 16);
-                        TileCacheService.instance.prefetchArea(position.center!, z);
-                      }
-                    });
-                  },
-                ),
-                children: [
-                  if (hasProviders)
-                    VectorTileLayer(
-                      theme: style.theme,
-                      tileProviders: style.providers,
-                    )
-                  else
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.mywhv.app',
-                      tileProvider: _tileCache != null
-                          ? _CachedTileProvider(_tileCache!)
-                          : NetworkTileProvider(),
-                      keepBuffer: 1,
-                      panBuffer: 0,
-                      maxNativeZoom: 19,
-                      maxZoom: 19,
-                  ),
-                  MarkerClusterLayerWidget(
-                    options: MarkerClusterLayerOptions(
-                      markers: _markers,
-                      maxClusterRadius: 32, // clusters a bit tighter for faster zoom redraws
-                      size: const Size(36, 36),
-                      padding: const EdgeInsets.all(24),
-                      disableClusteringAtZoom: 16, // avoid heavy re-clustering when zoomed in
-                      showPolygon: false, // evita dibuixar el polígon verd del clúster
-                      builder: (context, cluster) {
-                        final count = cluster.length;
-                        Color bg;
-                        if (count < 10) {
-                          bg = Colors.green.shade600;
-                        } else if (count < 50) {
-                          bg = Colors.orange.shade700;
-                        } else {
-                          bg = Colors.red.shade700;
-                        }
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: bg,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cluster.length.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              Positioned.fill(child: backgroundLayer),
               Positioned(
                 top: 16,
                 left: 12,
@@ -1348,30 +1345,31 @@ class FarmPlaceholderView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/farm_placeholder_map.png',
-            fit: BoxFit.cover,
-          ),
+        Image.asset(
+          'assets/farm_placeholder_map.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) {
+            return Container(
+              color: const Color(0xFFFFF1F1),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'ASSET NOT FOUND:\nassets/farm_placeholder_map.png\n\n$error',
+                textAlign: TextAlign.center,
+              ),
+            );
+          },
         ),
-        Positioned.fill(
-          child: Container(color: Colors.white.withOpacity(0.12)),
-        ),
-        const Center(
-          child: Text(
-            'I said soon',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
+        // overlay suau (assegura’t que NO sigui opac)
+        Container(color: Colors.white.withOpacity(0.12)),
       ],
     );
   }
 }
+
+
 
 class _ProfilePopupMenu extends StatelessWidget {
   const _ProfilePopupMenu({
@@ -1413,7 +1411,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               icon: Icons.email_outlined,
               iconColor: Colors.redAccent,
               iconBg: Colors.redAccent.withOpacity(0.12),
-              text: 'Edit automatic mail',
+              text: 'Automatic email editing',
               onTap: onMail,
             ),
             const SizedBox(height: 14),
