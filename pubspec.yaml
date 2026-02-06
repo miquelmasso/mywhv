@@ -33,6 +33,7 @@ dependencies:
   firebase_core: ^4.1.1
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.0.2
+  cloud_functions: ^6.0.2
   http: ^1.2.2
   html: ^0.15.5
   google_maps_flutter: ^2.7.0
@@ -88,7 +89,10 @@ flutter:
     - assets/map_style_clean.json
     - assets/harvest/harvest_2025.json
     - assets/data/harvest_places_2025.json
-    - assets/data/guide_manual.json
+    - assets/data/guide_manual.structure.json
+    - assets/data/guide_manual.strings.en.json
+    - assets/data/guide_manual.strings.es.json
+    - assets/data/guide_manual.strings.fr.json
     - assets/data/restaurants_seed.json
     - assets/farm_placeholder_map.png
 

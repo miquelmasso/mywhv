@@ -16,6 +16,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
   List<Map<String, dynamic>> _results = [];
   Map<String, dynamic>? _selectedRestaurant;
 
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _facebookController = TextEditingController();
   final TextEditingController _instagramController = TextEditingController();
@@ -80,6 +81,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
   void _selectRestaurant(Map<String, dynamic> restaurant) {
     setState(() {
       _selectedRestaurant = restaurant;
+      _phoneController.text = restaurant['phone'] ?? '';
       _emailController.text = restaurant['email'] ?? '';
       _facebookController.text = restaurant['facebook_url'] ?? '';
       _instagramController.text = restaurant['instagram_url'] ?? '';
@@ -99,6 +101,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
           .collection('restaurants')
           .doc(_selectedRestaurant!['id'])
           .update({
+            'phone': _phoneController.text.trim(),
             'email': _emailController.text.trim(),
             'facebook_url': _facebookController.text.trim(),
             'instagram_url': _instagramController.text.trim(),
@@ -121,6 +124,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
   Widget _buildClearableField({
     required TextEditingController controller,
     required String label,
+    TextInputType keyboardType = TextInputType.text,
     TextInputAction action = TextInputAction.next,
     FocusNode? focusNode,
     FocusNode? nextFocus,
@@ -128,6 +132,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
     return TextField(
       controller: controller,
       focusNode: focusNode,
+      keyboardType: keyboardType,
       textInputAction: action,
       onSubmitted: (_) {
         if (nextFocus != null) {
@@ -155,6 +160,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final phoneFocus = FocusNode();
     final emailFocus = FocusNode();
     final facebookFocus = FocusNode();
     final instagramFocus = FocusNode();
@@ -237,6 +243,14 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
             const SizedBox(height: 16),
             if (_selectedRestaurant != null) ...[
               _buildClearableField(
+                controller: _phoneController,
+                label: 'Telèfon',
+                keyboardType: TextInputType.phone,
+                focusNode: phoneFocus,
+                nextFocus: emailFocus,
+              ),
+              const SizedBox(height: 12),
+              _buildClearableField(
                 controller: _emailController,
                 label: 'Correu electrònic',
                 focusNode: emailFocus,
@@ -275,6 +289,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
 
                   if (value == true && _selectedRestaurant != null) {
                     // 🔹 Buida els camps i marca com bloquejat
+                    _phoneController.clear();
                     _emailController.clear();
                     _facebookController.clear();
                     _instagramController.clear();
@@ -284,6 +299,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                         .collection('restaurants')
                         .doc(_selectedRestaurant!['id'])
                         .update({
+                          'phone': '',
                           'email': '',
                           'facebook_url': '',
                           'instagram_url': '',

@@ -1,9 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../services/main_tabs_controller.dart';
 import 'guide_page_screen.dart';
+import '../repositories/guide_manual_repository.dart';
+
+Future<void> _launchExternal(Uri uri) async {
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+Future<void> _openGuidePage(
+  BuildContext context,
+  String pageId, {
+  void Function(int index)? onNavigateToTab,
+}) async {
+  final manual = await GuideManualRepository().loadFromAssets();
+  GuideSection? targetSection;
+  for (final section in manual.sections) {
+    for (final page in section.pages) {
+      if (page.id == pageId) {
+        if (!context.mounted) return;
+        final shouldShowTabbed =
+            section.id == 'housing' ||
+            section.id == 'arrival_steps' ||
+            section.id == 'regional_and_extension' ||
+            section.id == 'transport' ||
+            section.id == 'money_taxes';
+        if (shouldShowTabbed) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuideSectionScreen(
+                section: section,
+                initialPageId: page.id,
+                onNavigateToTab: onNavigateToTab,
+                strings: manual.strings,
+              ),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuidePageScreen(
+                sectionId: section.id,
+                page: page,
+                onNavigateToTab: onNavigateToTab,
+                initialStrings: manual.strings,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (section.id == pageId) {
+      targetSection = section;
+    }
+  }
+
+  // Fallback: if a section id was provided instead of page id, open that section.
+  if (targetSection != null && context.mounted) {
+    final shouldShowTabbed =
+        targetSection.id == 'housing' ||
+        targetSection.id == 'arrival_steps' ||
+        targetSection.id == 'regional_and_extension' ||
+        targetSection.id == 'transport' ||
+        targetSection.id == 'money_taxes';
+    if (shouldShowTabbed) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuideSectionScreen(
+            section: targetSection!,
+            onNavigateToTab: onNavigateToTab,
+            strings: manual.strings,
+          ),
+        ),
+      );
+    } else {
+      // Open first page if no tabs.
+      final firstPage =
+          targetSection!.pages.isNotEmpty ? targetSection!.pages.first : null;
+      if (firstPage != null) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuidePageScreen(
+              sectionId: targetSection!.id,
+              page: firstPage,
+              onNavigateToTab: onNavigateToTab,
+              initialStrings: manual.strings,
+            ),
+          ),
+        );
+      }
+    }
+  }
+}
 
 class GuideSectionScreen extends StatelessWidget {
   const GuideSectionScreen({
@@ -11,11 +107,46 @@ class GuideSectionScreen extends StatelessWidget {
     required this.section,
     this.onNavigateToTab,
     this.initialPageId,
+    this.strings = const {},
   });
 
   final GuideSection section;
   final void Function(int index)? onNavigateToTab;
   final String? initialPageId;
+  final Map<String, String> strings;
+
+  String _resolve(dynamic value) {
+    if (value == null) return '';
+    if (value is Map && value['key'] is String) {
+      final key = value['key'] as String;
+      final v = strings[key];
+      if (v == null || v.trim().isEmpty) {
+        debugPrint('Empty or missing key: $key');
+        return key;
+      }
+      return v;
+    }
+    if (value is String) {
+      if (value.startsWith('@')) {
+        final key = value.substring(1);
+        final v = strings[key];
+        if (v == null || v.trim().isEmpty) {
+          debugPrint('Empty or missing key: $key');
+          return key;
+        }
+        return v;
+      }
+      final direct = strings[value];
+      if (direct != null && direct.trim().isNotEmpty) {
+        return direct;
+      }
+      return value;
+    }
+    if (value is Iterable) {
+      return value.map(_resolve).join('\n');
+    }
+    return value.toString();
+  }
 
   bool get _isTabbedSection =>
       section.id == 'arrival_steps' ||
@@ -34,52 +165,52 @@ class GuideSectionScreen extends StatelessWidget {
     if (section.id == 'arrival_steps') {
       switch (page.id) {
         case 'sim_and_internet':
-          return 'SIM';
+          return _resolve('@arrival.sim.title');
         case 'tfn':
-          return 'TFN';
+          return _resolve('@arrival.tfn.title');
         case 'certificates':
-          return 'Certificates';
+          return _resolve('@tab.certificates.title');
       }
     }
     if (section.id == 'housing') {
       switch (page.id) {
         case 'shared_housing_facebook':
-          return 'Shared';
+          return _resolve('@housing.shared.title');
         case 'lease':
-          return 'Agencies';
+          return _resolve('@housing.lease.title');
       }
     }
     if (section.id == 'regional_and_extension') {
       switch (page.id) {
         case 'extension_rules':
-          return 'Extension';
+          return _resolve('@regional.extension.title');
         case 'farm_types_pay':
-          return 'Jobs and Salaries';
+          return _resolve('@regional.farm.title');
       }
     }
     if (section.id == 'transport') {
       switch (page.id) {
         case 'buying_car':
-          return 'Buy';
+          return _resolve('@transport.buy.title');
         case 'car_rego':
-          return 'Rego';
+          return _resolve('@transport.rego.title');
         case 'car_roadworthy':
-          return 'Roadworthy';
+          return _resolve('@transport.roadworthy.title');
         case 'car_tips':
-          return 'Tips';
+          return _resolve('@transport.tips.title');
       }
     }
     if (section.id == 'money_taxes') {
       switch (page.id) {
         case 'wages':
-          return 'Salaries';
+          return _resolve('@money.wages.title');
         case 'taxes_and_super':
-          return 'Tax';
+          return _resolve('@money.taxes.title');
         case 'super_basics':
-          return 'Super';
+          return _resolve('@money.super.title');
       }
     }
-    return page.title;
+    return _resolve(page.title);
   }
 
   @override
@@ -89,16 +220,16 @@ class GuideSectionScreen extends StatelessWidget {
       return DefaultTabController(
         length: section.pages.length,
         initialIndex: _initialTabIndex.clamp(0, section.pages.length - 1).toInt(),
-        child: Builder(builder: (context) {
-          final controller = DefaultTabController.of(context);
-          return Scaffold(
-            appBar: AppBar(
-              title: Text(section.title),
-              bottom: TabBar(
-                isScrollable: false,
-                labelPadding: EdgeInsets.zero,
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: Theme.of(context).colorScheme.primary,
+            child: Builder(builder: (context) {
+              final controller = DefaultTabController.of(context);
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(_resolve(section.title)),
+                  bottom: TabBar(
+                    isScrollable: false,
+                    labelPadding: EdgeInsets.zero,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Theme.of(context).colorScheme.primary,
                 unselectedLabelColor: Colors.black54,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w600),
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
@@ -114,6 +245,7 @@ class GuideSectionScreen extends StatelessWidget {
                           (page) => _PageBlocksView(
                             page: page,
                             sectionId: section.id,
+                            strings: strings,
                             onNavigateToTab: onNavigateToTab,
                           ),
                         )
@@ -146,7 +278,7 @@ class GuideSectionScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(section.title),
+        title: Text(_resolve(section.title)),
         // No search icon for section pages (ex: work/feina).
       ),
       body: Padding(
@@ -155,7 +287,7 @@ class GuideSectionScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              section.description,
+              _resolve(section.description),
               style: const TextStyle(fontSize: 15, color: Colors.black87),
             ),
             const SizedBox(height: 12),
@@ -175,6 +307,7 @@ class GuideSectionScreen extends StatelessWidget {
                             sectionId: section.id,
                             page: page,
                             onNavigateToTab: onNavigateToTab,
+                            initialStrings: strings,
                           ),
                         ),
                       );
@@ -210,7 +343,7 @@ class GuideSectionScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  page.title,
+                                  _resolve(page.title),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 15,
@@ -218,7 +351,7 @@ class GuideSectionScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  page.summary,
+                                  _resolve(page.summary),
                                   style: const TextStyle(
                                     color: Colors.black87,
                                     fontSize: 13.5,
@@ -247,38 +380,114 @@ class _PageBlocksView extends StatelessWidget {
     required this.page,
     required this.sectionId,
     this.onNavigateToTab,
+    required this.strings,
   });
 
   final GuidePage page;
   final String sectionId;
   final void Function(int index)? onNavigateToTab;
+  final Map<String, String> strings;
+
+  String _resolve(dynamic value) {
+    if (value == null) return '';
+    if (value is Map && value['key'] is String) {
+      final key = value['key'] as String;
+      return strings[key] ?? key;
+    }
+    if (value is String) {
+      if (value.startsWith('@')) {
+        final key = value.substring(1);
+        return strings[key] ?? key;
+      }
+      return value;
+    }
+    if (value is Iterable) {
+      return value.map(_resolve).join('\n');
+    }
+    return value.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (sectionId == 'money_taxes' && page.id == 'wages') {
-      return _WagesPageView(page: page, onNavigateToTab: onNavigateToTab);
-    }
-    if (sectionId == 'money_taxes' && page.id == 'taxes_and_super') {
-      return _TaxesPageView(page: page, onNavigateToTab: onNavigateToTab);
-    }
-    if (sectionId == 'money_taxes' && page.id == 'super_basics') {
-      return _SuperPageView(page: page, onNavigateToTab: onNavigateToTab);
-    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: page.blocks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) =>
-          _BlockCard(block: page.blocks[index], onNavigateToTab: onNavigateToTab),
+          _BlockCard(
+            block: page.blocks[index],
+            onNavigateToTab: onNavigateToTab,
+            resolve: _resolve,
+            sectionId: sectionId,
+            pageId: page.id,
+          ),
     );
   }
 }
 
 class _BlockCard extends StatelessWidget {
-  const _BlockCard({required this.block, this.onNavigateToTab});
+  const _BlockCard({
+    required this.block,
+    this.onNavigateToTab,
+    required this.resolve,
+    required this.sectionId,
+    required this.pageId,
+  });
 
   final GuideBlock block;
   final void Function(int index)? onNavigateToTab;
+  final String Function(dynamic value) resolve;
+  final String sectionId;
+  final String pageId;
+
+  Widget _callout({
+    required String variant,
+    required BuildContext context,
+  }) {
+    Color bg = Colors.blue.shade50;
+    Color iconColor = Colors.blue.shade700;
+    IconData icon = Icons.info_outline;
+    if (variant == 'warning') {
+      bg = Colors.orange.shade50;
+      iconColor = Colors.orange.shade700;
+      icon = Icons.warning_amber_rounded;
+    } else if (variant == 'success') {
+      bg = Colors.green.shade50;
+      iconColor = Colors.green.shade700;
+      icon = Icons.lightbulb_outline;
+    }
+    debugPrint(
+        'Guide callout render -> type=${block.type} variant=$variant section=$sectionId page=$pageId widget=GuideCallout');
+    Widget body;
+    if (block.items.isNotEmpty) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: block.items
+            .map(
+              (item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• '),
+                    Expanded(child: Text(resolve(item))),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      );
+    } else {
+      body = Text(resolve(block.content));
+    }
+
+    return _InfoCard(
+      color: bg,
+      leading: Icon(icon, color: iconColor),
+      title: resolve(block.title ?? '@ui.tip'),
+      child: body,
+    );
+  }
 
   Widget _bullet(String text) {
     return Padding(
@@ -287,7 +496,7 @@ class _BlockCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('• '),
-          Expanded(child: Text(text)),
+          Expanded(child: Text(resolve(text))),
         ],
       ),
     );
@@ -295,24 +504,64 @@ class _BlockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasButton = block.buttonUrl != null && block.buttonLabel != null;
+    final hasTitle = block.title != null && block.title!.isNotEmpty;
+    final hasContent = block.content != null && block.content!.isNotEmpty;
+    final hasItems = block.items.isNotEmpty;
+    if (hasButton && !hasTitle && !hasContent && !hasItems) {
+      final isCopyAction = block.buttonUrl!.startsWith('copy:');
+      final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
+      Future<void> _handleTap() async {
+        if (isCopyAction) {
+          final textToCopy =
+              block.content?.isNotEmpty == true ? resolve(block.content) : block.items.join('\\n');
+          if (textToCopy.isNotEmpty) {
+            await Clipboard.setData(ClipboardData(text: textToCopy));
+          }
+          return;
+        }
+        if (isGuideNavigation) {
+          final targetPageId = block.buttonUrl!.substring('guide:'.length);
+          if (targetPageId.isNotEmpty) {
+            await _openGuidePage(context, targetPageId, onNavigateToTab: onNavigateToTab);
+          }
+          return;
+        }
+        await _launchExternal(Uri.parse(block.buttonUrl!));
+      }
+
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: ElevatedButton(
+          onPressed: _handleTap,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: Text(resolve(block.buttonLabel)),
+        ),
+      );
+    }
+
     switch (block.type) {
+      case 'callout':
+        return _callout(
+          variant: block.variant ?? 'info',
+          context: context,
+        );
       case 'warning':
-        return _InfoCard(
-          color: Colors.orange.shade50,
-          leading: const Icon(Icons.warning_amber, color: Colors.orange),
-          title: block.title ?? 'Important',
-          child: Text(block.content ?? ''),
+        return _callout(
+          variant: 'warning',
+          context: context,
         );
       case 'tip':
-        return _InfoCard(
-          color: Colors.green.shade50,
-          leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
-          title: block.title ?? 'Tip',
-          child: Text(block.content ?? ''),
+        return _callout(
+          variant: 'success',
+          context: context,
         );
       case 'steps':
         return _InfoCard(
-          title: block.title,
+          title: resolve(block.title),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: block.items
@@ -326,7 +575,7 @@ class _BlockCard extends StatelessWidget {
                       children: [
                         Text('${e.key + 1}. ',
                             style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Expanded(child: Text(e.value)),
+                        Expanded(child: Text(resolve(e.value))),
                       ],
                     ),
                   ),
@@ -336,7 +585,7 @@ class _BlockCard extends StatelessWidget {
         );
       case 'bullets':
         return _InfoCard(
-          title: block.title,
+          title: resolve(block.title),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: block.items.map(_bullet).toList(),
@@ -344,8 +593,15 @@ class _BlockCard extends StatelessWidget {
         );
       default:
         return _InfoCard(
-          title: block.title,
-          child: Text(block.content ?? ''),
+          title: resolve(block.title),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (block.content != null && block.content!.isNotEmpty)
+                Text(resolve(block.content)),
+              if (block.items.isNotEmpty) ...block.items.map(_bullet),
+            ],
+          ),
         );
     }
   }
@@ -429,10 +685,15 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _WagesPageView extends StatelessWidget {
-  const _WagesPageView({required this.page, this.onNavigateToTab});
+  const _WagesPageView({
+    required this.page,
+    this.onNavigateToTab,
+    required this.strings,
+  });
 
   final GuidePage page;
   final void Function(int index)? onNavigateToTab;
+  final Map<String, String> strings;
 
   Future<void> _openFairWork(BuildContext context) async {
     final uri = Uri.parse('https://www.fairwork.gov.au/employment-conditions/awards');
@@ -654,10 +915,15 @@ class OfficialLinkTile extends StatelessWidget {
 }
 
 class _TaxesPageView extends StatelessWidget {
-  const _TaxesPageView({required this.page, this.onNavigateToTab});
+  const _TaxesPageView({
+    required this.page,
+    this.onNavigateToTab,
+    required this.strings,
+  });
 
   final GuidePage page;
   final void Function(int index)? onNavigateToTab;
+  final Map<String, String> strings;
 
   @override
   Widget build(BuildContext context) {
@@ -721,10 +987,15 @@ class _ChecklistRow extends StatelessWidget {
 }
 
 class _SuperPageView extends StatelessWidget {
-  const _SuperPageView({required this.page, this.onNavigateToTab});
+  const _SuperPageView({
+    required this.page,
+    this.onNavigateToTab,
+    required this.strings,
+  });
 
   final GuidePage page;
   final void Function(int index)? onNavigateToTab;
+  final Map<String, String> strings;
 
   @override
   Widget build(BuildContext context) {

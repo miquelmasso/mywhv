@@ -6,6 +6,7 @@ import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/search_service.dart';
 import 'guide_page_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'guide_section_screen.dart';
 
 class GuideScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _GuideScreenState extends State<GuideScreen> {
   };
 
   late Future<GuideManual> _future;
+  String _langCode = 'en';
   String _query = '';
   Timer? _debounce;
   bool _isSearching = false;
@@ -40,7 +42,16 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   void initState() {
     super.initState();
-    _future = GuideManualRepository().loadFromAssets();
+    _future = _loadManualWithSavedLocale();
+  }
+
+  Future<GuideManual> _loadManualWithSavedLocale() async {
+    final prefs = await SharedPreferences.getInstance();
+    final systemLang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    final saved = prefs.getString('guide_lang');
+    final chosen = saved ?? (systemLang.isNotEmpty ? systemLang : 'en');
+    _langCode = chosen;
+    return GuideManualRepository().loadByLocaleCode(chosen);
   }
 
   @override
@@ -49,7 +60,11 @@ class _GuideScreenState extends State<GuideScreen> {
     super.dispose();
   }
 
-  void _openSection(BuildContext context, GuideSection section) {
+  void _openSection(
+    BuildContext context,
+    GuideSection section,
+    Map<String, String> strings,
+  ) {
     // Per a seccions que només tenen una pàgina (ex: visa, abans d'arribar), salta directament al contingut.
     final shouldOpenDirectly =
         (section.id == 'visa_requirements' || section.id == 'before_arrival') &&
@@ -62,6 +77,7 @@ class _GuideScreenState extends State<GuideScreen> {
             sectionId: section.id,
             page: section.pages.first,
             onNavigateToTab: widget.onNavigateToTab,
+            initialStrings: strings,
           ),
         ),
       );
@@ -74,6 +90,7 @@ class _GuideScreenState extends State<GuideScreen> {
         builder: (_) => GuideSectionScreen(
           section: section,
           onNavigateToTab: widget.onNavigateToTab,
+          strings: strings,
         ),
       ),
     );
@@ -114,6 +131,72 @@ class _GuideScreenState extends State<GuideScreen> {
         _isSearching = false;
       });
     });
+  }
+
+  void _chooseLanguage() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Select language', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 20),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 16,
+              children: [
+                _flagOption(context, 'en', '🇬🇧'),
+                _flagOption(context, 'es', '🇪🇸'),
+                _flagOption(context, 'fr', '🇫🇷'),
+                _flagOption(context, 'ca', '🇨🇦'),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _flagOption(BuildContext context, String code, String flag) {
+    final isSelected = _langCode == code;
+    return GestureDetector(
+      onTap: () async {
+        Navigator.of(context).pop();
+        if (code == _langCode) return;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('guide_lang', code);
+        setState(() {
+          _langCode = code;
+          _future = GuideManualRepository().loadByLocaleCode(_langCode);
+        });
+        await _searchService.init(localeOverride: code);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+              : Colors.transparent,
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.withOpacity(0.3),
+          ),
+        ),
+        child: Text(
+          flag,
+          style: const TextStyle(fontSize: 34),
+        ),
+      ),
+    );
   }
 
   Widget _buildHighlighted(String text) {
@@ -211,6 +294,16 @@ class _GuideScreenState extends State<GuideScreen> {
       appBar: AppBar(
         title: const Text('Australia Guide'),
         centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              tooltip: 'Change language',
+              onPressed: _chooseLanguage,
+              icon: const Icon(Icons.language),
+            ),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -262,6 +355,26 @@ class _GuideScreenState extends State<GuideScreen> {
                     return _buildResultsList(widget.onNavigateToTab);
                   }
 
+                  final strings = snapshot.data!.strings;
+                  String resolve(dynamic value) {
+                    if (value == null) return '';
+                    if (value is Map && value['key'] is String) {
+                      final key = value['key'] as String;
+                      return strings[key] ?? key;
+                    }
+                    if (value is String) {
+                      if (value.startsWith('@')) {
+                        final key = value.substring(1);
+                        return strings[key] ?? key;
+                      }
+                      return value;
+                    }
+                    if (value is Iterable) {
+                      return value.map(resolve).join('\n');
+                    }
+                    return value.toString();
+                  }
+
                   final sections = _filterSections(snapshot.data!.sections);
                   if (sections.isEmpty) {
                     return const Center(child: Text('No s’han trobat seccions.'));
@@ -278,7 +391,7 @@ class _GuideScreenState extends State<GuideScreen> {
                       final section = sections[index];
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => _openSection(context, section),
+                        onTap: () => _openSection(context, section, snapshot.data!.strings),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           decoration: BoxDecoration(
@@ -305,12 +418,12 @@ class _GuideScreenState extends State<GuideScreen> {
                                 child: Icon(
                                   _iconForSection(section.icon),
                                   size: 22,
-                                  color: Colors.blue[700],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                section.title,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                                resolve(section.title),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13.5,

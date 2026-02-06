@@ -1,0 +1,1028 @@
+{
+  "version": "2",
+  "lang": "structure",
+  "updated_at": "2025-12-17",
+  "sections": [
+    {
+      "id": "visa_requirements",
+      "title": "@visa.section.title",
+      "icon": "passport",
+      "description": "@visa.section.description",
+      "pages": [
+        {
+          "id": "visa_overview",
+          "title": "@visa.overview.title",
+          "summary": "@visa.overview.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "",
+              "content": "@visa.overview.card_note"
+            }
+          ],
+          "sections": [
+            {
+              "id": "requirements_tab",
+              "title": "@visa.requirements.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@visa.requirements.which_title",
+                  "content": [
+                    "@visa.requirements.which_1",
+                    "@visa.requirements.which_2",
+                    "@visa.requirements.which_3"
+                  ],
+                  "button": {
+                    "label": "@visa.requirements.which_button",
+                    "url": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing"
+                  }
+                },
+                {
+                  "type": "card",
+                  "title": "@visa.requirements.processing_title",
+                  "content": "@visa.processing.simple"
+                },
+                {
+                  "type": "card",
+                  "title": "@visa.requirements.title",
+                  "content": [
+                    "@visa.requirements.item_1",
+                    "@visa.requirements.item_2",
+                    "@visa.requirements.item_3",
+                    "@visa.requirements.item_4",
+                    "@visa.requirements.item_5"
+                  ],
+                  "ordered": true
+                },
+                {
+                  "type": "callout",
+                  "title": "@visa.requirements.callout_title",
+                  "content": "@visa.requirements.callout_text",
+                  "variant": "warning"
+                }
+              ]
+            },
+            {
+              "id": "apply_steps_tab",
+              "title": "@visa.apply.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@visa.apply.summary_title",
+                  "content": [
+                    "@visa.apply.step_1",
+                    "@visa.apply.step_2",
+                    "@visa.apply.step_3",
+                    "@visa.apply.step_4",
+                    "@visa.apply.step_5"
+                  ],
+                  "ordered": true
+                },
+                {
+                  "type": "card",
+                  "title": "@visa.apply.entry_deadline_title",
+                  "content": "@visa.apply.entry_deadline_text"
+                },
+                {
+                  "type": "callout",
+                  "title": "@ui.tip",
+                  "content": "@visa.apply.tip",
+                  "variant": "success"
+                },
+                {
+                  "type": "card",
+                  "button": {
+                    "label": "@visa.apply.extend_button",
+                    "url": "guide:regional_and_extension"
+                  }
+                }
+              ]
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "visa",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "before_arrival",
+      "title": "@before.section.title",
+      "icon": "flight_takeoff",
+      "description": "@before.section.description",
+      "pages": [
+        {
+          "id": "before_arrival_overview",
+          "title": "@before.overview.title",
+          "summary": "@before.overview.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "",
+              "content": "@before.overview.card_note"
+            }
+          ],
+          "sections": [
+            {
+              "id": "preparation_tab",
+              "title": "@before.prep.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@before.prep.pick_title",
+                  "content": [
+                    "@before.prep.pick_1",
+                    "@before.prep.pick_2",
+                    "@before.prep.pick_3"
+                  ]
+                },
+                {
+                  "type": "card",
+                  "title": "@before.prep.season_title",
+                  "content": [
+                    "@before.prep.season_north",
+                    "@before.prep.season_south"
+                  ]
+                },
+                {
+                  "type": "callout",
+                  "title": "@before.prep.tip_title",
+                  "content": "@before.prep.tip",
+                  "variant": "success"
+                }
+              ]
+            },
+            {
+              "id": "lodging_tab",
+              "title": "@before.lodging.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@before.lodging.hostel_title",
+                  "content": [
+                    "@before.lodging.hostel_1",
+                    "@before.lodging.hostel_2",
+                    "@before.lodging.hostel_3"
+                  ]
+                },
+                {
+                  "type": "callout",
+                  "title": "@ui.tip",
+                  "content": "@before.lodging.tip",
+                  "variant": "success"
+                },
+                {
+                  "type": "card",
+                  "icon": "home",
+                  "button": {
+                    "label": "@before.lodging.button",
+                    "url": "guide:shared_housing_facebook"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "money_tab",
+              "title": "@before.money.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@before.money.card_title",
+                  "content": [
+                    "@before.money.card_1",
+                    "@before.money.card_2",
+                    "@before.money.card_3",
+                    "@before.money.card_4"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "cv_tab",
+              "title": "@before.cv.tab_title",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@before.cv.prep_title",
+                  "content": [
+                    "@before.cv.prep_1",
+                    "@before.cv.prep_2",
+                    "@before.cv.prep_3"
+                  ]
+                },
+                {
+                  "type": "card",
+                  "button": {
+                    "label": "@ui.cv.open_cv_screen",
+                    "url": "guide:work_face_to_face#tab=1"
+                  }
+                },
+                {
+                  "type": "card",
+                  "title": "@before.cv.roles_title",
+                  "content": [
+                    "@before.cv.roles_1",
+                    "@before.cv.roles_2",
+                    "@before.cv.roles_3"
+                  ]
+                },
+                {
+                  "type": "callout",
+                  "title": "@ui.tip",
+                  "content": "@before.cv.tip_block",
+                  "variant": "success"
+                },
+                {
+                  "type": "card",
+                  "button": {
+                    "label": "@before.cv.find_work_button",
+                    "url": "guide:find_work_online"
+                  }
+                }
+              ]
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "abans-arribar",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "arrival_steps",
+      "title": "@arrival.section.title",
+      "icon": "how_to_reg",
+      "description": "@arrival.section.description",
+      "pages": [
+        {
+          "id": "sim_and_internet",
+          "title": "@arrival.sim.title",
+          "summary": "@arrival.sim.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@arrival.sim.before_title",
+              "content": "@arrival.sim.before_text",
+              "variant": "success"
+            },
+            {
+              "type": "card",
+              "title": "@arrival.sim.typical_title",
+              "content": "@arrival.sim.typical_text"
+            },
+            {
+              "type": "card",
+              "title": "@arrival.sim.telstra_title",
+              "content": [
+                "@arrival.sim.telstra_1",
+                "@arrival.sim.telstra_2",
+                "@arrival.sim.telstra_3"
+              ]
+            }
+          ],
+          "checklist": [
+            {
+              "id": "c_sim_1",
+              "text": "@arrival.sim.chk_1",
+              "done": false
+            },
+            {
+              "id": "c_sim_2",
+              "text": "@arrival.sim.chk_2",
+              "done": false
+            }
+          ],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "sim",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "tfn",
+          "title": "@arrival.tfn.title",
+          "summary": "@arrival.tfn.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@arrival.tfn.what_title",
+              "content": "@arrival.tfn.what_text"
+            },
+            {
+              "type": "card",
+              "title": "@arrival.tfn.how_title",
+              "content": [
+                "@arrival.tfn.how_1",
+                "@arrival.tfn.how_2",
+                "@arrival.tfn.how_3"
+              ],
+              "ordered": true
+            },
+            {
+              "type": "callout",
+              "title": "@arrival.tfn.important_title",
+              "content": "@arrival.tfn.important_text",
+              "variant": "warning"
+            },
+            {
+              "type": "callout",
+              "title": "@arrival.sim.banks_title",
+              "content": [
+                "@arrival.sim.banks_1",
+                "@arrival.sim.banks_2",
+                "@arrival.sim.banks_3"
+              ]
+            }
+          ],
+          "checklist": [
+            {
+              "id": "c_tfn_1",
+              "text": "@arrival.tfn.chk_1",
+              "done": false
+            },
+            {
+              "id": "c_tfn_2",
+              "text": "@arrival.tfn.chk_2",
+              "done": false
+            }
+          ],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "tfn",
+            "externalLinks": [
+              {
+                "label": "@arrival.tfn.link_label",
+                "url": "https://www.ato.gov.au/"
+              }
+            ]
+          }
+        },
+        {
+          "id": "certificates",
+          "title": "@tab.certificates.title",
+          "summary": "@tab.certificates.title",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@cert.usual.title",
+              "content": [
+                "@cert.usual.intro",
+                "@cert.rsa.combo",
+                "@cert.white.combo",
+                "@cert.usi.combo"
+              ]
+            },
+            {
+              "type": "callout",
+              "title": "@cert.heads.title",
+              "content": "@cert.heads.text",
+              "variant": "warning"
+            },
+            {
+              "type": "card",
+              "title": "@cert.strategy.title",
+              "content": "@cert.strategy.text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [
+            {
+              "id": "c_cert_1",
+              "text": "@arrival.cert.chk_rsa",
+              "done": false
+            },
+            {
+              "id": "c_cert_2",
+              "text": "@arrival.cert.chk_white",
+              "done": false
+            },
+            {
+              "id": "c_cert_3",
+              "text": "@arrival.cert.chk_state",
+              "done": false
+            }
+          ],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "certificats",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "housing",
+      "title": "@housing.section.title",
+      "icon": "home",
+      "description": "@housing.section.description",
+      "pages": [
+        {
+          "id": "shared_housing_facebook",
+          "title": "@housing.shared.title",
+          "summary": "@housing.shared.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@housing.shared.where_title",
+              "content": "@housing.shared.where_text"
+            },
+            {
+              "type": "card",
+              "title": "@housing.shared.price_title",
+              "content": "@housing.shared.price_text"
+            },
+            {
+              "type": "card",
+              "title": "@housing.shared.room_title",
+              "content": [
+                "@housing.shared.room_1",
+                "@housing.shared.room_2"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@housing.shared.process_title",
+              "content": [
+                "@housing.shared.process_1",
+                "@housing.shared.process_2",
+                "@housing.shared.process_3",
+                "@housing.shared.process_4"
+              ],
+              "ordered": true
+            },
+            {
+              "type": "callout",
+              "title": "@housing.shared.good_title",
+              "content": "@housing.shared.good_text",
+              "variant": "success"
+            },
+            {
+              "type": "callout",
+              "title": "@housing.shared.warning_title",
+              "content": "@housing.shared.warning_text",
+              "variant": "warning"
+            },
+            {
+              "type": "callout",
+              "title": "@housing.shared.quick_title",
+              "content": "@housing.shared.quick_text",
+              "variant": "success",
+              "button": {
+                "label": "@ui.copy",
+                "url": "copy:@housing.shared.quick_text"
+              }
+            }
+          ],
+          "checklist": [
+            {
+              "id": "c_house_1",
+              "text": "@housing.shared.chk_1",
+              "done": false
+            },
+            {
+              "id": "c_house_2",
+              "text": "@housing.shared.chk_2",
+              "done": false
+            },
+            {
+              "id": "c_house_3",
+              "text": "@housing.shared.chk_3",
+              "done": false
+            }
+          ],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "house",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "lease_agency",
+          "title": "@housing.lease.title",
+          "summary": "@housing.lease.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@housing.lease.when_title",
+              "content": "@housing.lease.when_text"
+            },
+            {
+              "type": "card",
+              "title": "@housing.lease.key_title",
+              "content": [
+                "@housing.lease.key_1",
+                "@housing.lease.key_2",
+                "@housing.lease.key_3"
+              ]
+            }
+          ],
+          "checklist": [
+            {
+              "id": "c_lease_1",
+              "text": "@housing.lease.chk_1",
+              "done": false
+            },
+            {
+              "id": "c_lease_2",
+              "text": "@housing.lease.chk_2",
+              "done": false
+            }
+          ],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "lease",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "title": "@work.section.title",
+      "icon": "work",
+      "description": "@work.section.description",
+      "pages": [
+        {
+          "id": "find_work_online",
+          "title": "@work.online.title",
+          "summary": "@work.online.summary",
+          "blocks": [],
+          "sections": [
+            {
+              "id": "facebook",
+              "title": "@work.online.fb.title",
+              "icon": "groups",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@work.online.fb.search_title",
+                  "content": [
+                    "@work.online.fb.search_1",
+                    "@work.online.fb.search_2",
+                    "@work.online.fb.search_3"
+                  ]
+                },
+                {
+                  "type": "callout",
+                  "title": "@work.online.fb.callout_title",
+                  "content": "@work.online.fb.callout_text",
+                  "variant": "success"
+                }
+              ]
+            },
+            {
+              "id": "webs",
+              "title": "@work.online.webs.title",
+              "icon": "language",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@work.online.webs.sites_title",
+                  "content": [
+                    "@work.online.webs.site_1",
+                    "@work.online.webs.site_2",
+                    "@work.online.webs.site_3",
+                    "@work.online.webs.site_4",
+                    "@work.online.webs.site_5"
+                  ]
+                },
+                {
+                  "type": "card",
+                  "title": "@work.online.webs.other_title",
+                  "content": [
+                    "@work.online.webs.other_1"
+                  ]
+                },
+                {
+                  "type": "card",
+                  "title": "@work.online.webs.filter_title",
+                  "content": "@work.online.webs.filter_text"
+                }
+              ]
+            },
+            {
+              "id": "map",
+              "title": "@work.online.map.title",
+              "icon": "map_outlined",
+              "blocks": [
+                {
+                  "type": "card",
+                  "title": "@work.online.map.quick_title",
+                  "content": [
+                    "@work.online.map.quick_1",
+                    "@work.online.map.quick_2"
+                  ],
+                  "ordered": true
+                },
+                {
+                  "type": "callout",
+                  "title": "@work.online.map.callout_title",
+                  "content": "@work.online.map.callout_text",
+                  "variant": "success"
+                }
+              ]
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": "hospitality",
+            "forumTag": "job",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "work_face_to_face",
+          "title": "@work.face.title",
+          "summary": "@work.face.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@work.face.routine_title",
+              "content": [
+                "@work.face.routine_1",
+                "@work.face.routine_2",
+                "@work.face.routine_3",
+                "@work.face.routine_4",
+                "@work.face.routine_5"
+              ],
+              "ordered": true
+            },
+            {
+              "type": "card",
+              "title": "@work.face.tip_title",
+              "content": "@work.face.tip_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": "hospitality",
+            "forumTag": "cv",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "regional_and_extension",
+      "title": "@regional.section.title",
+      "icon": "agriculture",
+      "description": "@regional.section.description",
+      "pages": [
+        {
+          "id": "extension_rules",
+          "title": "@regional.extension.title",
+          "summary": "@regional.extension.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@regional.extension.summary_title",
+              "content": "@regional.extension.summary_text"
+            },
+            {
+              "type": "card",
+              "title": "@regional.extension.condition_title",
+              "content": "@regional.extension.condition_text",
+              "variant": "warning"
+            },
+            {
+              "type": "card",
+              "title": "@regional.extension.dont_title",
+              "content": "@regional.extension.dont_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": "harvest",
+            "forumTag": "extension",
+            "externalLinks": [
+              {
+                "label": "@regional.extension.link_label",
+                "url": "https://immi.homeaffairs.gov.au/"
+              }
+            ]
+          }
+        },
+        {
+          "id": "farm_types_pay",
+          "title": "@regional.farm.title",
+          "summary": "@regional.farm.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@regional.farm.types_title",
+              "content": [
+                "@regional.farm.types_1",
+                "@regional.farm.types_2"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@regional.farm.strategy_title",
+              "content": "@regional.farm.strategy_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": "harvest",
+            "forumTag": "granja",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "transport",
+      "title": "@transport.section.title",
+      "icon": "directions_car",
+      "description": "@transport.section.description",
+      "pages": [
+        {
+          "id": "buying_car",
+          "title": "@transport.buy.title",
+          "summary": "@transport.buy.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@transport.buy.before_title",
+              "content": "@transport.buy.before_text"
+            },
+            {
+              "type": "card",
+              "title": "@transport.buy.price_title",
+              "content": [
+                "@transport.buy.price_1",
+                "@transport.buy.price_2"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.buy.keywords_title",
+              "content": [
+                "@transport.buy.keywords_1",
+                "@transport.buy.keywords_2"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.buy.warning_title",
+              "content": "@transport.buy.warning_text",
+              "variant": "warning"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_rego",
+          "title": "@transport.rego.title",
+          "summary": "@transport.rego.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@transport.rego.what_title",
+              "content": "@transport.rego.what_text"
+            },
+            {
+              "type": "card",
+              "title": "@transport.rego.before_title",
+              "content": [
+                "@transport.rego.before_1",
+                "@transport.rego.before_2",
+                "@transport.rego.before_3"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.rego.after_title",
+              "content": [
+                "@transport.rego.after_1",
+                "@transport.rego.after_2",
+                "@transport.rego.after_3"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.rego.norego_title",
+              "content": "@transport.rego.norego_text",
+              "variant": "warning"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_roadworthy",
+          "title": "@transport.roadworthy.title",
+          "summary": "@transport.roadworthy.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@transport.roadworthy.what_title",
+              "content": "@transport.roadworthy.what_text"
+            },
+            {
+              "type": "card",
+              "title": "@transport.roadworthy.by_state_title",
+              "content": [
+                "@transport.roadworthy.by_state_1",
+                "@transport.roadworthy.by_state_2",
+                "@transport.roadworthy.by_state_3"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.roadworthy.common_title",
+              "content": [
+                "@transport.roadworthy.common_1",
+                "@transport.roadworthy.common_2",
+                "@transport.roadworthy.common_3",
+                "@transport.roadworthy.common_4"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.roadworthy.tip_title",
+              "content": "@transport.roadworthy.tip_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "car_tips",
+          "title": "@transport.tips.title",
+          "summary": "@transport.tips.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@transport.tips.before_title",
+              "content": "@transport.tips.before_text"
+            },
+            {
+              "type": "card",
+              "title": "@transport.tips.maintenance_title",
+              "content": [
+                "@transport.tips.maintenance_1",
+                "@transport.tips.maintenance_2",
+                "@transport.tips.maintenance_3"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@transport.tips.emerg_title",
+              "content": [
+                "@transport.tips.emerg_1",
+                "@transport.tips.emerg_2"
+              ]
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "cotxe",
+            "externalLinks": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "money_taxes",
+      "title": "@money.section.title",
+      "icon": "attach_money",
+      "description": "@money.section.description",
+      "pages": [
+        {
+          "id": "wages",
+          "title": "@money.wages.title",
+          "summary": "@money.wages.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@money.wages.essential_title",
+              "content": "@money.wages.essential_text"
+            },
+            {
+              "type": "card",
+              "title": "@money.wages.key_title",
+              "content": [
+                "@money.wages.key_1",
+                "@money.wages.key_2",
+                "@money.wages.key_3",
+                "@money.wages.key_4",
+                "@money.wages.key_5"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@money.wages.tip_title",
+              "content": "@money.wages.tip_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "taxes_and_super",
+          "title": "@money.taxes.title",
+          "summary": "@money.taxes.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@money.taxes.quick_title",
+              "content": "@money.taxes.quick_text"
+            },
+            {
+              "type": "card",
+              "title": "@money.taxes.key_title",
+              "content": [
+                "@money.taxes.key_1",
+                "@money.taxes.key_2",
+                "@money.taxes.key_3",
+                "@money.taxes.key_4"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@money.taxes.tip_title",
+              "content": "@money.taxes.tip_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        },
+        {
+          "id": "super_basics",
+          "title": "@money.super.title",
+          "summary": "@money.super.summary",
+          "blocks": [
+            {
+              "type": "card",
+              "title": "@money.super.essential_title",
+              "content": "@money.super.essential_text"
+            },
+            {
+              "type": "card",
+              "title": "@money.super.key_title",
+              "content": [
+                "@money.super.key_1",
+                "@money.super.key_2",
+                "@money.super.key_3"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@money.super.tip_title",
+              "content": "@money.super.tip_text",
+              "variant": "success"
+            },
+            {
+              "type": "card",
+              "title": "@money.super.lost_title",
+              "content": "@money.super.lost_text",
+              "variant": "success"
+            }
+          ],
+          "checklist": [],
+          "cta": {
+            "mapCategory": null,
+            "forumTag": "impostos",
+            "externalLinks": []
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -35,9 +35,14 @@ class SearchService {
   final List<_SearchEntry> _entries = [];
   bool _initialized = false;
 
-  Future<void> init() async {
-    if (_initialized) return;
-    _manual = await GuideManualRepository().loadFromAssets();
+  Future<void> init({String? localeOverride}) async {
+    if (_initialized && localeOverride == null) return;
+    if (localeOverride != null) {
+      _manual = await GuideManualRepository().loadByLocaleCode(localeOverride);
+    } else {
+      _manual = await GuideManualRepository().loadFromAssets();
+    }
+    _entries.clear();
     _buildIndex();
     _initialized = true;
   }
@@ -111,6 +116,7 @@ class SearchService {
 
     final resolvedSection = section;
     final resolvedPage = page;
+    final strings = _manual?.strings ?? const <String, String>{};
 
     if (_isTabbedSection(resolvedSection.id)) {
       Navigator.push(
@@ -120,6 +126,7 @@ class SearchService {
             section: resolvedSection,
             onNavigateToTab: onNavigateToTab,
             initialPageId: resolvedPage.id,
+            strings: strings,
           ),
         ),
       );
@@ -131,6 +138,7 @@ class SearchService {
             sectionId: resolvedSection.id,
             page: resolvedPage,
             onNavigateToTab: onNavigateToTab,
+            initialStrings: strings,
           ),
         ),
       );
@@ -144,29 +152,54 @@ class SearchService {
         final page = section.pages[i];
         final tabIndex = _isTabbedSection(section.id) ? i : null;
         final lines = <String>[];
+        late final String resolvedTitle;
+        late final String resolvedSubtitle;
+
+        final strings = _manual!.strings;
+        String resolve(dynamic value) {
+          if (value == null) return '';
+          if (value is String) {
+            if (value.startsWith('@')) {
+              final key = value.substring(1);
+              return strings[key] ?? key;
+            }
+            return strings[value] ?? value;
+          }
+          if (value is Iterable) {
+            return value.map(resolve).join(' ');
+          }
+          if (value is Map && value['key'] is String) {
+            final key = value['key'] as String;
+            return strings[key] ?? key;
+          }
+          return value.toString();
+        }
 
         void addLine(String? text) {
           if (text == null || text.trim().isEmpty) return;
           lines.add(text.trim());
         }
 
-        addLine(page.title);
-        addLine(page.summary);
+        resolvedTitle = resolve(page.title);
+        resolvedSubtitle = resolve(section.title);
+
+        addLine(resolvedTitle);
+        addLine(resolve(page.summary));
         for (final block in page.blocks) {
-          addLine(block.title);
-          addLine(block.content);
+          addLine(resolve(block.title));
+          addLine(resolve(block.content));
           for (final item in block.items) {
-            addLine(item);
+            addLine(resolve(item));
           }
         }
         for (final sec in page.sections) {
-          addLine(sec.title);
-          addLine(sec.subtitle);
+          addLine(resolve(sec.title));
+          addLine(resolve(sec.subtitle));
           for (final block in sec.blocks) {
-            addLine(block.title);
-            addLine(block.content);
+            addLine(resolve(block.title));
+            addLine(resolve(block.content));
             for (final item in block.items) {
-              addLine(item);
+              addLine(resolve(item));
             }
           }
         }
@@ -176,8 +209,8 @@ class SearchService {
           _SearchEntry(
             sectionId: section.id,
             pageId: page.id,
-            title: page.title,
-            subtitle: section.title,
+            title: resolvedTitle,
+            subtitle: resolvedSubtitle,
             body: body,
             tabIndex: tabIndex,
             lines: lines,

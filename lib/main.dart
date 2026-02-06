@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, this.initialIndex = 0});
+  const MyHomePage({super.key, this.initialIndex = 1});
 
   final int initialIndex;
 
@@ -63,7 +63,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  _MyHomePageState({this.initialIndex = 0});
+  _MyHomePageState({this.initialIndex = 1});
 
   final int initialIndex;
   late int _selectedIndex;

@@ -14,7 +14,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'dart:ui' as ui;
 import 'package:geolocator/geolocator.dart';
 
 import '../config/maptiler_config.dart';
@@ -45,8 +44,10 @@ final Map<String, Style> _styleCache = {};
 class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
-  static const LatLng _initialCenter = LatLng(-25.0, 133.0);
-  static const double _initialZoom = 4.5;
+  static const LatLng _defaultCenter = LatLng(-25.0, 133.0);
+  static const double _defaultZoom = 4.5;
+  LatLng _initialCenter = _defaultCenter;
+  double _initialZoom = _defaultZoom;
   final bool _showAllRestaurants = false;
   bool _farmMapEnabled = false;
   late final String streetsStyleUrl;
@@ -58,7 +59,11 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   bool _isHospitality = true;
   bool _isLoadingData = true;
   String? _dataStatusMessage;
-  LatLng _currentCenter = _initialCenter;
+  LatLng _currentCenter = _defaultCenter;
+  double _currentZoom = _defaultZoom;
+  bool _mapReady = false;
+  LatLng? _pendingCenter;
+  double? _pendingZoom;
   bool _didFitBounds = false;
   final ValueNotifier<bool> _tilesReady = ValueNotifier<bool>(false);
   bool _isUserMoving = false;
@@ -69,6 +74,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   bool _isLocating = false;
   final Set<String> _selectedSources = {};
   FlutterExceptionHandler? _originalOnError;
+  Timer? _persistDebounce;
   final List<Map<String, dynamic>> _sourceOptions = const [
     {'key': 'gmail', 'label': 'Gmail', 'icon': Icons.email},
     {'key': 'facebook', 'label': 'Facebook', 'icon': Icons.facebook},
@@ -111,12 +117,14 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       setState(() => _favoritePlaces = ids);
       _updateMarkers();
     });
+    _loadLastMapPosition();
     _loadInitialData();
   }
 
   @override
   void dispose() {
     _moveDebounce?.cancel();
+    _persistDebounce?.cancel();
     _favoritesSub?.cancel();
     _closeFilterOverlay();
     FlutterError.onError = _originalOnError;
@@ -163,6 +171,39 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList('favorite_places') ?? [];
     setState(() => _favoritePlaces = list.toSet());
+  }
+
+  Future<void> _loadLastMapPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble('map_last_lat');
+    final lng = prefs.getDouble('map_last_lng');
+    final zoom = prefs.getDouble('map_last_zoom');
+
+    if (lat != null && lng != null && zoom != null) {
+      final clampedZoom = zoom.clamp(6.0, 12.0) as double;
+      final center = LatLng(lat, lng);
+      setState(() {
+        _initialCenter = center;
+        _initialZoom = clampedZoom;
+        _currentCenter = center;
+        _currentZoom = clampedZoom;
+        _pendingCenter = center;
+        _pendingZoom = clampedZoom;
+      });
+      if (_mapReady) {
+        _mapController.move(center, clampedZoom);
+        _pendingCenter = null;
+        _pendingZoom = null;
+      }
+    }
+  }
+
+  Future<void> _saveLastMapPosition(LatLng center, double zoom) async {
+    final prefs = await SharedPreferences.getInstance();
+    final clampedZoom = zoom.clamp(6.0, 12.0) as double;
+    await prefs.setDouble('map_last_lat', center.latitude);
+    await prefs.setDouble('map_last_lng', center.longitude);
+    await prefs.setDouble('map_last_zoom', clampedZoom);
   }
 
   Future<void> _loadData({required bool fromServer}) async {
@@ -689,6 +730,11 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     _mapController.move(_initialCenter, _initialZoom);
   }
 
+  void _zoomOut() {
+    final newZoom = (_currentZoom - 1).clamp(3.0, 18.0);
+    _mapController.move(_currentCenter, newZoom);
+  }
+
   Future<void> _goToUserLocation() async {
     if (_isLocating) return;
     setState(() => _isLocating = true);
@@ -1027,6 +1073,14 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                 options: MapOptions(
                   initialCenter: _initialCenter,
                   initialZoom: _initialZoom,
+                  onMapReady: () {
+                    _mapReady = true;
+                    if (_pendingCenter != null && _pendingZoom != null) {
+                      _mapController.move(_pendingCenter!, _pendingZoom!);
+                      _pendingCenter = null;
+                      _pendingZoom = null;
+                    }
+                  },
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                   ),
@@ -1041,6 +1095,18 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     if (rotation.abs() > 0.0001) _mapController.rotate(0);
                     if (position.center != null) {
                       _currentCenter = position.center!;
+                    }
+                    if (position.zoom != null) {
+                      _currentZoom = position.zoom!;
+                    }
+                    _pendingCenter = _currentCenter;
+                    _pendingZoom = _currentZoom;
+                    if (position.center != null && position.zoom != null) {
+                      _persistDebounce?.cancel();
+                      _persistDebounce =
+                          Timer(const Duration(milliseconds: 500), () {
+                        _saveLastMapPosition(position.center!, position.zoom!);
+                      });
                     }
                     _isUserMoving = true;
                     _moveDebounce?.cancel();
@@ -1223,9 +1289,11 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                   bottom: 180,
                   right: 16,
                   child: FloatingActionButton(
-                    heroTag: 'fab_recenter',
-                    onPressed: _recenter,
-                    child: const Icon(Icons.my_location),
+                    heroTag: 'fab_zoom_out',
+                    onPressed: _zoomOut,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.blueGrey.shade700,
+                    child: const Icon(Icons.zoom_out),
                   ),
                 ),
             ],

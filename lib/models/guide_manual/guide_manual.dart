@@ -3,16 +3,27 @@ class GuideManual {
   final String lang;
   final String updatedAt;
   final List<GuideSection> sections;
+  final Map<String, String> strings;
 
   GuideManual({
     required this.version,
     required this.lang,
     required this.updatedAt,
     required this.sections,
+    this.strings = const {},
   });
 
   factory GuideManual.fromJson(Map<String, dynamic> json) {
     final sectionsJson = json['sections'] as List? ?? [];
+    final rawStrings = json['strings'];
+    final strings = <String, String>{};
+    if (rawStrings is Map) {
+      rawStrings.forEach((key, value) {
+        if (key is String && value is String) {
+          strings[key] = value;
+        }
+      });
+    }
     return GuideManual(
       version: (json['version'] ?? '').toString(),
       lang: (json['lang'] ?? '').toString(),
@@ -21,6 +32,7 @@ class GuideManual {
           .whereType<Map<String, dynamic>>()
           .map(GuideSection.fromJson)
           .toList(),
+      strings: strings,
     );
   }
 
@@ -29,6 +41,7 @@ class GuideManual {
         'lang': lang,
         'updated_at': updatedAt,
         'sections': sections.map((s) => s.toJson()).toList(),
+        if (strings.isNotEmpty) 'strings': strings,
       };
 }
 
@@ -134,6 +147,8 @@ class GuideBlock {
   final String? buttonLabel;
   final String? buttonUrl;
   final String? icon;
+  final String? variant;
+  final bool ordered;
 
   GuideBlock({
     required this.type,
@@ -143,6 +158,8 @@ class GuideBlock {
     this.buttonLabel,
     this.buttonUrl,
     this.icon,
+    this.variant,
+    this.ordered = false,
   });
 
   factory GuideBlock.fromJson(Map<String, dynamic> json) {
@@ -167,6 +184,8 @@ class GuideBlock {
       buttonUrl = btn['url']?.toString();
     }
     icon = json['icon']?.toString();
+    final variant = json['variant']?.toString();
+    final ordered = json['ordered'] == true;
 
     return GuideBlock(
       type: (json['type'] ?? 'text').toString(),
@@ -176,6 +195,8 @@ class GuideBlock {
       buttonLabel: buttonLabel,
       buttonUrl: buttonUrl,
       icon: icon,
+      variant: variant,
+      ordered: ordered,
     );
   }
 
@@ -190,6 +211,8 @@ class GuideBlock {
             if (buttonUrl != null) 'url': buttonUrl,
           },
         if (icon != null) 'icon': icon,
+        if (variant != null) 'variant': variant,
+        if (ordered) 'ordered': true,
       };
 }
 

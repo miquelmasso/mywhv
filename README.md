@@ -14,3 +14,10 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Firebase Functions
+
+- Desplegar la callable: `firebase deploy --only functions`
+- Llistar-les per verificar: `firebase functions:list`
+- Assegura que el `projectId` de Flutter (`Firebase.app().options.projectId`) coincideix amb el projecte on es despleguen les functions.
+- Regió usada: `us-central1` (client i backend alineats).
