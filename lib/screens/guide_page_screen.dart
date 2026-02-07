@@ -7,6 +7,7 @@ import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/main_tabs_controller.dart';
 import '../services/overlay_helper.dart';
+import '../services/postcode_eligibility_service.dart';
 import 'mail_setup_page.dart';
 import 'guide_section_screen.dart';
 
@@ -1017,6 +1018,40 @@ Widget _buildBlockWidget(
     if (block.buttonLabel == null || block.buttonUrl == null) return const SizedBox.shrink();
     final isCopyAction = block.buttonUrl!.startsWith('copy:');
     final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
+    final isAction = block.buttonUrl!.startsWith('action:');
+    final isCompactMapButton =
+        block.icon != null && block.buttonUrl!.contains('regional_and_extension#tab=0');
+    if (isAction && block.buttonUrl!.contains('check_postcode')) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: InlinePostcodeChecker(t: t),
+      );
+    }
+    if (isCompactMapButton) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Center(
+          child: Material(
+            color: const Color(0xFFF8EDEA),
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () async => _launchExternal(Uri.parse(block.buttonUrl!)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Text(
+                  resolve(block.buttonLabel),
+                  style: const TextStyle(
+                    color: Color(0xFF8A4A3A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: ElevatedButton(
@@ -1197,6 +1232,7 @@ Widget _buildBlockWidget(
       if (hasButton && !hasTitle && !hasContent && !hasItems) {
         final isCopyAction = block.buttonUrl!.startsWith('copy:');
         final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
+        final isAction = block.buttonUrl!.startsWith('action:');
         Future<void> _handleTap() async {
           if (isCopyAction) {
             final textToCopy =
@@ -1227,6 +1263,9 @@ Widget _buildBlockWidget(
           await _launchExternal(Uri.parse(block.buttonUrl!));
         }
 
+        if (isAction && block.buttonUrl!.contains('check_postcode')) {
+          return InlinePostcodeChecker(t: t);
+        }
         final label = Text(resolve(block.buttonLabel));
         // No card wrapper; match Facebook button styling
         return _actionButton(
@@ -1236,36 +1275,136 @@ Widget _buildBlockWidget(
         );
       }
 
+      Color? cardColor;
+      if (block.variant == 'warning') {
+        cardColor = Colors.orange.shade50;
+      } else if (block.variant == 'success') {
+        cardColor = Colors.green.shade50;
+      } else if (block.variant == 'info') {
+        cardColor = Colors.blue.shade50;
+      } else if (block.variant == 'milestone') {
+        cardColor = Colors.orange.shade50;
+      }
+      IconData? _iconFromString(String? name) {
+        switch (name) {
+          case 'local_florist':
+            return Icons.local_florist;
+          case 'agriculture':
+            return Icons.agriculture;
+          case 'restaurant_menu':
+            return Icons.restaurant_menu;
+          default:
+            return null;
+        }
+      }
+      final leadingIcon = _iconFromString(block.icon);
+
       final resolvedTitle = resolve(block.title ?? '');
       final isProcessingCard = block.title == '@visa.requirements.processing_title';
+      if (block.variant == 'milestone') {
+        final lines = resolve(block.content ?? '').split('\n');
+        final big = lines.isNotEmpty ? lines.first : '';
+        final small = lines.length > 1 ? lines.sublist(1).join('\n') : '';
+        return _InfoCard(
+          title: resolvedTitle,
+          color: cardColor,
+          leading: const Icon(Icons.flag, color: Colors.deepOrange),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                big,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.deepOrange,
+                ),
+              ),
+              if (small.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  small,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }
       return _InfoCard(
         title: resolvedTitle,
+        color: cardColor,
+        leading: leadingIcon != null ? Icon(leadingIcon, color: Colors.brown.shade400) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!isProcessingCard && block.content != null && block.content!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  resolve(block.content),
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+              ),
             if (isProcessingCard)
-              Text(resolve('@visa.processing.simple'))
-            else if (block.content != null &&
-                block.content!.isNotEmpty &&
-                block.items.isEmpty)
-              _textWithLinks(block.content, resolve),
-            ...block.items.asMap().entries.map((entry) {
-              final raw = entry.value;
-              String? label;
-              String text = raw;
-              final idx = raw.indexOf(':');
-              if (idx != -1) {
-                label = raw.substring(0, idx).trim();
-                text = raw.substring(idx + 1).trim();
-              }
-              label = label != null ? resolve(label) : null;
-              text = resolve(text);
-              return _BulletText(
-                text: text,
-                label: label,
-                orderedIndex: block.ordered ? entry.key : null,
-              );
-            }),
+              Text(resolve('@visa.processing.simple')),
+            if (block.chips.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 6),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: block.chips
+                      .map(
+                        (item) => Text(
+                          resolve(item),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            if (block.items.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: block.ordered
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: block.items.asMap().entries.map((entry) {
+                          final text = resolve(entry.value);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('${entry.key + 1}. ',
+                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Expanded(child: Text(text)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: block.items.map((item) {
+                          final text = resolve(item);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('• '),
+                                Expanded(child: Text(text)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
             if (block.buttonLabel != null && block.buttonUrl != null) _buttonIfAny(),
           ],
         ),
@@ -1284,16 +1423,99 @@ Widget _buildBlockWidget(
         iconColor = Colors.green.shade700;
         icon = Icons.lightbulb_outline;
       }
-      return _InfoCard(
+      final hasItems = block.items.isNotEmpty;
+      Widget body;
+      Widget bulletIcon() {
+        if (block.variant == 'warning') {
+          return Icon(Icons.cancel_outlined, size: 18, color: Colors.red.shade700);
+        }
+        if (block.variant == 'success') {
+          return Icon(Icons.check_circle_outline, size: 18, color: Colors.green.shade700);
+        }
+        return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
+      }
+      if (hasItems) {
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: block.items
+              .map(
+                (item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6, top: 2),
+                        child: bulletIcon(),
+                      ),
+                      Expanded(child: _textWithLinks(item, resolve)),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      } else {
+        body = _textWithLinks(block.content, resolve);
+      }
+
+      Future<void> handleCopy() async {
+        final copyTarget = block.copyText ?? block.content ?? block.items.join('\n');
+        final resolvedCopy = resolve(copyTarget);
+        if (resolvedCopy.trim().isEmpty) return;
+        await Clipboard.setData(ClipboardData(text: resolvedCopy));
+        final msgKey = block.copyMessageKey ?? '@ui.message_copied';
+        if (vsync != null) {
+          await OverlayHelper.showCopiedOverlay(context, vsync!, resolve(msgKey));
+        } else {
+          final snack = SnackBar(
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Text(resolve(msgKey)),
+            duration: const Duration(seconds: 2),
+          );
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(snack);
+        }
+      }
+
+      final card = _InfoCard(
         title: resolvedTitle,
         color: bg,
         leading: Icon(icon, color: iconColor),
-        child: _textWithLinks(block.content, resolve),
+        child: body,
       );
+
+      if (block.copyOnTap) {
+        return InkWell(
+          onTap: handleCopy,
+          borderRadius: BorderRadius.circular(12),
+          child: card,
+        );
+      }
+      return card;
     case 'paragraph':
       return _InfoCard(
         title: resolve(block.title ?? ''),
         child: _textWithLinks(block.content, resolve),
+      );
+    case 'header':
+      return Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              resolve(block.title ?? ''),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       );
     case 'cv_sheet':
       return _cvSheet(block);
@@ -1301,6 +1523,10 @@ Widget _buildBlockWidget(
       if (block.type == 'button') {
         final isCopyAction = block.buttonUrl?.startsWith('copy:') ?? false;
         final isGuideNavigation = block.buttonUrl?.startsWith('guide:') ?? false;
+        final isAction = block.buttonUrl?.startsWith('action:') ?? false;
+        if (isAction && (block.buttonUrl?.contains('check_postcode') ?? false)) {
+          return InlinePostcodeChecker(t: t);
+        }
         Future<void> _handleTap() async {
           if (block.buttonLabel == null || block.buttonUrl == null) return;
           if (isCopyAction) {
@@ -1317,25 +1543,26 @@ Widget _buildBlockWidget(
               }
             }
             return;
-      }
-      if (isGuideNavigation) {
-        final raw = block.buttonUrl!.substring('guide:'.length);
-        final parts = raw.split('#');
-        final targetPageId = parts.first;
-        int? tabIndex;
-        if (parts.length > 1 && parts[1].startsWith('tab=')) {
-          tabIndex = int.tryParse(parts[1].substring(4));
-        }
-        if (targetPageId.isNotEmpty) {
-          await _openGuidePage(context, targetPageId,
-              onNavigateToTab: onNavigateToTab, initialTabIndex: tabIndex);
-        }
-        return;
-      }
+          }
+          if (isGuideNavigation) {
+            final raw = block.buttonUrl!.substring('guide:'.length);
+            final parts = raw.split('#');
+            final targetPageId = parts.first;
+            int? tabIndex;
+            if (parts.length > 1 && parts[1].startsWith('tab=')) {
+              tabIndex = int.tryParse(parts[1].substring(4));
+            }
+            if (targetPageId.isNotEmpty) {
+              await _openGuidePage(context, targetPageId,
+                  onNavigateToTab: onNavigateToTab, initialTabIndex: tabIndex);
+            }
+            return;
+          }
           await _launchExternal(Uri.parse(block.buttonUrl!));
         }
 
-        return Center(
+        return SizedBox(
+          width: double.infinity,
           child: Material(
             color: const Color(0xFFF8EDEA),
             shape: const StadiumBorder(),
@@ -1346,6 +1573,7 @@ Widget _buildBlockWidget(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 child: Text(
                   resolve(block.buttonLabel),
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF8A4A3A),
                     fontWeight: FontWeight.w600,
@@ -1405,6 +1633,94 @@ Widget _buildBlockWidget(
           ],
         ),
       );
+  }
+}
+
+class InlinePostcodeChecker extends StatefulWidget {
+  const InlinePostcodeChecker({super.key, required this.t});
+
+  final String Function(String key) t;
+
+  @override
+  State<InlinePostcodeChecker> createState() => _InlinePostcodeCheckerState();
+}
+
+class _InlinePostcodeCheckerState extends State<InlinePostcodeChecker> {
+  final _controller = TextEditingController();
+  final _service = PostcodeEligibilityService.instance;
+  bool? _isRegional;
+
+  Future<void> _onChanged(String value) async {
+    if (value.length != 4 || int.tryParse(value) == null) {
+      setState(() => _isRegional = null);
+      return;
+    }
+    final res = await _service.check(value);
+    final regional = res.type != PostcodeVisaType.notEligible;
+    setState(() => _isRegional = regional);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final success = _isRegional == true;
+    final failure = _isRegional == false;
+    final color = success
+        ? Colors.green.shade700
+        : failure
+            ? Colors.red.shade700
+            : Colors.black54;
+    final icon = success
+        ? Icons.check_circle_outline
+        : failure
+            ? Icons.cancel_outlined
+            : null;
+
+    return _InfoCard(
+      title: widget.t('@regional.extension.check_title'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            decoration: InputDecoration(
+              hintText: widget.t('@regional.extension.check_hint'),
+              counterText: '',
+            ),
+            onChanged: _onChanged,
+          ),
+          if (_isRegional != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (icon != null) Icon(icon, color: color, size: 20),
+                if (icon != null) const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.t(
+                      _isRegional == true
+                          ? '@regional.extension.check_result_regional'
+                          : '@regional.extension.check_result_not',
+                    ),
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

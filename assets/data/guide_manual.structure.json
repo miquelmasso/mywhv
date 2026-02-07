@@ -440,14 +440,6 @@
             },
             {
               "type": "card",
-              "title": "@housing.shared.room_title",
-              "content": [
-                "@housing.shared.room_1",
-                "@housing.shared.room_2"
-              ]
-            },
-            {
-              "type": "card",
               "title": "@housing.shared.process_title",
               "content": [
                 "@housing.shared.process_1",
@@ -474,10 +466,8 @@
               "title": "@housing.shared.quick_title",
               "content": "@housing.shared.quick_text",
               "variant": "success",
-              "button": {
-                "label": "@ui.copy",
-                "url": "copy:@housing.shared.quick_text"
-              }
+              "copyOnTap": true,
+              "copyText": "@housing.shared.quick_text"
             }
           ],
           "checklist": [
@@ -521,6 +511,22 @@
                 "@housing.lease.key_2",
                 "@housing.lease.key_3"
               ]
+            },
+            {
+              "type": "card",
+              "title": "@housing.lease.cost_title",
+              "content": [
+                "@housing.lease.cost_1",
+                "@housing.lease.cost_2",
+                "@housing.lease.cost_3"
+              ]
+            },
+            {
+              "type": "button",
+              "button": {
+                "label": "@housing.lease.search_button",
+                "url": "https://www.realestate.com.au/"
+              }
             }
           ],
           "checklist": [
@@ -573,7 +579,9 @@
                   "type": "callout",
                   "title": "@work.online.fb.callout_title",
                   "content": "@work.online.fb.callout_text",
-                  "variant": "success"
+                  "variant": "success",
+                  "copyOnTap": true,
+                  "copyText": "@work.online.fb.callout_text"
                 }
               ]
             },
@@ -625,7 +633,9 @@
                   "type": "callout",
                   "title": "@work.online.map.callout_title",
                   "content": "@work.online.map.callout_text",
-                  "variant": "success"
+                  "variant": "success",
+                  "copyOnTap": true,
+                  "copyText": "@work.online.map.callout_text"
                 }
               ]
             }
@@ -655,6 +665,24 @@
               "ordered": true
             },
             {
+              "type": "callout",
+              "title": "@work.face.do_title",
+              "content": [
+                "@work.face.do_1",
+                "@work.face.do_2"
+              ],
+              "variant": "success"
+            },
+            {
+              "type": "callout",
+              "title": "@work.face.dont_title",
+              "content": [
+                "@work.face.dont_1",
+                "@work.face.dont_2"
+              ],
+              "variant": "warning"
+            },
+            {
               "type": "card",
               "title": "@work.face.tip_title",
               "content": "@work.face.tip_text",
@@ -682,21 +710,39 @@
           "summary": "@regional.extension.summary",
           "blocks": [
             {
+              "type": "header",
+              "title": "@regional.extension.work_header"
+            },
+            {
               "type": "card",
-              "title": "@regional.extension.summary_title",
-              "content": "@regional.extension.summary_text"
+              "title": "@regional.extension.req_88_title",
+              "content": "@regional.extension.req_88_content",
+              "variant": "milestone"
+            },
+            {
+              "type": "card",
+              "title": "@regional.extension.req_6m_title",
+              "content": "@regional.extension.req_6m_content",
+              "variant": "milestone"
             },
             {
               "type": "card",
               "title": "@regional.extension.condition_title",
               "content": "@regional.extension.condition_text",
+              "variant": "info"
+            },
+            {
+              "type": "callout",
+              "title": "@regional.extension.dont_title",
+              "content": "@regional.extension.dont_text",
               "variant": "warning"
             },
             {
-              "type": "card",
-              "title": "@regional.extension.dont_title",
-              "content": "@regional.extension.dont_text",
-              "variant": "success"
+              "type": "button",
+              "button": {
+                "label": "@regional.extension.check_button",
+                "url": "action:check_postcode"
+              }
             }
           ],
           "checklist": [],
@@ -713,22 +759,53 @@
         },
         {
           "id": "farm_types_pay",
-          "title": "@regional.farm.title",
+          "title": "@regional.farm.jobs_tab_title",
           "summary": "@regional.farm.summary",
           "blocks": [
             {
+              "type": "callout",
+              "variant": "info",
+              "title": "@regional.farm.info_banner_title",
+              "content": "@regional.farm.info_banner_text"
+            },
+            {
               "type": "card",
-              "title": "@regional.farm.types_title",
-              "content": [
-                "@regional.farm.types_1",
-                "@regional.farm.types_2"
+              "title": "@regional.farm.jobs_harvest_title",
+              "icon": "local_florist",
+              "variant": "success",
+              "content": "@regional.farm.jobs_harvest_body",
+              "chips": [
+                "@regional.farm.chip_harvest_berries",
+                "@regional.farm.chip_harvest_apples",
+                "@regional.farm.chip_harvest_citrus",
+                "@regional.farm.chip_harvest_mangoes"
               ]
             },
             {
               "type": "card",
-              "title": "@regional.farm.strategy_title",
-              "content": "@regional.farm.strategy_text",
-              "variant": "success"
+              "title": "@regional.farm.jobs_farmhand_title",
+              "icon": "agriculture",
+              "content": "@regional.farm.jobs_farmhand_body",
+              "chips": [
+                "@regional.farm.chip_farmhand_cattle",
+                "@regional.farm.chip_farmhand_tractor",
+                "@regional.farm.chip_farmhand_fencing",
+                "@regional.farm.chip_farmhand_maintenance",
+                "@regional.farm.chip_farmhand_packing"
+              ]
+            },
+            {
+              "type": "card",
+              "title": "@regional.farm.jobs_hospitality_title",
+              "icon": "restaurant_menu",
+              "variant": "info",
+              "content": "@regional.farm.jobs_hospitality_body",
+              "chips": [
+                "@regional.farm.chip_hosp_pubs",
+                "@regional.farm.chip_hosp_hotels",
+                "@regional.farm.chip_hosp_restaurants",
+                "@regional.farm.chip_hosp_roadhouses"
+              ]
             }
           ],
           "checklist": [],

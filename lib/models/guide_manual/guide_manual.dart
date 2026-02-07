@@ -144,27 +144,36 @@ class GuideBlock {
   final String? title;
   final String? content;
   final List<String> items;
+  final List<String> chips;
   final String? buttonLabel;
   final String? buttonUrl;
   final String? icon;
   final String? variant;
   final bool ordered;
+  final bool copyOnTap;
+  final String? copyText;
+  final String? copyMessageKey;
 
   GuideBlock({
     required this.type,
     this.title,
     this.content,
     this.items = const [],
+    this.chips = const [],
     this.buttonLabel,
     this.buttonUrl,
     this.icon,
     this.variant,
     this.ordered = false,
+    this.copyOnTap = false,
+    this.copyText,
+    this.copyMessageKey,
   });
 
   factory GuideBlock.fromJson(Map<String, dynamic> json) {
     final rawContent = json['content'];
     final items = <String>[];
+    final chips = <String>[];
     String? contentStr;
     String? buttonLabel;
     String? buttonUrl;
@@ -177,6 +186,9 @@ class GuideBlock {
     } else if (json['text'] is String) {
       contentStr = json['text'] as String;
     }
+    if (json['chips'] is List) {
+      chips.addAll((json['chips'] as List).whereType<String>());
+    }
 
     if (json['button'] is Map<String, dynamic>) {
       final btn = json['button'] as Map<String, dynamic>;
@@ -186,17 +198,24 @@ class GuideBlock {
     icon = json['icon']?.toString();
     final variant = json['variant']?.toString();
     final ordered = json['ordered'] == true;
+    final copyOnTap = json['copyOnTap'] == true;
+    final copyText = json['copyText']?.toString();
+    final copyMessageKey = json['copyMessageKey']?.toString();
 
     return GuideBlock(
       type: (json['type'] ?? 'text').toString(),
       title: json['title']?.toString(),
       content: contentStr,
       items: items,
+      chips: chips,
       buttonLabel: buttonLabel,
       buttonUrl: buttonUrl,
       icon: icon,
       variant: variant,
       ordered: ordered,
+      copyOnTap: copyOnTap,
+      copyText: copyText,
+      copyMessageKey: copyMessageKey,
     );
   }
 
@@ -205,6 +224,7 @@ class GuideBlock {
         if (title != null) 'title': title,
         if (content != null) 'content': content,
         if (items.isNotEmpty) 'content': items,
+        if (chips.isNotEmpty) 'chips': chips,
         if (buttonLabel != null || buttonUrl != null)
           'button': {
             if (buttonLabel != null) 'label': buttonLabel,
