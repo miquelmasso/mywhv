@@ -13,6 +13,8 @@ class GuideManualRepository {
     final lang = locale.languageCode.toLowerCase();
     if (lang.startsWith('es')) return 'assets/data/guide_manual.strings.es.json';
     if (lang.startsWith('fr')) return 'assets/data/guide_manual.strings.fr.json';
+    if (lang.startsWith('de')) return 'assets/data/guide_manual.strings.de.json';
+    if (lang.startsWith('hi')) return 'assets/data/guide_manual.strings.hi.json';
     return 'assets/data/guide_manual.strings.en.json';
   }
 

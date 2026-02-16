@@ -146,16 +146,22 @@ class _GuideScreenState extends State<GuideScreen> {
           children: [
             Text('Select language', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 20),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 20,
-              runSpacing: 16,
-              children: [
-                _flagOption(context, 'en', '🇬🇧'),
-                _flagOption(context, 'es', '🇪🇸'),
-                _flagOption(context, 'fr', '🇫🇷'),
-                _flagOption(context, 'ca', '🇨🇦'),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _flagOption(context, 'en', '🇬🇧'),
+                  const SizedBox(width: 16),
+                  _flagOption(context, 'es', '🇪🇸'),
+                  const SizedBox(width: 16),
+                  _flagOption(context, 'fr', '🇫🇷'),
+                  const SizedBox(width: 16),
+                  _flagOption(context, 'de', '🇩🇪'),
+                  const SizedBox(width: 16),
+                  _flagOption(context, 'hi', '🇮🇳'),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
           ],
@@ -179,7 +185,7 @@ class _GuideScreenState extends State<GuideScreen> {
         await _searchService.init(localeOverride: code);
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
@@ -193,7 +199,7 @@ class _GuideScreenState extends State<GuideScreen> {
         ),
         child: Text(
           flag,
-          style: const TextStyle(fontSize: 34),
+          style: const TextStyle(fontSize: 30),
         ),
       ),
     );
@@ -300,7 +306,7 @@ class _GuideScreenState extends State<GuideScreen> {
             child: IconButton(
               tooltip: 'Change language',
               onPressed: _chooseLanguage,
-              icon: const Icon(Icons.language),
+              icon: const Icon(Icons.translate),
             ),
           ),
         ],

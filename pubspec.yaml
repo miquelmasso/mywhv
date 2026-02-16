@@ -93,6 +93,8 @@ flutter:
     - assets/data/guide_manual.strings.en.json
     - assets/data/guide_manual.strings.es.json
     - assets/data/guide_manual.strings.fr.json
+    - assets/data/guide_manual.strings.de.json
+    - assets/data/guide_manual.strings.hi.json
     - assets/data/restaurants_seed.json
     - assets/farm_placeholder_map.png
 
