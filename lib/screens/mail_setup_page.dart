@@ -15,6 +15,7 @@ class MailSetupPage extends StatefulWidget {
 class _MailSetupPageState extends State<MailSetupPage> {
   final TextEditingController _controller = TextEditingController();
   String? _cvPath;
+  bool _cvUploaded = false;
 
   @override
   void initState() {
@@ -25,15 +26,15 @@ class _MailSetupPageState extends State<MailSetupPage> {
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     _controller.text = prefs.getString('emailMessage') ?? '';
-    setState(() => _cvPath = prefs.getString('cvPath'));
+    setState(() {
+      _cvPath = prefs.getString('cvPath');
+      _cvUploaded = _cvPath != null;
+    });
   }
 
   Future<void> _saveMessage() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('emailMessage', _controller.text);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Message saved successfully')),
-    );
   }
 
  Future<void> _pickAndSaveCV() async {
@@ -43,9 +44,6 @@ class _MailSetupPageState extends State<MailSetupPage> {
         await Permission.storage.isDenied) {
       final status = await Permission.manageExternalStorage.request();
       if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission denied to access files.')),
-        );
         return;
       }
     }
@@ -58,9 +56,6 @@ class _MailSetupPageState extends State<MailSetupPage> {
   );
 
   if (result == null || result.files.single.path == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No file selected.')),
-    );
     return;
   }
 
@@ -87,120 +82,138 @@ class _MailSetupPageState extends State<MailSetupPage> {
     // ✅ 5. Guardar el path a SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('cvPath', newFile.path);
-    setState(() => _cvPath = newFile.path);
+    setState(() {
+      _cvPath = newFile.path;
+      _cvUploaded = true;
+    });
 
-    // ✅ 6. Confirmació visual
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ CV saved')),
-    );
+    // ✅ 6. Confirmació visual (suprimim missatges emergents)
   } catch (e) {
-    // ⚠️ Error durant la còpia
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('❌ Error copying file')),
-    );
+    // ⚠️ Error durant la còpia (silenciat)
   }
 }
 
   Future<void> _deleteCV() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cvPath');
-    setState(() => _cvPath = null);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('CV deleted successfully')),
-    );
+    setState(() {
+      _cvPath = null;
+      _cvUploaded = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Automatic email editing')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Email content',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _controller,
-                minLines: 6,
-                maxLines: 10,
-                decoration: InputDecoration(
-                  hintText: 'Write here your message...',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.blueGrey.shade400, width: 1.2),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        await _saveMessage();
+        if (context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Automatic email editing')),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Email content',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.black54),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300, width: 1.1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _controller,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'Write here your message...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        border: InputBorder.none,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _saveMessage,
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Save message'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade300),
-                      foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(height: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _saveMessage,
+                      icon: const Icon(Icons.save_outlined, size: 22),
+                      label: const Text('Save message'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF81C784),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        elevation: 2.5,
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _pickAndSaveCV,
-                    icon: const Icon(Icons.upload_file_outlined),
-                    label: const Text('Upload CV (PDF)'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade300),
-                      foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  if (_cvPath != null) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _deleteCV,
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Eliminar CV'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey.shade200),
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        backgroundColor: Colors.grey.shade100,
+                    const SizedBox(height: 28),
+                    FilledButton(
+                      onPressed: _pickAndSaveCV,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF64B5F6),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        elevation: 2.5,
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.upload_file_outlined, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            _cvUploaded ? 'Replace CV (PDF)' : 'Upload CV (PDF)',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ],
-              ),
-              if (_cvPath != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'current CV: ${_cvPath!.split('/').last}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _cvPath != null ? 'Current CV: ${_cvPath!.split('/').last}' : 'Current CV: none',
+                        style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ),
+                    Icon(
+                      _cvUploaded ? Icons.check_circle : Icons.check_circle_outline,
+                      color: _cvUploaded ? Colors.green : Colors.grey,
+                      size: 22,
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),

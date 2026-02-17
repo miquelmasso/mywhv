@@ -27,13 +27,8 @@ class EmailSenderService {
 
     try {
       await FlutterEmailSender.send(emailToSend);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Correu preparat amb èxit!')),
-      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en enviar el correu: $e')),
-      );
+      // Silence UI to avoid disruptive snackbars; surface errors via logs if needed.
     }
   }
 }

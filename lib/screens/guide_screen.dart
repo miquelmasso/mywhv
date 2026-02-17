@@ -136,35 +136,37 @@ class _GuideScreenState extends State<GuideScreen> {
   void _chooseLanguage() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Select language', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 20),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SafeArea(
+        bottom: true,
+        child: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select language', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
                 children: [
                   _flagOption(context, 'en', '🇬🇧'),
-                  const SizedBox(width: 16),
                   _flagOption(context, 'es', '🇪🇸'),
-                  const SizedBox(width: 16),
                   _flagOption(context, 'fr', '🇫🇷'),
-                  const SizedBox(width: 16),
                   _flagOption(context, 'de', '🇩🇪'),
-                  const SizedBox(width: 16),
                   _flagOption(context, 'hi', '🇮🇳'),
                 ],
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -185,7 +187,8 @@ class _GuideScreenState extends State<GuideScreen> {
         await _searchService.init(localeOverride: code);
       },
       child: Container(
-        padding: const EdgeInsets.all(10),
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
@@ -197,9 +200,10 @@ class _GuideScreenState extends State<GuideScreen> {
                 : Colors.grey.withOpacity(0.3),
           ),
         ),
+        alignment: Alignment.center,
         child: Text(
           flag,
-          style: const TextStyle(fontSize: 30),
+          style: const TextStyle(fontSize: 28),
         ),
       ),
     );

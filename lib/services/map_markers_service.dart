@@ -1,24 +1,65 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MapMarkersService {
   static final _firestore = FirebaseFirestore.instance;
+  static const _cacheKeyJson = 'restaurants_cache_json';
+  static const _cacheKeySynced = 'restaurants_cache_synced';
 
   static Future<List<Map<String, dynamic>>> loadRestaurants({
     required bool fromServer,
   }) async {
-    final source = fromServer ? Source.server : Source.cache;
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1) Serve from cache if available and not forcing server
+    if (!fromServer) {
+      final cachedJson = prefs.getString(_cacheKeyJson);
+      final cacheSynced = prefs.getBool(_cacheKeySynced) ?? false;
+      if (cacheSynced && cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedJson) as List<dynamic>;
+          final cachedList = decoded
+              .whereType<Map<String, dynamic>>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          debugPrint('📦 CACHE restaurants loaded: ${cachedList.length}');
+          return cachedList;
+        } catch (e) {
+          debugPrint('⚠️ Error decoding restaurant cache: $e');
+        }
+      }
+    }
+
+    // 2) Fetch from server (no limits), filter valid entries, then cache
     final snapshot = await _firestore
         .collection('restaurants')
-        .get(GetOptions(source: source));
-    debugPrint(
-        '${fromServer ? '🌐 SERVER' : '📦 CACHE'} restaurants: ${snapshot.size}');
-    return snapshot.docs.map((doc) {
+        .get(const GetOptions(source: Source.server));
+    debugPrint('🌐 SERVER restaurants fetched: ${snapshot.size}');
+
+    final filtered = <Map<String, dynamic>>[];
+    for (final doc in snapshot.docs) {
       final data = doc.data();
       data['docId'] = doc.id;
-      return data;
-    }).toList();
+      if (_isValidRestaurant(data)) {
+        filtered.add(data);
+      }
+    }
+
+    debugPrint('✅ Valid restaurants after filter: ${filtered.length}');
+
+    try {
+      final jsonStr = jsonEncode(filtered);
+      await prefs.setString(_cacheKeyJson, jsonStr);
+      await prefs.setBool(_cacheKeySynced, true);
+    } catch (e) {
+      debugPrint('⚠️ Error caching restaurants: $e');
+    }
+
+    return filtered;
   }
 
   static Set<Marker> buildMarkers(
@@ -80,5 +121,20 @@ class MapMarkersService {
         print('Inicialitzat worked_here_count per ${data['name']}');
       }
     }
+  }
+
+  static bool _isValidRestaurant(Map<String, dynamic> data) {
+    bool hasNonEmpty(String key) {
+      final value = data[key];
+      if (value == null) return false;
+      final str = value.toString().trim();
+      return str.isNotEmpty;
+    }
+
+    return hasNonEmpty('email') ||
+        hasNonEmpty('facebook_url') ||
+        hasNonEmpty('instagram_url') ||
+        hasNonEmpty('careers_page') ||
+        hasNonEmpty('jobPage');
   }
 }

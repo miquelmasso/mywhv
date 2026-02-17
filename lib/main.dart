@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
+import 'navigation/route_observer.dart';
 import 'screens/screens.dart';
 import 'screens/map_osm_vector_page.dart';
 import 'screens/admin_gate_page.dart';
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
           seedColor: const Color.fromARGB(255, 215, 10, 10),
         ),
       ),
+      navigatorObservers: [routeObserver],
       home: const MyHomePage(),
     );
   }

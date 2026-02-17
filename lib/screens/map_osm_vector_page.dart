@@ -92,6 +92,14 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       _styleChoice == MapStyleChoice.streets ? streetsStyleUrl : minimalStyleUrl;
   bool _didKickstartRender = false;
 
+  bool _isOfflineError(Object? error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('socketexception') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('no address associated with hostname') ||
+        msg.contains('internet');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1021,25 +1029,32 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         }
         if (snapshot.hasError || !snapshot.hasData) {
           debugPrint('❌ Error carregant estil: ${snapshot.error}');
-          return Scaffold(
-            appBar: AppBar(title: const Text('Map OSM')),
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Could not load the map style:\n${snapshot.error}',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _reloadStyle,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
+          final isOffline = _isOfflineError(snapshot.error);
+          if (isOffline) {
+            return const Scaffold(
+              body: Center(child: Text('no internet mate :)')),
+            );
+          } else {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Map OSM')),
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Could not load the map style:\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _reloadStyle,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
+          }
         }
 
         final style = snapshot.data!;

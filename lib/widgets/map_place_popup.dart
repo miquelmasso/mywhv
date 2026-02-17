@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+String smartTruncate(String text, int maxChars) {
+  if (text.length <= maxChars) return text;
+  String truncated = text.substring(0, maxChars);
+  final lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > 0) truncated = truncated.substring(0, lastSpace);
+  truncated = truncated.replaceAll(RegExp(r'[\\s,\\.&@\\-_\\/]+$'), '');
+  truncated = truncated.trim();
+  if (!RegExp(r'[a-zA-Z0-9]$').hasMatch(truncated) && truncated.isNotEmpty) {
+    truncated = truncated.replaceAll(RegExp(r'[^a-zA-Z0-9]+$'), '');
+  }
+  if (truncated.isEmpty) return text.substring(0, maxChars).trim() + '…';
+  return '$truncated…';
+}
+
 class MapRestaurantPopup extends StatelessWidget {
   const MapRestaurantPopup({
     super.key,
@@ -30,11 +44,7 @@ class MapRestaurantPopup extends StatelessWidget {
   final VoidCallback onFavorite;
 
   String _truncateTitle(String title) {
-    var result = title.trim();
-    while (result.endsWith('.') || result.endsWith('-') || result.endsWith('&')) {
-      result = result.substring(0, result.length - 1).trim();
-    }
-    return result;
+    return smartTruncate(title.trim(), 50);
   }
 
   @override
@@ -68,7 +78,7 @@ class MapRestaurantPopup extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    _truncateTitle(data['name'] ?? 'Sense nom'),
+                    smartTruncate(data['name'] ?? 'Sense nom', 50),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -208,7 +218,7 @@ class MapHarvestPopup extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    name,
+                    smartTruncate(name, 50),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

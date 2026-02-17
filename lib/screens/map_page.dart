@@ -75,6 +75,22 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   static const double _minZoom = 3.8;
   static const double _maxZoom = 20;
 
+  String smartTruncate(String text, int maxChars) {
+    if (text.length <= maxChars) return text;
+    String truncated = text.substring(0, maxChars);
+    final lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > 0) {
+      truncated = truncated.substring(0, lastSpace);
+    }
+    truncated = truncated.replaceAll(RegExp(r'[\\s,\\.&@\\-_\\/]+$'), '');
+    truncated = truncated.trim();
+    if (!RegExp(r'[a-zA-Z0-9]$').hasMatch(truncated) && truncated.isNotEmpty) {
+      truncated = truncated.replaceAll(RegExp(r'[^a-zA-Z0-9]+$'), '');
+    }
+    if (truncated.isEmpty) return text.substring(0, maxChars).trim() + '…';
+    return '$truncated…';
+  }
+
   Widget _buildCategoryPill({
     required String label,
     required bool selected,
@@ -98,7 +114,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         text: TextSpan(
           style: baseStyle,
           children: [
-            TextSpan(text: mainText.trim()),
+            TextSpan(text: smartTruncate(mainText.trim(), 32)),
             const TextSpan(text: ' '),
             TextSpan(
               text: '(soon)',
@@ -112,7 +128,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       );
     } else {
       textWidget = Text(
-        label,
+        smartTruncate(label, 32),
         maxLines: 1,
         softWrap: false,
         overflow: TextOverflow.ellipsis,
