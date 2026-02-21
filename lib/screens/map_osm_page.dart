@@ -422,6 +422,8 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
             options: MapOptions(
               initialCenter: _initialCenter,
               initialZoom: _initialZoom,
+              minZoom: 3.0,
+              maxZoom: 20,
               onTap: (_, __) {
                 setState(() {
                   _selectedRestaurant = null;
@@ -432,13 +434,25 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
                 if (position.center != null) {
                   _currentCenter = position.center!;
                 }
+                if (position.zoom != null) {
+                  final z = position.zoom!;
+                  if (z < 3.0) {
+                    Future.microtask(
+                      () => _mapController.move(_currentCenter, 3.0),
+                    );
+                  } else if (z > 20) {
+                    Future.microtask(
+                      () => _mapController.move(_currentCenter, 18.5),
+                    );
+                  }
+                }
               },
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.mywhv',
-                maxZoom: 19,
+                maxZoom: 18.5,
                 minZoom: 3.0,
                 retinaMode: true,
                 maxNativeZoom: 19,
@@ -490,24 +504,62 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
             ],
           ),
           Positioned(
-            top: 28,
+            top: 20,
             left: 16,
             right: 16,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _CategoryPill(
-                  label: 'Hospitality',
-                  selected: _isHospitality,
-                  onTap: () => _toggleCategory(true),
-                ),
-                const SizedBox(width: 8),
-                _CategoryPill(
-                  label: 'Harvest',
-                  selected: !_isHospitality,
-                  onTap: () => _toggleCategory(false),
-                ),
-              ],
+            child: SafeArea(
+              child: Builder(builder: (context) {
+                debugPrint('Rendering Contacts for regional work overlay');
+                return Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _CategoryPill(
+                              label: 'Hospitality',
+                              selected: _isHospitality,
+                              onTap: () => _toggleCategory(true),
+                            ),
+                            const SizedBox(width: 8),
+                            _CategoryPill(
+                              label: 'Harvest',
+                              selected: !_isHospitality,
+                              onTap: () => _toggleCategory(false),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Contacts for regional work',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87.withOpacity(_isHospitality ? 0.6 : 1.0),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
           ),
           if (_isLoadingData)

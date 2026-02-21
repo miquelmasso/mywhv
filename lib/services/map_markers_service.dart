@@ -9,16 +9,15 @@ class MapMarkersService {
   static final _firestore = FirebaseFirestore.instance;
   static const _cacheKeyJson = 'restaurants_cache_json';
   static const _cacheKeySynced = 'restaurants_cache_synced';
-
   static Future<List<Map<String, dynamic>>> loadRestaurants({
     required bool fromServer,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final cachedJson = prefs.getString(_cacheKeyJson);
+    final cacheSynced = prefs.getBool(_cacheKeySynced) ?? false;
 
     // 1) Serve from cache if available and not forcing server
     if (!fromServer) {
-      final cachedJson = prefs.getString(_cacheKeyJson);
-      final cacheSynced = prefs.getBool(_cacheKeySynced) ?? false;
       if (cacheSynced && cachedJson != null && cachedJson.isNotEmpty) {
         try {
           final decoded = jsonDecode(cachedJson) as List<dynamic>;
@@ -31,6 +30,27 @@ class MapMarkersService {
         } catch (e) {
           debugPrint('⚠️ Error decoding restaurant cache: $e');
         }
+      }
+    }
+
+    // 1b) Si el cache ja està sincronitzat, evita nova crida encara que fromServer=true
+    if (fromServer && cacheSynced) {
+      try {
+        if (cachedJson != null && cachedJson.isNotEmpty) {
+          final decoded = jsonDecode(cachedJson) as List<dynamic>;
+          final cachedList = decoded
+              .whereType<Map<String, dynamic>>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          debugPrint('📦 CACHE restaurants used (synced): ${cachedList.length}');
+          return cachedList;
+        } else {
+          debugPrint('📦 CACHE restaurants empty but synced flag set; skipping server call.');
+          return const [];
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error decoding restaurant cache (server bypass): $e');
+        return const [];
       }
     }
 
@@ -52,7 +72,8 @@ class MapMarkersService {
     debugPrint('✅ Valid restaurants after filter: ${filtered.length}');
 
     try {
-      final jsonStr = jsonEncode(filtered);
+      final sanitized = filtered.map(_sanitizeForJson).toList();
+      final jsonStr = jsonEncode(sanitized);
       await prefs.setString(_cacheKeyJson, jsonStr);
       await prefs.setBool(_cacheKeySynced, true);
     } catch (e) {
@@ -71,6 +92,7 @@ class MapMarkersService {
       final double? lng = (data['longitude'] ?? data['lng'])?.toDouble();
       if (lat == null || lng == null) return null;
       final docId = data['docId']?.toString() ?? '';
+      if (docId.isEmpty) return null;
       return Marker(
         markerId: MarkerId(docId),
         position: LatLng(lat, lng),
@@ -136,5 +158,28 @@ class MapMarkersService {
         hasNonEmpty('instagram_url') ||
         hasNonEmpty('careers_page') ||
         hasNonEmpty('jobPage');
+  }
+
+  static Map<String, dynamic> _sanitizeForJson(Map<String, dynamic> src) {
+    final out = <String, dynamic>{};
+    src.forEach((key, value) {
+      out[key] = _convertValue(value);
+    });
+    return out;
+  }
+
+  static dynamic _convertValue(dynamic value) {
+    if (value is Timestamp) return value.toDate().toIso8601String();
+    if (value is DateTime) return value.toIso8601String();
+    if (value is GeoPoint) {
+      return {'lat': value.latitude, 'lng': value.longitude};
+    }
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _convertValue(v)));
+    }
+    if (value is Iterable) {
+      return value.map(_convertValue).toList();
+    }
+    return value;
   }
 }

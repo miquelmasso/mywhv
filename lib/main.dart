@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
 import 'navigation/route_observer.dart';
 import 'screens/screens.dart';
@@ -8,6 +8,8 @@ import 'screens/map_osm_vector_page.dart';
 import 'screens/admin_gate_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/offline_bootstrap_service.dart';
+import 'services/offline_state.dart';
 
 
 
@@ -16,7 +18,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'models/visa_postcodes_uploader.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await dotenv.load(fileName: ".env");
 
@@ -26,7 +29,11 @@ Future<void> main() async {
   // Mantén la xarxa de Firestore desactivada per defecte
   //await FirebaseFirestore.instance.disableNetwork();
   print('✅ Firebase initialized correctly');
+
+  await OfflineBootstrapService.instance.init();
+  print('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
   
+  FlutterNativeSplash.remove();
 
   // 🔽 Descomenta aquestes línies si vols actualitzar els codis postals al Firestore:
   //
@@ -124,6 +131,32 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  BottomNavigationBarItem _buildNavItem(IconData iconData, int index) {
+    return BottomNavigationBarItem(
+      icon: _buildNavIcon(iconData, false),
+      activeIcon: _buildNavIcon(iconData, true),
+      label: '',
+    );
+  }
+
+  Widget _buildNavIcon(IconData iconData, bool selected) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      decoration: BoxDecoration(
+        color: selected ? primary.withOpacity(0.14) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        iconData,
+        color: selected ? primary : Colors.grey.shade600,
+        size: 24,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,31 +164,26 @@ class _MyHomePageState extends State<MyHomePage> {
         index: _selectedIndex,
         children: _pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        onTap: _onItemTapped,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.lightbulb_outline),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_awesome),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.forum_outlined),
-            label: '',
-          ),
-        ],
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+        ),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          currentIndex: _selectedIndex,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          onTap: _onItemTapped,
+          items: <BottomNavigationBarItem>[
+            _buildNavItem(Icons.map_outlined, 0),
+            _buildNavItem(Icons.lightbulb_outline, 1),
+            _buildNavItem(Icons.auto_awesome, 2),
+            _buildNavItem(Icons.forum_outlined, 3),
+          ],
+        ),
       ),
     );
   }

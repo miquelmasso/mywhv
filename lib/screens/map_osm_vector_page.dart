@@ -28,6 +28,7 @@ import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
 import 'admin_page.dart';
 import '../config/admin_config.dart';
+import 'package:mywhv/screens/_pin_tail_painter.dart';
 
 enum MapStyleChoice { streets, minimal }
 enum Category { hospitality, farm }
@@ -83,6 +84,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   ];
   final LayerLink _filterLink = LayerLink();
   OverlayEntry? _filterOverlay;
+  late final AnimationController _kangarooController;
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
@@ -105,6 +107,12 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     super.initState();
     streetsStyleUrl = 'https://api.maptiler.com/maps/base-v4/style.json?key=$mapTilerKey';
     minimalStyleUrl = 'https://api.maptiler.com/maps/bright/style.json?key=$mapTilerKey';
+    _kangarooController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+      lowerBound: 0.9,
+      upperBound: 1.05,
+    )..repeat(reverse: true);
     _originalOnError = FlutterError.onError;
     FlutterError.onError = (details) {
       if (details.exceptionAsString().contains('Cancelled')) {
@@ -131,6 +139,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   @override
   void dispose() {
+    _kangarooController.dispose();
     _moveDebounce?.cancel();
     _persistDebounce?.cancel();
     _favoritesSub?.cancel();
@@ -146,6 +155,16 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       _reloadStyle();
       _tilesReady.value = false;
     });
+  }
+
+  Widget _kangarooLoader({double size = 48}) {
+    return ScaleTransition(
+      scale: _kangarooController,
+      child: Text(
+        '🦘',
+        style: TextStyle(fontSize: size),
+      ),
+    );
   }
 
   Future<Style> _loadStyle() async {
@@ -230,20 +249,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       debugPrint('❌ Error restaurants OSM vector: $e');
     }
 
-    try {
-      final harvestPlaces =
-          await HarvestPlacesService.loadHarvestPlaces(fromServer: fromServer);
-      if (harvestPlaces.isNotEmpty) {
-        _harvestLocations = _buildHarvestLocations(harvestPlaces);
-      } else if (!fromServer) {
-        final seeded = await _loadSeedHarvestFromAsset();
-        if (seeded.isNotEmpty) {
-          _harvestLocations = _buildHarvestLocations(seeded);
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ Error harvest OSM vector: $e');
-    }
+    // Harvest loading paused
 
     if (!fromServer &&
         _restaurantLocations.isEmpty &&
@@ -359,8 +365,8 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     _markers = source
         .map((r) => Marker(
               point: LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble()),
-              width: 40,
-              height: 40,
+              width: 28,
+              height: 28,
               child: GestureDetector(
                 onTap: () {
                   setState(() {
@@ -373,15 +379,16 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     }
                   });
                 },
-                child: Icon(
-                  _favoritePlaces.contains(r['id'])
-                      ? Icons.favorite
-                      : Icons.location_on,
-                  color: _favoritePlaces.contains(r['id'])
-                      ? Colors.pinkAccent
-                      : (_isHospitality ? Colors.redAccent : Colors.green.shade700),
-                  size: _favoritePlaces.contains(r['id']) ? 28 : 32,
-                ),
+                child: _isHospitality
+                    ? _restaurantMarkerIcon(
+                        r['data'] as Map<String, dynamic>,
+                        isFavorite: _favoritePlaces.contains(r['id']),
+                      )
+                    : Icon(
+                        Icons.location_on,
+                        color: Colors.green.shade700,
+                        size: 26,
+                      ),
               ),
             ))
         .toList();
@@ -390,6 +397,94 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         _didFitBounds = false; // dataset changed; allow refit
       });
     }
+  }
+
+  Widget _restaurantMarkerIcon(Map<String, dynamic> data, {required bool isFavorite}) {
+    if (isFavorite) {
+      return _pinMarker(
+        fill: Colors.pinkAccent,
+        badgeColor: Colors.white,
+        icon: Icons.favorite,
+        iconSize: 15,
+      );
+    }
+    final name = (data['name'] ?? '').toString().toLowerCase();
+    final isNight = name.contains('bar') ||
+        name.contains('pub') ||
+        name.contains('disco') ||
+        name.contains('club');
+    final isCafe = name.contains('cafe') || name.contains('cafeteria');
+
+    if (isNight) {
+      return _pinMarker(
+        fill: const Color(0xFF6D28D9),
+        badgeColor: const Color(0xFFFBBF24),
+        icon: Icons.local_bar,
+        iconSize: 16,
+      );
+    }
+    if (isCafe) {
+      return _pinMarker(
+        fill: const Color(0xFF111827),
+        badgeColor: const Color(0xFF60A5FA),
+        icon: Icons.local_cafe,
+        iconSize: 16,
+      );
+    }
+    return _pinMarker(
+      fill: const Color(0xFFFF8A00),
+      badgeColor: Colors.white,
+      icon: Icons.restaurant,
+      iconSize: 16,
+    );
+  }
+
+  Widget _pinMarker({
+    required Color fill,
+    required Color badgeColor,
+    required IconData icon,
+    double iconSize = 16,
+  }) {
+    const double circleSize = 20;
+    const double tailHeight = 6;
+    return SizedBox(
+      width: circleSize + 6,
+      height: circleSize + tailHeight + 2,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 0,
+            child: Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                color: fill,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.6),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.28),
+                    blurRadius: 9,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: iconSize, color: Colors.white),
+            ),
+          ),
+          Positioned(
+            top: circleSize - 2,
+            child: CustomPaint(
+              size: const Size(10, tailHeight),
+              painter: PinTailPainter(color: fill, borderColor: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleCategory(bool hospitality) {
@@ -547,36 +642,12 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     }
 
     if (workedList.contains(restaurantId)) {
-      final undo = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            'You want to undo?',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text(
-                'No',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Yes'),
-            ),
-          ],
-        ),
+      final undo = await _showDecisionDialog(
+        title: 'You want to undo?',
+        subtitle: 'Your feedback helps other users.',
+        yesLabel: 'Yes',
+        noLabel: 'No',
+        yesColor: Colors.green,
       );
 
       if (undo == true) {
@@ -598,36 +669,12 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       return;
     }
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Have you worked here?',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actionsAlignment: MainAxisAlignment.spaceEvenly,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'No',
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
+    final result = await _showDecisionDialog(
+      title: 'Have you worked here?',
+      subtitle: 'Your feedback helps other users.',
+      yesLabel: 'Yes',
+      noLabel: 'No',
+      yesColor: Colors.green,
     );
 
     if (result == true) {
@@ -646,6 +693,85 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
         );
       }
     }
+  }
+
+  Future<bool?> _showDecisionDialog({
+    required String title,
+    required String subtitle,
+    required String yesLabel,
+    required String noLabel,
+    Color yesColor = Colors.green,
+  }) {
+    final borderRadius = BorderRadius.circular(24);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          elevation: 8,
+          backgroundColor: const Color(0xFFFFF7F5),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(Icons.handshake_outlined, size: 28, color: Colors.black54),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(noLabel),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: yesColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(yesLabel),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showEmailOptions(String email) {
@@ -1025,16 +1151,36 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       future: _styleFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            body: Center(child: _kangarooLoader(size: 52)),
+          );
         }
-        if (snapshot.hasError || !snapshot.hasData) {
-          debugPrint('❌ Error carregant estil: ${snapshot.error}');
-          final isOffline = _isOfflineError(snapshot.error);
-          if (isOffline) {
-            return const Scaffold(
-              body: Center(child: Text('no internet mate :)')),
-            );
-          } else {
+          if (snapshot.hasError || !snapshot.hasData) {
+            debugPrint('❌ Error carregant estil: ${snapshot.error}');
+            final isOffline = _isOfflineError(snapshot.error);
+            if (isOffline) {
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('You are offline, mate 🐨'),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _styleFuture = _loadStyle();
+                            _loadInitialData();
+                          });
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
             return Scaffold(
               appBar: AppBar(title: const Text('Map OSM')),
               body: Center(
@@ -1088,6 +1234,8 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                 options: MapOptions(
                   initialCenter: _initialCenter,
                   initialZoom: _initialZoom,
+                  minZoom: 3.0,
+                  maxZoom: 20,
                   onMapReady: () {
                     _mapReady = true;
                     if (_pendingCenter != null && _pendingZoom != null) {
@@ -1113,6 +1261,17 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     }
                     if (position.zoom != null) {
                       _currentZoom = position.zoom!;
+                      if (_mapReady) {
+                        if (_currentZoom < 3.0) {
+                          Future.microtask(
+                            () => _mapController.move(_currentCenter, 3.0),
+                          );
+                        } else if (_currentZoom > 18.2) {
+                          Future.microtask(
+                            () => _mapController.move(_currentCenter, 18.2),
+                          );
+                        }
+                      }
                     }
                     _pendingCenter = _currentCenter;
                     _pendingZoom = _currentZoom;
@@ -1144,41 +1303,44 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mywhv.app',
-                      tileProvider: _tileCache != null
-                          ? _CachedTileProvider(_tileCache!)
-                          : NetworkTileProvider(),
-                      keepBuffer: 1,
-                      panBuffer: 0,
-                      maxNativeZoom: 19,
-                      maxZoom: 19,
+                  tileProvider: _tileCache != null
+                      ? _CachedTileProvider(_tileCache!)
+                      : NetworkTileProvider(),
+                  keepBuffer: 4,
+                  panBuffer: 2,
+                  maxNativeZoom: 19,
+                  maxZoom: 18.5,
+                  minZoom: 3.0,
+                  tileDisplay: const TileDisplay.fadeIn(
+                    duration: Duration(milliseconds: 120),
+                    startOpacity: 0.2,
                   ),
-                  MarkerClusterLayerWidget(
-                    options: MarkerClusterLayerOptions(
-                      markers: _markers,
-                      maxClusterRadius: 32, // clusters a bit tighter for faster zoom redraws
-                      size: const Size(36, 36),
-                      padding: const EdgeInsets.all(24),
-                      disableClusteringAtZoom: 16, // avoid heavy re-clustering when zoomed in
-                      showPolygon: false, // evita dibuixar el polígon verd del clúster
-                      builder: (context, cluster) {
-                        final count = cluster.length;
-                        Color bg;
-                        if (count < 10) {
-                          bg = Colors.green.shade600;
-                        } else if (count < 50) {
-                          bg = Colors.orange.shade700;
-                        } else {
-                          bg = Colors.red.shade700;
-                        }
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: bg,
-                            shape: BoxShape.circle,
+              ),
+              MarkerClusterLayerWidget(
+                options: MarkerClusterLayerOptions(
+                  markers: _markers,
+                  maxClusterRadius: 28, // clusters a bit tighter for faster zoom redraws
+                  size: const Size(30, 30),
+                  padding: const EdgeInsets.all(20),
+                  disableClusteringAtZoom: 17, // avoid heavy re-clustering when zoomed in
+                  showPolygon: false, // evita dibuixar el polígon verd del clúster
+                  builder: (context, cluster) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111827),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cluster.length.toString(),
-                            style: const TextStyle(
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        cluster.length.toString(),
+                        style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
@@ -1248,37 +1410,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
             ),
           ),
               if (_isLoadingData)
-                const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              if (_dataStatusMessage != null)
-                Positioned(
-                  top: 100,
-                  left: 16,
-                  right: 16,
-                  child: SafeArea(
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.offline_pin, color: Colors.blueAccent),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _dataStatusMessage!,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                Center(child: _kangarooLoader(size: 48)),
               _buildRestaurantPopup(),
               _buildHarvestPopup(),
               if (_isHospitality)
@@ -1291,11 +1423,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.blueGrey.shade700,
                     child: _isLocating
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? _kangarooLoader(size: 20)
                         : const Icon(Icons.my_location),
                   ),
                 ),

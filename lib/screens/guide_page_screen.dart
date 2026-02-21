@@ -1303,25 +1303,47 @@ Widget _buildBlockWidget(
       final isProcessingCard = block.title == '@visa.requirements.processing_title';
       if (block.variant == 'milestone') {
         final lines = resolve(block.content ?? '').split('\n');
-        final big = lines.isNotEmpty ? lines.first : '';
+        final value = lines.isNotEmpty ? lines.first : '';
         final small = lines.length > 1 ? lines.sublist(1).join('\n') : '';
         return _InfoCard(
-          title: resolvedTitle,
           color: cardColor,
-          leading: const Icon(Icons.flag, color: Colors.deepOrange),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                big,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.deepOrange,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.flag, color: Colors.deepOrange, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      resolvedTitle,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.deepOrange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               if (small.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   small,
                   style: const TextStyle(
@@ -1502,16 +1524,24 @@ Widget _buildBlockWidget(
       );
     case 'header':
       return Padding(
-        padding: const EdgeInsets.only(top: 6, bottom: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.only(top: 4, bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              resolve(block.title ?? ''),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+            Icon(
+              Icons.check_circle_outline,
+              color: Colors.grey.shade500,
+              size: 19,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                resolve(block.title ?? ''),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ],
@@ -1857,17 +1887,19 @@ class _InfoCard extends StatelessWidget {
     required this.child,
     this.color,
     this.leading,
+    this.padding = const EdgeInsets.all(14),
   });
 
   final String? title;
   final Widget child;
   final Color? color;
   final Widget? leading;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: padding,
       decoration: BoxDecoration(
         color: color ?? Colors.white,
         borderRadius: BorderRadius.circular(12),
