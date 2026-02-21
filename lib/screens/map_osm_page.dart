@@ -3,12 +3,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
+import 'dart:io';
 
 import '../services/map_markers_service.dart';
 import '../services/harvest_places_service.dart';
+import '../services/offline_state.dart';
+import '../services/offline_tile_provider.dart';
+import 'package:mywhv/screens/_pin_tail_painter.dart';
 
 class MapPageOSM extends StatefulWidget {
   const MapPageOSM({super.key});
@@ -17,7 +21,7 @@ class MapPageOSM extends StatefulWidget {
   State<MapPageOSM> createState() => _MapPageOSMState();
 }
 
-class _MapPageOSMState extends State<MapPageOSM> {
+class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   static const LatLng _initialCenter = LatLng(-25.0, 133.0);
   static const double _initialZoom = 4.5;
@@ -33,11 +37,24 @@ class _MapPageOSMState extends State<MapPageOSM> {
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
+  late final AnimationController _kangarooController;
 
   @override
   void initState() {
     super.initState();
+    _kangarooController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+      lowerBound: 0.9,
+      upperBound: 1.05,
+    )..repeat(reverse: true);
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _kangarooController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -63,21 +80,7 @@ class _MapPageOSMState extends State<MapPageOSM> {
       debugPrint('❌ Error carregant restaurants OSM (${fromServer ? 'server' : 'cache'}): $e');
     }
 
-    try {
-      final harvestPlaces =
-          await HarvestPlacesService.loadHarvestPlaces(fromServer: fromServer);
-      if (harvestPlaces.isNotEmpty) {
-        _harvestLocations = _buildHarvestLocations(harvestPlaces);
-      } else if (!fromServer) {
-        final seeded = await _loadSeedHarvestFromAsset();
-        if (seeded.isNotEmpty) {
-          debugPrint('🌱 Harvest carregat des de asset: ${seeded.length}');
-          _harvestLocations = _buildHarvestLocations(seeded);
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ Error carregant harvest OSM (${fromServer ? 'server' : 'cache'}): $e');
-    }
+    // Harvest loading paused
 
     if (!fromServer &&
         _restaurantLocations.isEmpty &&
@@ -102,10 +105,9 @@ class _MapPageOSMState extends State<MapPageOSM> {
       final double? lng = (data['longitude'] ?? data['lng'])?.toDouble();
       if (lat == null || lng == null) continue;
 
-      final docId = (data['docId'] ?? '').toString();
+      final docId = (data['docId'] ?? data['id'] ?? '').toString();
       if (docId.isEmpty) continue;
       if (data['blocked'] == true) continue;
-
       final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
@@ -190,8 +192,8 @@ class _MapPageOSMState extends State<MapPageOSM> {
     _markers = source
         .map((r) => Marker(
               point: LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble()),
-              width: 40,
-              height: 40,
+              width: 28,
+              height: 28,
               child: GestureDetector(
                 onTap: () {
                   setState(() {
@@ -204,15 +206,91 @@ class _MapPageOSMState extends State<MapPageOSM> {
                     }
                   });
                 },
-                child: Icon(
-                  Icons.location_on,
-                  color: _isHospitality ? Colors.redAccent : Colors.green.shade700,
-                  size: 32,
-                ),
+                child: _isHospitality
+                    ? _restaurantMarkerIcon(r['data'] as Map<String, dynamic>)
+                    : Icon(
+                        Icons.location_on,
+                        color: Colors.green.shade700,
+                        size: 26,
+                      ),
               ),
             ))
         .toList();
     if (mounted) setState(() {});
+  }
+
+  Widget _restaurantMarkerIcon(Map<String, dynamic> data) {
+    final name = (data['name'] ?? '').toString().toLowerCase();
+    final isNight =
+        name.contains('bar') || name.contains('pub') || name.contains('disco') || name.contains('club');
+    final isCafe = name.contains('cafe') || name.contains('cafeteria');
+
+    if (isNight) {
+      return _pinMarker(
+        fill: const Color(0xFF6D28D9),
+        badgeColor: const Color(0xFFFBBF24),
+        icon: Icons.local_bar,
+      );
+    }
+    if (isCafe) {
+      return _pinMarker(
+        fill: const Color(0xFF111827),
+        badgeColor: const Color(0xFF60A5FA),
+        icon: Icons.local_cafe,
+      );
+    }
+    return _pinMarker(
+      fill: const Color(0xFFFF8A00),
+      badgeColor: Colors.white,
+      icon: Icons.restaurant,
+    );
+  }
+
+  Widget _pinMarker({
+    required Color fill,
+    required Color badgeColor,
+    required IconData icon,
+  }) {
+    const double circleSize = 20;
+    const double tailHeight = 6;
+    return SizedBox(
+      width: circleSize + 6,
+      height: circleSize + tailHeight + 2,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 0,
+            child: Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                color: fill,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.6),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.28),
+                    blurRadius: 9,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 16, color: Colors.white),
+            ),
+          ),
+          Positioned(
+            top: circleSize - 2,
+            child: CustomPaint(
+              size: const Size(10, tailHeight),
+              painter: PinTailPainter(color: fill, borderColor: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleCategory(bool hospitality) {
@@ -362,18 +440,39 @@ class _MapPageOSMState extends State<MapPageOSM> {
                 userAgentPackageName: 'com.example.mywhv',
                 maxZoom: 19,
                 minZoom: 3.0,
+                retinaMode: true,
+                maxNativeZoom: 19,
+                keepBuffer: 4,
+                panBuffer: 2,
+                tileDisplay: const TileDisplay.fadeIn(
+                  duration: Duration(milliseconds: 120),
+                  startOpacity: 0.2,
+                ),
+                tileProvider: OfflineTileProvider(
+                  OfflineState.instance.tileCachePath != null
+                      ? Directory(OfflineState.instance.tileCachePath!)
+                      : Directory.systemTemp,
+                ),
               ),
               MarkerClusterLayerWidget(
                 options: MarkerClusterLayerOptions(
                   markers: _markers,
-                  maxClusterRadius: 60,
-                  size: const Size(42, 42),
-                  padding: const EdgeInsets.all(32),
+                  maxClusterRadius: 50,
+                  size: const Size(34, 34),
+                  padding: const EdgeInsets.all(26),
+                  disableClusteringAtZoom: 17,
                   builder: (context, markers) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: _isHospitality ? Colors.redAccent : Colors.green.shade700,
+                        color: const Color(0xFF111827),
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -412,34 +511,12 @@ class _MapPageOSMState extends State<MapPageOSM> {
             ),
           ),
           if (_isLoadingData)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-          if (_dataStatusMessage != null)
-            Positioned(
-              top: 100,
-              left: 16,
-              right: 16,
-              child: SafeArea(
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.offline_pin, color: Colors.blueAccent),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _dataStatusMessage!,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            Center(
+              child: ScaleTransition(
+                scale: _kangarooController,
+                child: const Text(
+                  '🦘',
+                  style: TextStyle(fontSize: 48),
                 ),
               ),
             ),
