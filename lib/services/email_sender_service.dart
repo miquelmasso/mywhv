@@ -3,13 +3,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 
 class EmailSenderService {
+  static const _emailMessageKey = 'emailMessage';
+
+  static Future<String?> getSavedEmailContent() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_emailMessageKey);
+  }
+
   static Future<void> sendEmail({
     required BuildContext context,
     required String email,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final message =
-        prefs.getString('emailMessage') ?? 'Hola, adjunto mi currículum.';
+    final message = prefs.getString(_emailMessageKey) ?? 'Hola, adjunto mi currículum.';
     final cvPath = prefs.getString('cvPath');
 
     final attachments = <String>[];

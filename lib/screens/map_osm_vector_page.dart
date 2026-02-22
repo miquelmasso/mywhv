@@ -37,12 +37,12 @@ class MapOSMVectorPage extends StatefulWidget {
   const MapOSMVectorPage({super.key});
 
   @override
-  State<MapOSMVectorPage> createState() => _MapOSMVectorPageState();
+  State<MapOSMVectorPage> createState() => MapOSMVectorPageState();
 }
 
 final Map<String, Style> _styleCache = {};
 
-class _MapOSMVectorPageState extends State<MapOSMVectorPage>
+class MapOSMVectorPageState extends State<MapOSMVectorPage>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   static const LatLng _defaultCenter = LatLng(-25.0, 133.0);
@@ -85,6 +85,11 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   final LayerLink _filterLink = LayerLink();
   OverlayEntry? _filterOverlay;
   late final AnimationController _kangarooController;
+  late final AnimationController _tooltipController;
+  late final AnimationController _pulseController;
+  OverlayEntry? _profileTooltip;
+  Timer? _tooltipTimer;
+  final GlobalKey _profileButtonKey = GlobalKey();
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
@@ -113,6 +118,16 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
       lowerBound: 0.9,
       upperBound: 1.05,
     )..repeat(reverse: true);
+    _tooltipController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+      lowerBound: 0.94,
+      upperBound: 1.08,
+    );
     _originalOnError = FlutterError.onError;
     FlutterError.onError = (details) {
       if (details.exceptionAsString().contains('Cancelled')) {
@@ -140,6 +155,9 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
   @override
   void dispose() {
     _kangarooController.dispose();
+    _tooltipController.dispose();
+    _pulseController.dispose();
+    _removeProfileTooltip();
     _moveDebounce?.cancel();
     _persistDebounce?.cancel();
     _favoritesSub?.cancel();
@@ -462,12 +480,12 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
               decoration: BoxDecoration(
                 color: fill,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.6),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.28),
-                    blurRadius: 9,
-                    offset: const Offset(0, 3),
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 7,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -479,7 +497,7 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
             top: circleSize - 2,
             child: CustomPaint(
               size: const Size(10, tailHeight),
-              painter: PinTailPainter(color: fill, borderColor: Colors.white),
+              painter: PinTailPainter(color: fill),
             ),
           ),
         ],
@@ -529,6 +547,66 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AdminPage()),
     );
+  }
+
+  Future<void> showProfileTooltipIfNeeded() => _maybeShowProfileTooltip();
+
+  Future<void> _maybeShowProfileTooltip() async {
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'seen_map_profile_tooltip';
+    final seen = prefs.getBool(key) ?? false;
+    if (seen) return;
+    await prefs.setBool(key, true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 220), _showProfileTooltip);
+    });
+  }
+
+  void _showProfileTooltip() {
+    _removeProfileTooltip();
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final renderBox = _profileButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final targetOffset = renderBox.localToGlobal(Offset.zero);
+    final targetSize = renderBox.size;
+    final targetRect = targetOffset & targetSize;
+
+    final animation = CurvedAnimation(
+      parent: _tooltipController,
+      curve: Curves.easeOut,
+    );
+    _tooltipController.forward(from: 0);
+    _pulseController.repeat(reverse: true);
+
+    _profileTooltip = OverlayEntry(
+      builder: (context) {
+        return Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _removeProfileTooltip,
+            child: ProfileTooltipOverlay(
+              targetRect: targetRect,
+              fadeSlide: animation,
+              pulse: _pulseController,
+              onClose: _removeProfileTooltip,
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(_profileTooltip!);
+    _tooltipTimer?.cancel();
+    _tooltipTimer = Timer(const Duration(seconds: 4), _removeProfileTooltip);
+  }
+
+  void _removeProfileTooltip() {
+    _tooltipTimer?.cancel();
+    _tooltipTimer = null;
+    _profileTooltip?.remove();
+    _profileTooltip = null;
+    _pulseController.stop();
   }
 
   void _showProfilePopup() {
@@ -840,6 +918,19 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                           ),
                         ),
                         onPressed: () async {
+                          final saved =
+                              (await EmailSenderService.getSavedEmailContent())?.trim();
+                          if (saved == null || saved.isEmpty) {
+                            entry.remove();
+                            if (context.mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const MailSetupPage(),
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           await EmailSenderService.sendEmail(
                             context: context,
                             email: email,
@@ -1366,10 +1457,11 @@ class _MapOSMVectorPageState extends State<MapOSMVectorPage>
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: _showProfilePopup,
-                      child: const SizedBox(
+                      child: SizedBox(
+                        key: _profileButtonKey,
                         height: 48,
                         width: 48,
-                        child: Icon(
+                        child: const Icon(
                           Icons.person_outline,
                           color: Colors.black87,
                         ),
@@ -1605,6 +1697,216 @@ class FarmPlaceholderView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TooltipBubble extends StatelessWidget {
+  const _TooltipBubble({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: const Text(
+              'Prepare your mail here',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Positioned(
+            left: -8,
+            top: 14,
+            child: CustomPaint(
+              size: const Size(12, 10),
+              painter: _TooltipArrowPainter(),
+            ),
+          ),
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(onTap: onClose, borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TooltipArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white;
+    final path = Path()
+      ..moveTo(0, size.height / 2)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.08)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawPath(path.shift(const Offset(0.5, 1)), shadowPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class ProfileTooltipOverlay extends StatelessWidget {
+  const ProfileTooltipOverlay({
+    super.key,
+    required this.targetRect,
+    required this.fadeSlide,
+    required this.pulse,
+    required this.onClose,
+  });
+
+  final Rect targetRect;
+  final Animation<double> fadeSlide;
+  final Animation<double> pulse;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleTop = targetRect.center.dy - 18;
+    final bubbleLeft = targetRect.right + 10;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: Colors.transparent,
+          ),
+        ),
+        Positioned(
+          left: targetRect.center.dx - (targetRect.width + 6) / 2,
+          top: targetRect.center.dy - (targetRect.height + 6) / 2,
+          child: AnimatedBuilder(
+            animation: pulse,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: pulse.value,
+                child: child,
+              );
+            },
+            child: Container(
+              width: targetRect.width + 6,
+              height: targetRect.height + 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blueAccent.withOpacity(0.12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.25),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: bubbleLeft,
+          top: bubbleTop,
+          child: FadeTransition(
+            opacity: fadeSlide,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, -0.05),
+                end: Offset.zero,
+              ).animate(fadeSlide),
+              child: _EnhancedTooltip(onClose: onClose),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EnhancedTooltip extends StatelessWidget {
+  const _EnhancedTooltip({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.98),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.mail_outline, size: 18, color: Colors.black87),
+                SizedBox(width: 8),
+                Text(
+                  'Prepare your mail here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: -10,
+            top: 16,
+            child: CustomPaint(
+              size: const Size(10, 10),
+              painter: _TooltipArrowPainter(),
+            ),
+          ),
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(onTap: onClose, borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

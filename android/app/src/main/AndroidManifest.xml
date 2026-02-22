@@ -11,7 +11,7 @@
         tools:ignore="ScopedStorage" />
 
     <application
-        android:label="mywhv"
+        android:label="WorkyDay"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

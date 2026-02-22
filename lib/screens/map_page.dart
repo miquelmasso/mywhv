@@ -905,6 +905,19 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                           ),
                         ),
                         onPressed: () async {
+                          final saved =
+                              (await EmailSenderService.getSavedEmailContent())?.trim();
+                          if (saved == null || saved.isEmpty) {
+                            entry.remove();
+                            if (context.mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const MailSetupPage(),
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           await EmailSenderService.sendEmail(
                             context: context,
                             email: email,

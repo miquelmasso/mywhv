@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MyWHV',
+      title: 'WorkyDay',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromARGB(255, 215, 10, 10),
@@ -79,6 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _adminTapCount = 0;
   DateTime? _adminFirstTap;
 
+  final GlobalKey<MapOSMVectorPageState> _mapPageKey = GlobalKey<MapOSMVectorPageState>();
   late final List<Widget> _pages;
 
   @override
@@ -86,7 +87,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _selectedIndex = initialIndex;
     _pages = <Widget>[
-      const MapOSMVectorPage(),
+      MapOSMVectorPage(key: _mapPageKey),
       GuideScreen(onNavigateToTab: _onItemTapped),
       const TipsRandomPage(),
       const ForumPage(),
@@ -120,6 +121,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     setState(() => _selectedIndex = index);
+    if (index == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapPageKey.currentState?.showProfileTooltipIfNeeded();
+      });
+    }
   }
 
   Future<void> _openAdminGate() async {

@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 
 class PinTailPainter extends CustomPainter {
-  const PinTailPainter({required this.color, required this.borderColor});
+  const PinTailPainter({required this.color, this.borderColor});
   final Color color;
-  final Color borderColor;
+  final Color? borderColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintBorder = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
     final paintFill = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
@@ -22,7 +18,13 @@ class PinTailPainter extends CustomPainter {
       ..close();
 
     canvas.drawPath(path, paintFill);
-    canvas.drawPath(path, paintBorder);
+    if (borderColor != null) {
+      final paintBorder = Paint()
+        ..color = borderColor!
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      canvas.drawPath(path, paintBorder);
+    }
   }
 
   @override
