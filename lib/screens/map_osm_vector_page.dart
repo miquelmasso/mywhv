@@ -53,6 +53,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   bool _farmMapEnabled = false;
   late final String streetsStyleUrl;
   late final String minimalStyleUrl;
+  late final String rasterStyleUrl;
+  final bool _useVectorTiles = false; // prefer raster tiles for speed
 
   List<Map<String, Object?>> _restaurantLocations = [];
   List<Map<String, Object?>> _harvestLocations = [];
@@ -93,7 +95,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
-  Future<Style>? _styleFuture;
+  Future<Style?>? _styleFuture;
   MapStyleChoice _styleChoice = MapStyleChoice.streets;
   String get _selectedStyleUrl =>
       _styleChoice == MapStyleChoice.streets ? streetsStyleUrl : minimalStyleUrl;
@@ -112,6 +114,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     super.initState();
     streetsStyleUrl = 'https://api.maptiler.com/maps/base-v4/style.json?key=$mapTilerKey';
     minimalStyleUrl = 'https://api.maptiler.com/maps/bright/style.json?key=$mapTilerKey';
+    rasterStyleUrl = 'https://api.maptiler.com/maps/basic/{z}/{x}/{y}.png?key=$mapTilerKey';
     _kangarooController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -142,7 +145,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         _tileCache = cache;
       }
     });
-    _styleFuture = _loadStyle();
+    _styleFuture = _useVectorTiles ? _loadStyle() : Future<Style?>.value(null);
     _loadFavorites();
     _favoritesSub = FavoritesService.changes.listen((ids) {
       setState(() => _favoritePlaces = ids);
@@ -201,6 +204,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _reloadStyle() {
+    if (!_useVectorTiles) return;
     setState(() {
       _styleFuture = _loadStyle();
     });
@@ -1236,12 +1240,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       );
     }
 
-    _styleFuture ??= _loadStyle();
+    _styleFuture ??= _useVectorTiles ? _loadStyle() : Future<Style?>.value(null);
 
-    return FutureBuilder<Style>(
+    return FutureBuilder<Style?>(
       future: _styleFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (_useVectorTiles && snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             body: Center(child: _kangarooLoader(size: 52)),
           );
@@ -1294,8 +1298,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
           }
         }
 
-        final style = snapshot.data!;
-        final hasProviders = true;
+        final style = snapshot.data;
+        final hasProviders = _useVectorTiles && style != null;
 
         if (!_didKickstartRender) {
           _didKickstartRender = true;
@@ -1377,35 +1381,31 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                     _moveDebounce?.cancel();
                     _moveDebounce = Timer(const Duration(milliseconds: 250), () {
                       _isUserMoving = false;
-                      if (_tileCache != null && position.center != null && position.zoom != null) {
-                        final z = position.zoom!.round().clamp(10, 16);
-                        TileCacheService.instance.prefetchArea(position.center!, z);
-                      }
                     });
                   },
                 ),
                 children: [
                   if (hasProviders)
                     VectorTileLayer(
-                      theme: style.theme,
+                      theme: style!.theme,
                       tileProviders: style.providers,
                     )
                   else
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: rasterStyleUrl,
                       userAgentPackageName: 'com.mywhv.app',
-                  tileProvider: _tileCache != null
-                      ? _CachedTileProvider(_tileCache!)
-                      : NetworkTileProvider(),
-                  keepBuffer: 4,
-                  panBuffer: 2,
-                  maxNativeZoom: 19,
-                  maxZoom: 18.5,
-                  minZoom: 3.0,
-                  tileDisplay: const TileDisplay.fadeIn(
-                    duration: Duration(milliseconds: 120),
-                    startOpacity: 0.2,
-                  ),
+                      tileProvider: _tileCache != null
+                          ? _CachedTileProvider(_tileCache!)
+                          : NetworkTileProvider(),
+                      keepBuffer: 2,
+                      panBuffer: 1,
+                      maxNativeZoom: 19,
+                      maxZoom: 18.5,
+                      minZoom: 3.0,
+                      tileDisplay: const TileDisplay.fadeIn(
+                        duration: Duration(milliseconds: 120),
+                        startOpacity: 0.2,
+                      ),
               ),
               MarkerClusterLayerWidget(
                 options: MarkerClusterLayerOptions(
@@ -1413,7 +1413,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                   maxClusterRadius: 28, // clusters a bit tighter for faster zoom redraws
                   size: const Size(30, 30),
                   padding: const EdgeInsets.all(20),
-                  disableClusteringAtZoom: 17, // avoid heavy re-clustering when zoomed in
+                  disableClusteringAtZoom: 15, // reduce re-clustering churn on zoom
                   showPolygon: false, // evita dibuixar el polígon verd del clúster
                   builder: (context, cluster) {
                     return Container(
