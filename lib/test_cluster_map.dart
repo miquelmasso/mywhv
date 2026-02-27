@@ -93,5 +93,5 @@ class _ClusterTestPageState extends State<ClusterTestPage> {
 }
 
 class TestItem extends cluster.ClusterItem {
-  TestItem(LatLng latLng) : super(latLng);
+  TestItem(super.latLng);
 }

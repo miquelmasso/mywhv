@@ -93,20 +93,11 @@ class _MailSetupPageState extends State<MailSetupPage> {
   }
 }
 
-  Future<void> _deleteCV() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('cvPath');
-    setState(() {
-      _cvPath = null;
-      _cvUploaded = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         await _saveMessage();
         if (context.mounted) Navigator.of(context).pop();
@@ -133,7 +124,7 @@ class _MailSetupPageState extends State<MailSetupPage> {
                       border: Border.all(color: Colors.grey.shade300, width: 1.1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),

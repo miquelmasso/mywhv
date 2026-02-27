@@ -24,7 +24,7 @@ class OfflineBootstrapService {
     await store.init();
 
     final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet = connectivity != ConnectivityResult.none;
+    final hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
 
     final wasCompleted = prefs.getBool(_prefsFirstLaunchKey) ?? false;
     OfflineState.instance.isFirstLaunchDone = wasCompleted;
@@ -63,7 +63,7 @@ class OfflineBootstrapService {
     OfflineState.instance.tileCachePath = tilesDir.path;
 
     final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet = connectivity != ConnectivityResult.none;
+    final hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
     if (!hasInternet) return;
 
     // Prefetch tiles for Australia (moderate zooms) in background.

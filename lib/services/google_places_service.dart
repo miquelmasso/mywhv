@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'email_extractor.dart';
 import 'careers_extractor.dart';
@@ -20,13 +21,13 @@ class GooglePlacesService {
 
   /// 🔍 Cerca i desa negocis d'hospitality (restaurants, bars, cafés...) per codi postal
   /// [maxToSave] = 0 o negatiu → sense límit
-  Future<List<Map<String, dynamic>>> SaveTwoRestaurantsForPostcode(
+  Future<List<Map<String, dynamic>>> saveTwoRestaurantsForPostcode(
     int postcode, {
     int maxToSave = 2,
   }) async {
     final startedAt = DateTime.now();
     final postcodeDisplay = postcode.toString().padLeft(4, '0');
-    print('🔍 Iniciant cerca per postcode $postcodeDisplay');
+    debugPrint('🔍 Iniciant cerca per postcode $postcodeDisplay');
 
     final isNT = (postcode >= 800 && postcode <= 999);
     final region = isNT ? 'Northern Territory, Australia' : 'Australia';
@@ -148,12 +149,12 @@ class GooglePlacesService {
 
     final elapsedSeconds =
         DateTime.now().difference(startedAt).inMilliseconds / 1000;
-    print(
+    debugPrint(
       '📊 $postcodeDisplay → trobats=$totalFound, dupId=$skippedByPlaceId, '
       'dupAlt=$skippedByAltKey, postcodeKO=$skippedByPostcode, '
       'detallsKO=$failedDetails, guardats=${saved.length}',
     );
-    print(
+    debugPrint(
       '🎯 S’han guardat ${saved.length} negocis per $postcodeDisplay '
       'en ${elapsedSeconds.toStringAsFixed(2)}s',
     );
@@ -268,7 +269,7 @@ class GooglePlacesService {
     });
 
     if (resp == null || resp.statusCode != 200) {
-      print('⚠️ Error cercant "$query": ${resp?.statusCode}');
+      debugPrint('⚠️ Error cercant "$query": ${resp?.statusCode}');
       return [];
     }
 
@@ -368,13 +369,13 @@ class GooglePlacesService {
         if (resp.statusCode == 429 || resp.statusCode >= 500) {
           last = resp;
           final delay = delays[i];
-          print('⏳ Retry HTTP (${resp.statusCode}) in ${delay}s');
+          debugPrint('⏳ Retry HTTP (${resp.statusCode}) in ${delay}s');
           await Future.delayed(Duration(milliseconds: (delay * 1000).toInt()));
           continue;
         }
         return resp;
       } catch (e) {
-        print('⚠️ Error HTTP: $e');
+        debugPrint('⚠️ Error HTTP: $e');
         if (i == delays.length - 1) rethrow;
         final delay = delays[i];
         await Future.delayed(Duration(milliseconds: (delay * 1000).toInt()));

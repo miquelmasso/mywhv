@@ -65,18 +65,19 @@ Future<void> _openGuidePage(
 
   // Fallback: if a section id was provided instead of page id, open that section.
   if (targetSection != null && context.mounted) {
+    final section = targetSection;
     final shouldShowTabbed =
-        targetSection.id == 'housing' ||
-        targetSection.id == 'arrival_steps' ||
-        targetSection.id == 'regional_and_extension' ||
-        targetSection.id == 'transport' ||
-        targetSection.id == 'money_taxes';
+        section.id == 'housing' ||
+        section.id == 'arrival_steps' ||
+        section.id == 'regional_and_extension' ||
+        section.id == 'transport' ||
+        section.id == 'money_taxes';
     if (shouldShowTabbed) {
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuideSectionScreen(
-            section: targetSection!,
+            section: section,
             onNavigateToTab: onNavigateToTab,
             strings: manual.strings,
           ),
@@ -85,13 +86,13 @@ Future<void> _openGuidePage(
     } else {
       // Open first page if no tabs.
       final firstPage =
-          targetSection!.pages.isNotEmpty ? targetSection!.pages.first : null;
+          section.pages.isNotEmpty ? section.pages.first : null;
       if (firstPage != null) {
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => GuidePageScreen(
-              sectionId: targetSection!.id,
+              sectionId: section.id,
               page: firstPage,
               onNavigateToTab: onNavigateToTab,
               initialStrings: manual.strings,
@@ -255,7 +256,7 @@ class GuideSectionScreen extends StatelessWidget {
                   ),
                 ),
                 AnimatedBuilder(
-                  animation: controller!,
+                  animation: controller,
                   builder: (context, _) {
                     final idx = controller.index.clamp(0, section.pages.length - 1);
                     final tag = section.pages[idx].cta?.forumTag;
@@ -296,10 +297,10 @@ class GuideSectionScreen extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: section.pages.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final page = section.pages[index];
-                  IconData _pageIcon() {
+                  IconData pageIcon() {
                     switch (page.id) {
                       case 'find_work_online':
                         return Icons.wifi;
@@ -331,7 +332,7 @@ class GuideSectionScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -343,10 +344,10 @@ class GuideSectionScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.08),
+                            color: Colors.blue.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(_pageIcon(), color: Colors.blue),
+                          child: Icon(pageIcon(), color: Colors.blue),
                         ),
                         const SizedBox(width: 12),
                           Expanded(
@@ -429,7 +430,7 @@ class _PageBlocksViewState extends State<_PageBlocksView>
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: widget.page.blocks.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) => _BlockCard(
         block: widget.page.blocks[index],
         onNavigateToTab: widget.onNavigateToTab,
@@ -517,6 +518,7 @@ class _BlockCard extends StatelessWidget {
       final resolvedCopy = resolve(copyTarget);
       if (resolvedCopy.trim().isEmpty) return;
       await Clipboard.setData(ClipboardData(text: resolvedCopy));
+      if (!context.mounted) return;
       final msgKey = block.copyMessageKey ?? '@ui.message_copied';
       final resolvedMsg = resolve(msgKey);
       if (vsync != null) {
@@ -555,26 +557,13 @@ class _BlockCard extends StatelessWidget {
     return callout;
   }
 
-  Widget _bullet(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('• '),
-          Expanded(child: Text(resolve(text))),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasButton = block.buttonUrl != null && block.buttonLabel != null;
     final hasTitle = block.title != null && block.title!.isNotEmpty;
     final hasContent = block.content != null && block.content!.isNotEmpty;
     final hasItems = block.items.isNotEmpty;
-    IconData? _iconFromString(String? name) {
+    IconData? iconFromString(String? name) {
       switch (name) {
         case 'local_florist':
           return Icons.local_florist;
@@ -606,7 +595,7 @@ class _BlockCard extends StatelessWidget {
           child: _InlinePostcodeChecker(t: resolve),
         );
       }
-      Future<void> _handleTap() async {
+      Future<void> handleTap() async {
         if (isCopyAction) {
           final textToCopy =
               block.content?.isNotEmpty == true ? resolve(block.content) : block.items.join('\\n');
@@ -628,7 +617,7 @@ class _BlockCard extends StatelessWidget {
       return Align(
         alignment: Alignment.centerLeft,
         child: ElevatedButton(
-          onPressed: _handleTap,
+          onPressed: handleTap,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -757,7 +746,7 @@ class _BlockCard extends StatelessWidget {
             ),
           );
         }
-        final leadingIcon = _iconFromString(block.icon);
+        final leadingIcon = iconFromString(block.icon);
         return _InfoCard(
           title: resolve(block.title),
           color: cardColor,
@@ -911,7 +900,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -940,308 +929,6 @@ class _InfoCard extends StatelessWidget {
                 ],
                 child,
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WagesPageView extends StatelessWidget {
-  const _WagesPageView({
-    required this.page,
-    this.onNavigateToTab,
-    required this.strings,
-  });
-
-  final GuidePage page;
-  final void Function(int index)? onNavigateToTab;
-  final Map<String, String> strings;
-
-  Future<void> _openFairWork(BuildContext context) async {
-    final uri = Uri.parse('https://www.fairwork.gov.au/employment-conditions/awards');
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No s’ha pogut obrir l’enllaç.')),
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No s’ha pogut obrir l’enllaç.')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: [
-        
-        const SizedBox(height: 12),
-        const ContractComparisonCard(),
-        const SizedBox(height: 6),
-        
-        const SizedBox(height: 12),
-        _InfoCard(
-          color: Color(0xFFE8F5E9),
-          leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
-          title: 'Remember',
-          child: const Text('If you do not receive a payslip or missing information, ask immediately.'),
-        ),
-        const SizedBox(height: 12),
-        OfficialLinkTile(onTap: (ctx) => _openFairWork(ctx)),
-      ],
-    );
-  }
-}
-
-class ContractComparisonCard extends StatelessWidget {
-  const ContractComparisonCard({super.key});
-
-  Widget _pill(String text, {required bool positive}) {
-    final icon = positive ? Icons.check_circle_outline : Icons.remove_circle_outline;
-    final iconColor = positive ? Colors.green : Colors.red.shade400;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: iconColor, size: 18),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _column(String title, Color color, List<Widget> points, {required String highlight}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            highlight,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          ...points.map(
-            (p) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: p,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 520;
-        final content = Row(
-          children: [
-            Expanded(
-              child: _column(
-                'Casual',
-                Colors.orange.shade50,
-                [
-                  _pill('Slightly higher salary/h', positive: true),
-                  _pill('Fewer guaranteed hours', positive: false),
-                  _pill('Less stability', positive: false),
-                ],
-                highlight: '~30 AUD/h',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _column(
-                'Part-time / Full-time',
-                Colors.blue.shade50,
-                [
-                  _pill('Similar salary/h', positive: true),
-                  _pill('More stability', positive: true),
-                  _pill('More predictable hours', positive: true),
-                ],
-                highlight: '~24 AUD/h',
-              ),
-            ),
-          ],
-        );
-
-        if (isNarrow) {
-          return Column(
-            children: [
-              _column(
-                'Casual',
-                Colors.orange.shade50,
-                [
-                  _pill('Slightly higher salary/h', positive: true),
-                  _pill('Fewer guaranteed hours', positive: false),
-                  _pill('Less stability', positive: false),
-                ],
-                highlight: '~30 AUD/h',
-              ),
-              const SizedBox(height: 10),
-              _column(
-                'Part-time / Full-time',
-                Colors.blue.shade50,
-                [
-                  _pill('Similar salary/h', positive: true),
-                  _pill('More stability', positive: true),
-                  _pill('More predictable hours', positive: true),
-                ],
-                highlight: '~24 AUD/h',
-              ),
-            ],
-          );
-        }
-
-        return content;
-      },
-    );
-  }
-}
-
-class OfficialLinkTile extends StatelessWidget {
-  const OfficialLinkTile({super.key, required this.onTap});
-
-  final Future<void> Function(BuildContext) onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => onTap(context),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(color: Colors.blue.withOpacity(0.15)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.open_in_new, color: Colors.blue),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Check official wages (Fair Work)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.blue[700]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TaxesPageView extends StatelessWidget {
-  const _TaxesPageView({
-    required this.page,
-    this.onNavigateToTab,
-    required this.strings,
-  });
-
-  final GuidePage page;
-  final void Function(int index)? onNavigateToTab;
-  final Map<String, String> strings;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: const [
-        _InfoCard(
-          title: 'WHV tax',
-          child: Text('~15% first bracket (can change, check ATO).'),
-        ),
-        SizedBox(height: 12),
-        _InfoCard(
-          title: 'Quick',
-          child: Text('Give TFN from day one. Every pay must come with a payslip.'),
-        ),
-        SizedBox(height: 12),
-        _InfoCard(
-          title: 'Key points',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ChecklistRow('Fiscal year: 1 July – 30 June'),
-              _ChecklistRow('Without TFN they withhold a lot more'),
-              _ChecklistRow('Check payslip: hours, rate/h, tax and super'),
-            ],
-          ),
-        ),
-        SizedBox(height: 12),
-        _InfoCard(
-          color: Color(0xFFE8F5E9),
-          title: 'Practical tip',
-          child: Text('If they withheld too much, recover it in the tax return.'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ChecklistRow extends StatelessWidget {
-  const _ChecklistRow(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -1334,66 +1021,6 @@ class _InlinePostcodeCheckerState extends State<_InlinePostcodeChecker> {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _SuperPageView extends StatelessWidget {
-  const _SuperPageView({
-    required this.page,
-    this.onNavigateToTab,
-    required this.strings,
-  });
-
-  final GuidePage page;
-  final void Function(int index)? onNavigateToTab;
-  final Map<String, String> strings;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: const [
-        _InfoCard(
-          title: 'Essential',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Super = mandatory pension (~11% extra).',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: 6),
-              Text('Provide your fund or they will create one.'),
-            ],
-          ),
-        ),
-        SizedBox(height: 12),
-        _InfoCard(
-          title: 'Key details',
-          child: Column(
-            children: [
-              _ChecklistRow('Write down fund name and member number.'),
-              _ChecklistRow('Check payslip shows super contribution.'),
-              _ChecklistRow('New job: give same fund to avoid scattered balances.'),
-            ],
-          ),
-        ),
-        SizedBox(height: 12),
-        _InfoCard(
-          color: Color(0xFFE8F5E9),
-          leading: Icon(Icons.flight_takeoff, color: Colors.green),
-          title: 'Practical tip',
-          child: Text('When leaving, apply for DASP (super) from outside Australia.'),
-        ),
-        SizedBox(height: 10),
-        _InfoCard(
-          color: Color(0xFFE8F5E9),
-          leading: Icon(Icons.search, color: Colors.green),
-          title: 'Lost super',
-          child: Text('Find funds via ATO with TFN and consolidate them.'),
-        ),
-      ],
     );
   }
 }

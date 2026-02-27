@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../widgets/map_place_popup.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
@@ -57,7 +56,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   bool _pendingCameraUpdate = false;
   Timer? _cameraDebounce;
   StreamSubscription<Set<String>>? _favoritesSub;
-  bool _isLoadingData = true;
   String? _dataStatusMessage;
 
   Future<BitmapDescriptor> _getCachedIcon(int count) async {
@@ -87,7 +85,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     if (!RegExp(r'[a-zA-Z0-9]$').hasMatch(truncated) && truncated.isNotEmpty) {
       truncated = truncated.replaceAll(RegExp(r'[^a-zA-Z0-9]+$'), '');
     }
-    if (truncated.isEmpty) return text.substring(0, maxChars).trim() + '…';
+    if (truncated.isEmpty) return '${text.substring(0, maxChars).trim()}…';
     return '$truncated…';
   }
 
@@ -120,7 +118,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               text: '(soon)',
               style: secondaryStyle.copyWith(
                 fontSize: baseStyle.fontSize != null ? baseStyle.fontSize! - 1 : null,
-                color: baseStyle.color?.withOpacity(0.7),
+                color: baseStyle.color?.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -182,9 +180,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadInitialData() async {
-    setState(() => _isLoadingData = true);
     await _loadData(fromServer: false);
-    if (mounted) setState(() => _isLoadingData = false);
   }
 
   Future<void> _loadData({required bool fromServer}) async {
@@ -382,7 +378,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       barrierLabel: 'Perfil',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, _, __) {
+      pageBuilder: (context, _, _) {
         return SafeArea(
           child: Align(
             alignment: Alignment.topLeft,
@@ -546,14 +542,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     _updateMarkers(_currentZoom);
   }
 
-  void _selectAllSources() {
-    setState(() {
-      _selectedSources.clear();
-      _selectedRestaurant = null;
-    });
-    _updateMarkers(_currentZoom);
-  }
-
   void _setSourceSelection(String sourceKey, bool selected) {
     setState(() {
       if (sourceKey == 'all') {
@@ -585,7 +573,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     }
 
     final overlay = Overlay.of(context);
-    if (overlay == null) return;
 
     const double sheetWidth = 240;
 
@@ -599,7 +586,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                 child: GestureDetector(
                   onTap: _closeFilterOverlay,
                   child: Container(
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                   ),
                 ),
               ),
@@ -632,7 +619,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
+                                    color: Colors.black.withValues(alpha: 0.12),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -676,7 +663,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                       ),
                                       title: Text(label),
                                     );
-                                  }).toList(),
+                                  }),
                                 ],
                               ),
                             ),
@@ -796,7 +783,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     final img = await recorder.endRecording().toImage(size, size);
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+    return BitmapDescriptor.bytes(data!.buffer.asUint8List());
   }
 
   Future<void> _toggleFavorite(String restaurantId) async {
@@ -830,6 +817,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Future<void> _copyToClipboard(String text, String label) async {
     await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
     OverlayHelper.showCopiedOverlay(context, this, '$label copied');
   }
 
@@ -843,7 +831,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => entry.remove(),
-                child: Container(color: Colors.black.withOpacity(0.3)),
+                child: Container(color: Colors.black.withValues(alpha: 0.3)),
               ),
             ),
             Positioned(
@@ -859,7 +847,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -880,6 +868,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                         onPressed: () async {
                           await Clipboard.setData(ClipboardData(text: email));
                           entry.remove();
+                          if (!context.mounted) return;
                           OverlayHelper.showCopiedOverlay(
                             context,
                             this,
@@ -907,6 +896,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                         onPressed: () async {
                           final saved =
                               (await EmailSenderService.getSavedEmailContent())?.trim();
+                          if (!context.mounted) return;
                           if (saved == null || saved.isEmpty) {
                             entry.remove();
                             if (context.mounted) {
@@ -969,7 +959,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    final canOpen = await canLaunchUrl(uri);
+    if (!mounted) return;
+    if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -984,6 +976,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     final workedList = prefs.getStringList('worked_places') ?? [];
+    if (!mounted) return;
 
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1035,6 +1028,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           await prefs.setStringList('worked_places', workedList);
           _updateLocalWorkedHere(restaurantId, -1);
           _updateMarkers(_currentZoom);
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -1043,6 +1037,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
           );
         } catch (e) {
+          if (!mounted) return;
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('❌ Error removing: $e')));
@@ -1051,6 +1046,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       return;
     }
 
+    if (!mounted) return;
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1093,6 +1089,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         await prefs.setStringList('worked_places', workedList);
         _updateLocalWorkedHere(restaurantId, 1);
         _updateMarkers(_currentZoom);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1101,6 +1098,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           ),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Error registering: $e')),
         );
@@ -1140,13 +1138,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       body: Stack(
         children: [
           GoogleMap(
+            style: _mapStyle,
             initialCameraPosition: const CameraPosition(
               target: LatLng(-25.0, 133.0),
               zoom: 4.5,
             ),
-            onMapCreated: (controller) async {
+            onMapCreated: (controller) {
               _controller = controller;
-              if (_mapStyle != null) await controller.setMapStyle(_mapStyle);
             },
             onCameraMove: (pos) {
               _currentZoom = pos.zoom;
@@ -1243,7 +1241,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -1362,45 +1360,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _monthChip(int index, int value) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    Color bg;
-    if (value >= 2) {
-      bg = Colors.green.shade400;
-    } else if (value == 1) {
-      bg = Colors.orange.shade400;
-    } else {
-      bg = Colors.grey.shade300;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        months[index],
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
   void _updateHarvestScreenOffset() async {
     if (_selectedHarvest == null || _controller == null) return;
     final latLng = LatLng(_selectedHarvest!.latitude, _selectedHarvest!.longitude);
@@ -1457,7 +1416,7 @@ class ProfilePopupMenu extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 18,
               spreadRadius: 1,
               offset: const Offset(0, 8),
@@ -1470,7 +1429,7 @@ class ProfilePopupMenu extends StatelessWidget {
             _ProfileTile(
               icon: Icons.email_outlined,
               iconColor: Colors.redAccent,
-              iconBg: Colors.redAccent.withOpacity(0.12),
+              iconBg: Colors.redAccent.withValues(alpha: 0.12),
               text: 'Edit automatic mail',
               onTap: onMail,
             ),
@@ -1478,7 +1437,7 @@ class ProfilePopupMenu extends StatelessWidget {
             _ProfileTile(
               icon: Icons.favorite_outline,
               iconColor: Colors.pinkAccent,
-              iconBg: Colors.pinkAccent.withOpacity(0.12),
+              iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
               text: 'Favourites',
               onTap: onFavorites,
             ),
@@ -1523,7 +1482,7 @@ class _ProfileTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100.withOpacity(0.5),
+            color: Colors.grey.shade100.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(

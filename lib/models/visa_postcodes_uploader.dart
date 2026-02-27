@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// 🔥 Uploader simplificat dels codis postals per la Working Holiday Visa (417/462)
 /// Basat en la informació oficial del Department of Home Affairs (octubre 2025)
@@ -9,7 +10,7 @@ class VisaPostcodesUploader {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static Future<void> uploadVisaPostcodes() async {
-    print('🚀 Iniciant pujada de codis postals...');
+    debugPrint('🚀 Iniciant pujada de codis postals...');
 
     final industriesCollection = _firestore.collection('visa_postcodes');
 
@@ -103,10 +104,10 @@ class VisaPostcodesUploader {
         "postcodes": postcodes,
       });
 
-      print("✅ $industry → ${postcodes.length} codis pujats");
+      debugPrint("✅ $industry → ${postcodes.length} codis pujats");
     }
 
-    print("🎉 Codis pujats correctament!");
+    debugPrint("🎉 Codis pujats correctament!");
   }
 
   static Future<void> _clearCollection(CollectionReference ref) async {

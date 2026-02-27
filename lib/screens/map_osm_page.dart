@@ -1,18 +1,22 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
 
 import '../services/map_markers_service.dart';
 import '../services/harvest_places_service.dart';
 import '../services/offline_state.dart';
 import '../services/offline_tile_provider.dart';
+import '../services/tile_cache_service.dart';
 import 'package:mywhv/screens/_pin_tail_painter.dart';
+
+enum _RestaurantMarkerKind { standard, night, cafe }
 
 class MapPageOSM extends StatefulWidget {
   const MapPageOSM({super.key});
@@ -21,23 +25,30 @@ class MapPageOSM extends StatefulWidget {
   State<MapPageOSM> createState() => _MapPageOSMState();
 }
 
-class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateMixin {
+class _MapPageOSMState extends State<MapPageOSM>
+    with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   static const LatLng _initialCenter = LatLng(-25.0, 133.0);
   static const double _initialZoom = 4.5;
-  final bool _showAllRestaurants = false; // mantenir mateix filtre que al MapPage
+  final bool _showAllRestaurants =
+      false; // mantenir mateix filtre que al MapPage
 
   List<Map<String, Object?>> _restaurantLocations = [];
-  List<Map<String, Object?>> _harvestLocations = [];
+  final List<Map<String, Object?>> _harvestLocations = [];
   List<Marker> _markers = [];
   bool _isHospitality = true; // false -> harvest
   bool _isLoadingData = true;
-  String? _dataStatusMessage;
   LatLng _currentCenter = _initialCenter;
+  BaseCacheManager? _tileCache;
+  Timer? _prefetchDebounce;
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
   late final AnimationController _kangarooController;
+  late final Widget _markerNightIcon;
+  late final Widget _markerCafeIcon;
+  late final Widget _markerStandardIcon;
+  late final Widget _markerHarvestIcon;
 
   @override
   void initState() {
@@ -48,13 +59,72 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
       lowerBound: 0.9,
       upperBound: 1.05,
     )..repeat(reverse: true);
+    _markerNightIcon = _pinMarker(
+      fill: const Color(0xFF6D28D9),
+      icon: Icons.local_bar,
+    );
+    _markerCafeIcon = _pinMarker(
+      fill: const Color(0xFF111827),
+      icon: Icons.local_cafe,
+    );
+    _markerStandardIcon = _pinMarker(
+      fill: const Color(0xFFFF8A00),
+      icon: Icons.restaurant,
+    );
+    _markerHarvestIcon = Icon(
+      Icons.location_on,
+      color: Colors.green.shade700,
+      size: 26,
+    );
+    TileCacheService.instance.init().then((cache) {
+      if (mounted) {
+        setState(() => _tileCache = cache);
+      } else {
+        _tileCache = cache;
+      }
+      unawaited(
+        TileCacheService.instance.prefetchArea(
+          _initialCenter,
+          _initialZoom.round(),
+          spanDeg: 3.0,
+          maxTiles: 260,
+        ),
+      );
+    });
     _loadInitialData();
   }
 
   @override
   void dispose() {
+    _prefetchDebounce?.cancel();
     _kangarooController.dispose();
     super.dispose();
+  }
+
+  void _scheduleTilePrefetch(LatLng center, double zoom) {
+    _prefetchDebounce?.cancel();
+    _prefetchDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted || _tileCache == null) return;
+      final baseZoom = zoom.clamp(3.0, 18.0).round();
+      unawaited(
+        TileCacheService.instance.prefetchArea(
+          center,
+          baseZoom,
+          spanDeg: 1.8,
+          maxTiles: 200,
+        ),
+      );
+      if (baseZoom < 18) {
+        unawaited(
+          TileCacheService.instance.prefetchArea(
+            center,
+            baseZoom + 1,
+            spanDeg: 1.2,
+            maxTiles: 120,
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -65,32 +135,27 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
 
   Future<void> _loadData({required bool fromServer}) async {
     try {
-      final restaurantDocs =
-          await MapMarkersService.loadRestaurants(fromServer: fromServer);
+      final restaurantDocs = await MapMarkersService.loadRestaurants(
+        fromServer: fromServer,
+      );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
       } else if (!fromServer) {
         final seeded = await _loadSeedRestaurantsFromAsset();
         if (seeded.isNotEmpty) {
-          debugPrint('🌱 Restaurants carregats des de seed local: ${seeded.length}');
+          debugPrint(
+            '🌱 Restaurants carregats des de seed local: ${seeded.length}',
+          );
           _restaurantLocations = _buildRestaurantLocations(seeded);
         }
       }
     } catch (e) {
-      debugPrint('❌ Error carregant restaurants OSM (${fromServer ? 'server' : 'cache'}): $e');
+      debugPrint(
+        '❌ Error carregant restaurants OSM (${fromServer ? 'server' : 'cache'}): $e',
+      );
     }
 
     // Harvest loading paused
-
-    if (!fromServer &&
-        _restaurantLocations.isEmpty &&
-        _harvestLocations.isEmpty &&
-        _markers.isEmpty) {
-      _dataStatusMessage =
-          'Sense dades locals. Prem “Actualitzar” quan tinguis internet o inclou un seed JSON.';
-    } else if (_restaurantLocations.isNotEmpty || _harvestLocations.isNotEmpty) {
-      _dataStatusMessage = null;
-    }
 
     _updateMarkers();
   }
@@ -108,7 +173,8 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
       final docId = (data['docId'] ?? data['id'] ?? '').toString();
       if (docId.isEmpty) continue;
       if (data['blocked'] == true) continue;
-      final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+      final hasData =
+          ((data['facebook_url'] ?? '').toString().isNotEmpty ||
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
@@ -119,27 +185,17 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
         'lat': lat,
         'lng': lng,
         'data': data,
+        'marker_kind': _classifyRestaurantMarker(data),
       });
     }
     return locations;
   }
 
-  List<Map<String, Object?>> _buildHarvestLocations(
-    List<HarvestPlace> places,
-  ) {
-    return places
-        .map((p) => {
-              'id': p.id,
-              'lat': p.latitude,
-              'lng': p.longitude,
-              'data': p,
-            })
-        .toList();
-  }
-
   Future<List<Map<String, dynamic>>> _loadSeedRestaurantsFromAsset() async {
     try {
-      final raw = await rootBundle.loadString('assets/data/restaurants_seed.json');
+      final raw = await rootBundle.loadString(
+        'assets/data/restaurants_seed.json',
+      );
       final data = jsonDecode(raw);
       final List list;
       if (data is List) {
@@ -163,94 +219,74 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
     return [];
   }
 
-  Future<List<HarvestPlace>> _loadSeedHarvestFromAsset() async {
-    try {
-      final raw = await rootBundle.loadString('assets/data/harvest_places_2025.json');
-      final data = jsonDecode(raw);
-      if (data is List) {
-        return data
-            .map((entry) => HarvestPlace(
-                  id: entry['id']?.toString() ?? '',
-                  name: (entry['name'] ?? '').toString(),
-                  postcode: (entry['postcode'] ?? '').toString(),
-                  state: (entry['state'] ?? '').toString(),
-                  latitude: (entry['latitude'] ?? entry['lat'])?.toDouble() ?? 0,
-                  longitude: (entry['longitude'] ?? entry['lng'])?.toDouble() ?? 0,
-                  description: entry['description']?.toString(),
-                ))
-            .where((p) => p.id.isNotEmpty)
-            .toList();
-      }
-    } catch (e) {
-      debugPrint('ℹ️ Cap seed local de harvest (optional): $e');
-    }
-    return [];
-  }
-
   void _updateMarkers() {
     final source = _isHospitality ? _restaurantLocations : _harvestLocations;
-    _markers = source
-        .map((r) => Marker(
-              point: LatLng((r['lat'] as num).toDouble(), (r['lng'] as num).toDouble()),
-              width: 28,
-              height: 28,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (_isHospitality) {
-                      _selectedHarvest = null;
-                      _selectedRestaurant = Map<String, dynamic>.from(r['data'] as Map);
-                    } else {
-                      _selectedRestaurant = null;
-                      _selectedHarvest = r['data'] as HarvestPlace;
-                    }
-                  });
-                },
-                child: _isHospitality
-                    ? _restaurantMarkerIcon(r['data'] as Map<String, dynamic>)
-                    : Icon(
-                        Icons.location_on,
-                        color: Colors.green.shade700,
-                        size: 26,
-                      ),
-              ),
-            ))
-        .toList();
-    if (mounted) setState(() {});
+    final nextMarkers = source
+        .map(
+          (r) => Marker(
+            point: LatLng(
+              (r['lat'] as num).toDouble(),
+              (r['lng'] as num).toDouble(),
+            ),
+            width: 28,
+            height: 28,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (_isHospitality) {
+                    _selectedHarvest = null;
+                    _selectedRestaurant = Map<String, dynamic>.from(
+                      r['data'] as Map,
+                    );
+                  } else {
+                    _selectedRestaurant = null;
+                    _selectedHarvest = r['data'] as HarvestPlace;
+                  }
+                });
+              },
+              child: _isHospitality
+                  ? _restaurantMarkerIcon(
+                      (r['marker_kind'] as _RestaurantMarkerKind?) ??
+                          _RestaurantMarkerKind.standard,
+                    )
+                  : _markerHarvestIcon,
+            ),
+          ),
+        )
+        .toList(growable: false);
+
+    if (!mounted) {
+      _markers = nextMarkers;
+      return;
+    }
+    setState(() => _markers = nextMarkers);
   }
 
-  Widget _restaurantMarkerIcon(Map<String, dynamic> data) {
+  _RestaurantMarkerKind _classifyRestaurantMarker(Map<String, dynamic> data) {
     final name = (data['name'] ?? '').toString().toLowerCase();
     final isNight =
-        name.contains('bar') || name.contains('pub') || name.contains('disco') || name.contains('club');
+        name.contains('bar') ||
+        name.contains('pub') ||
+        name.contains('disco') ||
+        name.contains('club');
+    if (isNight) return _RestaurantMarkerKind.night;
     final isCafe = name.contains('cafe') || name.contains('cafeteria');
-
-    if (isNight) {
-      return _pinMarker(
-        fill: const Color(0xFF6D28D9),
-        badgeColor: const Color(0xFFFBBF24),
-        icon: Icons.local_bar,
-      );
-    }
-    if (isCafe) {
-      return _pinMarker(
-        fill: const Color(0xFF111827),
-        badgeColor: const Color(0xFF60A5FA),
-        icon: Icons.local_cafe,
-      );
-    }
-    return _pinMarker(
-      fill: const Color(0xFFFF8A00),
-      badgeColor: Colors.white,
-      icon: Icons.restaurant,
-    );
+    if (isCafe) return _RestaurantMarkerKind.cafe;
+    return _RestaurantMarkerKind.standard;
   }
 
-  Widget _pinMarker({
-    required Color fill,
-    required Color badgeColor,
-    required IconData icon,
-  }) {
+  Widget _restaurantMarkerIcon(_RestaurantMarkerKind kind) {
+    switch (kind) {
+      case _RestaurantMarkerKind.night:
+        return _markerNightIcon;
+      case _RestaurantMarkerKind.cafe:
+        return _markerCafeIcon;
+      case _RestaurantMarkerKind.standard:
+        return _markerStandardIcon;
+    }
+  }
+
+  Widget _pinMarker({required Color fill, required IconData icon}) {
     const double circleSize = 20;
     const double tailHeight = 6;
     return SizedBox(
@@ -271,7 +307,7 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
                 border: Border.all(color: Colors.white, width: 1.6),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.28),
+                    color: Colors.black.withValues(alpha: 0.28),
                     blurRadius: 9,
                     offset: const Offset(0, 3),
                   ),
@@ -294,12 +330,11 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
   }
 
   void _toggleCategory(bool hospitality) {
-    setState(() {
-      _isHospitality = hospitality;
-      _selectedRestaurant = null;
-      _selectedHarvest = null;
-      _updateMarkers();
-    });
+    if (_isHospitality == hospitality) return;
+    _isHospitality = hospitality;
+    _selectedRestaurant = null;
+    _selectedHarvest = null;
+    _updateMarkers();
   }
 
   void _recenter() {
@@ -423,29 +458,26 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
               initialCenter: _initialCenter,
               initialZoom: _initialZoom,
               minZoom: 3.0,
-              maxZoom: 20,
-              onTap: (_, __) {
+              maxZoom: 18.5,
+              onTap: (tapPosition, point) {
                 setState(() {
                   _selectedRestaurant = null;
                   _selectedHarvest = null;
                 });
               },
               onPositionChanged: (position, _) {
-                if (position.center != null) {
-                  _currentCenter = position.center!;
+                _currentCenter = position.center;
+                final z = position.zoom;
+                if (z < 3.0) {
+                  Future.microtask(
+                    () => _mapController.move(_currentCenter, 3.0),
+                  );
+                } else if (z > 18.5) {
+                  Future.microtask(
+                    () => _mapController.move(_currentCenter, 18.5),
+                  );
                 }
-                if (position.zoom != null) {
-                  final z = position.zoom!;
-                  if (z < 3.0) {
-                    Future.microtask(
-                      () => _mapController.move(_currentCenter, 3.0),
-                    );
-                  } else if (z > 20) {
-                    Future.microtask(
-                      () => _mapController.move(_currentCenter, 18.5),
-                    );
-                  }
-                }
+                _scheduleTilePrefetch(_currentCenter, z);
               },
             ),
             children: [
@@ -454,23 +486,23 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
                 userAgentPackageName: 'com.example.mywhv',
                 maxZoom: 18.5,
                 minZoom: 3.0,
-                retinaMode: true,
+                retinaMode: false,
                 maxNativeZoom: 19,
-                keepBuffer: 4,
-                panBuffer: 2,
-                tileDisplay: const TileDisplay.fadeIn(
-                  duration: Duration(milliseconds: 120),
-                  startOpacity: 0.2,
-                ),
+                keepBuffer: 10,
+                panBuffer: 3,
                 tileProvider: OfflineTileProvider(
                   OfflineState.instance.tileCachePath != null
                       ? Directory(OfflineState.instance.tileCachePath!)
                       : Directory.systemTemp,
+                  cacheManager: _tileCache,
                 ),
               ),
               MarkerClusterLayerWidget(
                 options: MarkerClusterLayerOptions(
                   markers: _markers,
+                  zoomToBoundsOnClick: false,
+                  centerMarkerOnClick: false,
+                  spiderfyCluster: false,
                   maxClusterRadius: 50,
                   size: const Size(34, 34),
                   padding: const EdgeInsets.all(26),
@@ -482,7 +514,7 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -500,7 +532,6 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
                   },
                 ),
               ),
-              
             ],
           ),
           Positioned(
@@ -508,68 +539,72 @@ class _MapPageOSMState extends State<MapPageOSM> with SingleTickerProviderStateM
             left: 16,
             right: 16,
             child: SafeArea(
-              child: Builder(builder: (context) {
-                debugPrint('Rendering Contacts for regional work overlay');
-                return Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _CategoryPill(
-                              label: 'Hospitality',
-                              selected: _isHospitality,
-                              onTap: () => _toggleCategory(true),
-                            ),
-                            const SizedBox(width: 8),
-                            _CategoryPill(
-                              label: 'Harvest',
-                              selected: !_isHospitality,
-                              onTap: () => _toggleCategory(false),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Contacts for regional work',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87.withOpacity(_isHospitality ? 0.6 : 1.0),
-                            letterSpacing: 0.2,
+              child: Builder(
+                builder: (context) {
+                  debugPrint('Rendering Contacts for regional work overlay');
+                  return Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 13,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _CategoryPill(
+                                label: 'Hospitality',
+                                selected: _isHospitality,
+                                onTap: () => _toggleCategory(true),
+                              ),
+                              const SizedBox(width: 8),
+                              _CategoryPill(
+                                label: 'Harvest',
+                                selected: !_isHospitality,
+                                onTap: () => _toggleCategory(false),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Contacts for regional work',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87.withValues(
+                                alpha: _isHospitality ? 0.6 : 1.0,
+                              ),
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                },
+              ),
             ),
           ),
           if (_isLoadingData)
             Center(
               child: ScaleTransition(
                 scale: _kangarooController,
-                child: const Text(
-                  '🦘',
-                  style: TextStyle(fontSize: 48),
-                ),
+                child: const Text('🦘', style: TextStyle(fontSize: 48)),
               ),
             ),
           _buildRestaurantPopup(),
@@ -613,7 +648,7 @@ class _CategoryPill extends StatelessWidget {
           border: Border.all(color: Colors.black12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

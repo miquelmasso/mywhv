@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/google_places_service.dart';
-import '../services/postcode_state_helper.dart';
 import '../services/restaurant_import_service.dart';
 
 class AddRestaurantsByPostcodePage extends StatefulWidget {
@@ -93,7 +92,7 @@ class _AddRestaurantsByPostcodePageState
           _result = '✅ $postcodeStr és vàlid per al visat 417/462.';
         }
 
-        final list = await _placesService.SaveTwoRestaurantsForPostcode(
+        final list = await _placesService.saveTwoRestaurantsForPostcode(
           postcodeNum,
         );
         final restaurant = list.isNotEmpty ? list.first : null;
@@ -241,6 +240,7 @@ class _AddRestaurantsByPostcodePageState
     try {
       final totalAdded =
           await _importService.importAllRestaurantsForPostcode(postcodeStr);
+      if (!mounted) return;
 
       if (totalAdded == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -261,12 +261,15 @@ class _AddRestaurantsByPostcodePageState
         );
       }
     } catch (e) {
-      print('❌ Error en la cerca massiva: $e');
+      debugPrint('❌ Error en la cerca massiva: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('❌ Error cercant tots els restaurants: $e')),
       );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

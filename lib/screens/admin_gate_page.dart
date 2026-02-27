@@ -48,6 +48,7 @@ class _AdminGatePageState extends State<AdminGatePage> {
         email: email,
         password: password,
       );
+      if (!mounted) return;
       final uid = cred.user?.uid;
       if (uid == adminUid) {
         if (mounted) {
@@ -58,15 +59,18 @@ class _AdminGatePageState extends State<AdminGatePage> {
         }
       } else {
         await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Not authorized')),
         );
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'Sign-in failed')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sign-in failed: $e')),
       );

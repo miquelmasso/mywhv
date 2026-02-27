@@ -41,7 +41,7 @@ class _InstagramListPageState extends State<InstagramListPage> {
         _loading = false;
       });
     } catch (e) {
-      print('❌ Error carregant enllaços d\'Instagram: $e');
+      debugPrint('❌ Error carregant enllaços d\'Instagram: $e');
       setState(() => _loading = false);
     }
   }
@@ -49,7 +49,9 @@ class _InstagramListPageState extends State<InstagramListPage> {
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    final canOpen = await canLaunchUrl(uri);
+    if (!mounted) return;
+    if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'postcode_state_helper.dart';
 
 class ExistingRestaurantKeys {
@@ -20,7 +21,7 @@ class FirestoreHelper {
         .limit(1)
         .get();
     if (snap.docs.isNotEmpty) {
-      print('ℹ️ Ja existeix a Firestore: $name');
+      debugPrint('ℹ️ Ja existeix a Firestore: $name');
       return true;
     }
     return false;
@@ -68,7 +69,7 @@ class FirestoreHelper {
         .replaceAll(' ', '_')
         .replaceAll(RegExp(r'_{2,}'), '_');
     await firestore.collection('restaurants').doc(id).set(data);
-    print('✅ Guardat: ${data['name']} (ID: $id)');
+    debugPrint('✅ Guardat: ${data['name']} (ID: $id)');
   }
 
   /// 🔍 Carrega una vegada els identificadors existents per un postcode,
@@ -132,7 +133,7 @@ class FirestoreHelper {
         .replaceAll(' ', '_')
         .replaceAll(RegExp(r'_{2,}'), '_');
     batch.set(firestore.collection('restaurants').doc(id), data);
-    print('📦 Pending batch write: ${data['name']} (ID: $id)');
+    debugPrint('📦 Pending batch write: ${data['name']} (ID: $id)');
   }
 
   String? _buildAltKey({

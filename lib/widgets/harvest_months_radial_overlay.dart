@@ -45,10 +45,10 @@ class _MonthChip extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
-        border: Border.all(color: Colors.black.withOpacity(0.2)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 3,
             offset: const Offset(0, 1),
           ),

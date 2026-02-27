@@ -77,7 +77,7 @@ class GuideManualRepository {
 
       final manual = GuideManual.fromJson(combined);
       _validateKeys(combined, manual.strings);
-      debugPrint('Guide loaded structure + ${stringsPath} (${manual.strings.length} strings)');
+      debugPrint('Guide loaded structure + $stringsPath (${manual.strings.length} strings)');
       return manual;
     } catch (_) {
       // Fallback a l’arxiu original si el fitxer per idioma no existeix

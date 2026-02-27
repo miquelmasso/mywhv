@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'google_places_service.dart';
@@ -302,7 +303,7 @@ class HarvestGeocodeService {
           }, SetOptions(merge: true));
           if (logCount < 10) {
             // ignore: avoid_print
-            print(
+            debugPrint(
                 'UPDATE ${doc.id} name="$name" pc=$postcode state=$state status=${res.status.name}');
             logCount++;
           }
@@ -312,7 +313,7 @@ class HarvestGeocodeService {
         } else if (res.status == _GeoStatus.requestDenied) {
           if (logCount < 10) {
             // ignore: avoid_print
-            print('FAIL ${doc.id} REQUEST_DENIED');
+            debugPrint('FAIL ${doc.id} REQUEST_DENIED');
           }
           errors++;
           return GeocodeResult(updated: updated, skipped: skipped, errors: errors);
@@ -333,7 +334,7 @@ class HarvestGeocodeService {
         );
         if (logCount < 10) {
           // ignore: avoid_print
-          print('FAIL ${doc.id} pc=$postcode state=$state status=NO_RESULTS');
+          debugPrint('FAIL ${doc.id} pc=$postcode state=$state status=NO_RESULTS');
           logCount++;
         }
         errors++;

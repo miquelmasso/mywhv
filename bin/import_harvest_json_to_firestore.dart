@@ -23,7 +23,7 @@ Future<void> main() async {
       final postcode = region['postcode'] ?? '';
 
       final docId =
-          '${stateCode}_${postcode}_${regionName}'.replaceAll(' ', '_');
+          '${stateCode}_${postcode}_$regionName'.replaceAll(' ', '_');
 
       final ref =
           firestore.collection('harvest_calendar').doc(docId);
@@ -44,5 +44,5 @@ Future<void> main() async {
   }
 
   await batch.commit();
-  print('✅ Imported $docs harvest regions');
+  stdout.writeln('✅ Imported $docs harvest regions');
 }

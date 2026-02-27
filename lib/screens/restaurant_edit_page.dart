@@ -108,16 +108,20 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
             'careers_page': _careersController.text.trim(),
             'blocked': _isBlocked,
           });
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Canvis desats correctament!')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ Error al desar: $e')));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -306,6 +310,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                           'careers_page': '',
                           'blocked': true,
                         });
+                    if (!context.mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -317,7 +322,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                     );
                   }
                 },
-                activeColor: Colors.redAccent,
+                activeThumbColor: Colors.redAccent,
               ),
 
               const SizedBox(height: 24),

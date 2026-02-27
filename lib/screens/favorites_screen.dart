@@ -109,7 +109,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.08),
+                            color: Colors.blue.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

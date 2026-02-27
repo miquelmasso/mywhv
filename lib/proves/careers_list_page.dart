@@ -40,7 +40,7 @@ class _CareersListPageState extends State<CareersListPage> {
         _loading = false;
       });
     } catch (e) {
-      print('❌ Error carregant pàgines de feina: $e');
+      debugPrint('❌ Error carregant pàgines de feina: $e');
       setState(() => _loading = false);
     }
   }
@@ -48,7 +48,9 @@ class _CareersListPageState extends State<CareersListPage> {
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    final canOpen = await canLaunchUrl(uri);
+    if (!mounted) return;
+    if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

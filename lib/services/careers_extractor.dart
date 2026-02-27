@@ -247,7 +247,8 @@ class CareersExtractor {
     try {
       final resp = await http.get(Uri.parse(url));
       if (resp.statusCode == 200) return resp.body;
-    } catch (e) {
+    } catch (_) {
+      return null;
     }
     return null;
   }

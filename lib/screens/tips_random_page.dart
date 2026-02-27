@@ -136,9 +136,9 @@ class _TipsRandomPageState extends State<TipsRandomPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blueGrey.withOpacity(0.06),
+                    color: Colors.blueGrey.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blueGrey.withOpacity(0.1)),
+                    border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.1)),
                   ),
                   child: Text(
                     _currentTip,

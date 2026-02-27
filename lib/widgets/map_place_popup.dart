@@ -11,7 +11,7 @@ String smartTruncate(String text, int maxChars) {
   if (!RegExp(r'[a-zA-Z0-9]$').hasMatch(truncated) && truncated.isNotEmpty) {
     truncated = truncated.replaceAll(RegExp(r'[^a-zA-Z0-9]+$'), '');
   }
-  if (truncated.isEmpty) return text.substring(0, maxChars).trim() + '…';
+  if (truncated.isEmpty) return '${text.substring(0, maxChars).trim()}…';
   return '$truncated…';
 }
 
@@ -43,10 +43,6 @@ class MapRestaurantPopup extends StatelessWidget {
   final VoidCallback onInstagram;
   final VoidCallback onFavorite;
 
-  String _truncateTitle(String title) {
-    return smartTruncate(title.trim(), 50);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -60,7 +56,7 @@ class MapRestaurantPopup extends StatelessWidget {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -200,7 +196,7 @@ class MapHarvestPopup extends StatelessWidget {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),

@@ -55,6 +55,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
       for (int pc = start; pc <= end; pc++) {
         final postcodeStr = pc.toString().padLeft(4, '0');
         final result = await _importService.importFarmsForPostcode(postcodeStr);
+        if (!mounted) return;
         if (!result.allowed || !result.valid) {
           setState(() => _processed++);
           continue;
@@ -62,6 +63,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
         setState(() => _processed++);
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -70,11 +72,14 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error important: $e')),
       );
     } finally {
-      setState(() => _isImporting = false);
+      if (mounted) {
+        setState(() => _isImporting = false);
+      }
     }
   }
 
@@ -110,7 +115,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
             ),
             const SizedBox(height: 18),
             DropdownButtonFormField<String>(
-              value: _selectedState,
+              initialValue: _selectedState,
               decoration: InputDecoration(
                 labelText: 'Escull estat',
                 border: OutlineInputBorder(

@@ -222,7 +222,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedState,
+              initialValue: _selectedState,
               decoration: const InputDecoration(
                 labelText: 'Escull estat',
                 border: OutlineInputBorder(),

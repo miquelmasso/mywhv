@@ -70,9 +70,11 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
             postcodeStr,
           );
         }
+        if (!mounted) return;
         setState(() => _processed++);
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -81,11 +83,14 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error important: $e')),
       );
     } finally {
-      setState(() => _isImporting = false);
+      if (mounted) {
+        setState(() => _isImporting = false);
+      }
       _skipCompleter = null;
       _currentPostcode = null;
     }
@@ -101,7 +106,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     await Future.any([future, completer.future]);
     if (completer.isCompleted) {
       // Ignore result/possible errors from the original future after skipping.
-      future.catchError((_) {});
+      unawaited(future.then((_) {}, onError: (_) {}));
       return null;
     }
     return await future;
@@ -148,7 +153,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
             ),
             const SizedBox(height: 18),
             DropdownButtonFormField<String>(
-              value: _selectedState,
+              initialValue: _selectedState,
               decoration: InputDecoration(
                 labelText: 'Escull estat',
                 border: OutlineInputBorder(

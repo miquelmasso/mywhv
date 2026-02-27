@@ -38,11 +38,22 @@ class _GuideScreenState extends State<GuideScreen> {
   bool _isSearching = false;
   List<SearchResult> _results = [];
   final SearchService _searchService = SearchService.instance;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _future = _loadManualWithSavedLocale();
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    setState(() {
+      _query = '';
+      _results = [];
+      _isSearching = false;
+      _searchController.clear();
+    });
   }
 
   Future<GuideManual> _loadManualWithSavedLocale() async {
@@ -57,6 +68,7 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -65,6 +77,8 @@ class _GuideScreenState extends State<GuideScreen> {
     GuideSection section,
     Map<String, String> strings,
   ) {
+    _clearSearch();
+    _clearSearch();
     // Per a seccions que només tenen una pàgina (ex: visa, abans d'arribar), salta directament al contingut.
     final shouldOpenDirectly =
         (section.id == 'visa_requirements' || section.id == 'before_arrival') &&
@@ -134,6 +148,7 @@ class _GuideScreenState extends State<GuideScreen> {
   }
 
   void _chooseLanguage() {
+    _clearSearch();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -192,12 +207,12 @@ class _GuideScreenState extends State<GuideScreen> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
               : Colors.transparent,
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary
-                : Colors.grey.withOpacity(0.3),
+                : Colors.grey.withValues(alpha: 0.3),
           ),
         ),
         alignment: Alignment.center,
@@ -249,20 +264,21 @@ class _GuideScreenState extends State<GuideScreen> {
     }
     return ListView.separated(
       itemCount: _results.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final result = _results[index];
         return InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            FocusScope.of(context).unfocus();
-            await _searchService.navigateToResult(result, context,
-                onNavigateToTab: onNavigateToTab);
-            setState(() {
-              _query = '';
-              _results = [];
-            });
-          },
+            onTap: () async {
+              FocusScope.of(context).unfocus();
+              await _searchService.navigateToResult(result, context,
+                  onNavigateToTab: onNavigateToTab);
+              setState(() {
+                _query = '';
+                _results = [];
+                _searchController.clear();
+              });
+            },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -270,7 +286,7 @@ class _GuideScreenState extends State<GuideScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -320,10 +336,18 @@ class _GuideScreenState extends State<GuideScreen> {
         child: Column(
           children: [
             TextField(
+              controller: _searchController,
               onChanged: _onQueryChanged,
               decoration: InputDecoration(
                 hintText: 'Search anything',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'Clear',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding:
@@ -331,7 +355,7 @@ class _GuideScreenState extends State<GuideScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: Colors.grey.withOpacity(0.2),
+                    color: Colors.grey.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -409,7 +433,7 @@ class _GuideScreenState extends State<GuideScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -422,7 +446,7 @@ class _GuideScreenState extends State<GuideScreen> {
                               Container(
                                 padding: const EdgeInsets.all(7),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.08),
+                                  color: Colors.blue.withValues(alpha: 0.08),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(

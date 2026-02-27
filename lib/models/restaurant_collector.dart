@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../services/postcode_state_helper.dart';
 
 class RestaurantCollector {
@@ -9,7 +10,7 @@ class RestaurantCollector {
 
   /// 🔹 Funció principal: descarrega i desa restaurants per codis postals de Tourism & Hospitality
   static Future<void> fetchAndSaveTourismRestaurants() async {
-    print('🚀 Iniciant recollida de restaurants per zones Tourism & Hospitality...');
+    debugPrint('🚀 Iniciant recollida de restaurants per zones Tourism & Hospitality...');
 
     // 1️⃣ Obtenim tots els codis postals de Tourism & Hospitality del 417 i del 462
     final postcodes417 = await _getTourismPostcodes('visa_417_industries');
@@ -17,21 +18,21 @@ class RestaurantCollector {
 
     // 2️⃣ Fusionem i eliminem duplicats
     final allPostcodes = {...postcodes417, ...postcodes462}.toList();
-    print('📍 ${allPostcodes.length} codis únics de Tourism & Hospitality trobats.');
+    debugPrint('📍 ${allPostcodes.length} codis únics de Tourism & Hospitality trobats.');
 
     // 3️⃣ Recorrem cada codi postal
     for (final code in allPostcodes) {
       final existing = await _firestore.collection('restaurants').where('postcode', isEqualTo: code).limit(1).get();
 
       if (existing.docs.isNotEmpty) {
-        print('⏭️ Ja existeixen dades pel codi $code, s’omet la consulta.');
+        debugPrint('⏭️ Ja existeixen dades pel codi $code, s’omet la consulta.');
         continue;
       }
 
       final restaurants = await _fetchRestaurantsForPostcode(code);
 
       if (restaurants.isEmpty) {
-        print('⚠️ Cap restaurant trobat per $code.');
+        debugPrint('⚠️ Cap restaurant trobat per $code.');
         continue;
       }
 
@@ -49,11 +50,11 @@ class RestaurantCollector {
         });
       }
 
-      print('✅ ${restaurants.length} restaurants guardats per $code.');
+      debugPrint('✅ ${restaurants.length} restaurants guardats per $code.');
       await Future.delayed(const Duration(seconds: 2)); // petit delay per no saturar l’API
     }
 
-    print('🎉 Tots els restaurants de Tourism & Hospitality guardats correctament!');
+    debugPrint('🎉 Tots els restaurants de Tourism & Hospitality guardats correctament!');
   }
 
   /// 🔸 Obté els codis postals de la indústria "Tourism and Hospitality" d’una col·lecció (417 o 462)
@@ -83,7 +84,7 @@ class RestaurantCollector {
 
     final response = await http.get(url);
     if (response.statusCode != 200) {
-      print('❌ Error Places API ($postcode): ${response.statusCode}');
+      debugPrint('❌ Error Places API ($postcode): ${response.statusCode}');
       return [];
     }
 
@@ -120,11 +121,4 @@ class RestaurantCollector {
     };
   }
 
-  /// 🔸 Esborra documents d’una col·lecció (per si vols reinicialitzar)
-  static Future<void> _clearCollection(CollectionReference ref) async {
-    final snapshots = await ref.get();
-    for (var doc in snapshots.docs) {
-      await doc.reference.delete();
-    }
-  }
 }

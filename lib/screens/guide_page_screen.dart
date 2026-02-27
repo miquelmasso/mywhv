@@ -36,7 +36,6 @@ class _GuidePageScreenState extends State<GuidePageScreen>
   static const double kGuideBlockSpacing = 16;
   TabController? _controller;
   late List<ChecklistItem> _checklist;
-  List<bool> _expandedStates = [];
   Map<String, String> _strings = {};
 
   String Function(dynamic) get _resolver =>
@@ -95,8 +94,6 @@ class _GuidePageScreenState extends State<GuidePageScreen>
         widget.sectionId != 'regional_and_extension' &&
         widget.sectionId != 'transport' &&
         widget.sectionId != 'money_taxes';
-    const bool hasActions = false; // disable actions tab globally
-
     int tabLength;
     if (isFindWorkPage) {
       tabLength = 3;
@@ -109,7 +106,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     } else if (isBeforeArrivalPage) {
       tabLength = widget.page.sections.length.clamp(4, 4);
     } else {
-      tabLength = 1 + (hasChecklistTab ? 1 : 0) + (hasActions ? 1 : 0);
+      tabLength = 1 + (hasChecklistTab ? 1 : 0);
     }
 
     final initialIdx =
@@ -118,9 +115,6 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     _checklist = widget.page.checklist
         .map((c) => ChecklistItem(id: c.id, text: c.text, done: c.done))
         .toList();
-    if (isFindWorkPage) {
-      _expandedStates = List<bool>.generate(widget.page.sections.length, (i) => false);
-    }
     _loadStrings();
   }
 
@@ -206,9 +200,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     final hasChecklist = widget.page.checklist.isNotEmpty;
     final bool hasChecklistTab =
         hasChecklist && widget.sectionId != 'arrival_steps' && widget.sectionId != 'housing';
-    const bool hasActions = false; // disable actions tab globally
-
-    String _tabTitle(String sectionId, String fallbackKey) {
+    String tabTitle(String sectionId, String fallbackKey) {
       final s = _findSectionById(sectionId);
       return _resolver(s?.title ?? fallbackKey);
     }
@@ -219,15 +211,15 @@ class _GuidePageScreenState extends State<GuidePageScreen>
             .toList(growable: false)
         : isVisaPage
             ? [
-                Tab(text: _tabTitle('requirements_tab', '@visa.requirements.tab_title')),
-                Tab(text: _tabTitle('apply_steps_tab', '@visa.apply.tab_title')),
+                Tab(text: tabTitle('requirements_tab', '@visa.requirements.tab_title')),
+                Tab(text: tabTitle('apply_steps_tab', '@visa.apply.tab_title')),
               ]
             : isBeforeArrivalPage
                 ? [
-                    Tab(text: _tabTitle('preparation_tab', '@before.prep.tab_title')),
-                    Tab(text: _tabTitle('lodging_tab', '@before.lodging.tab_title')),
-                    Tab(text: _tabTitle('money_tab', '@before.money.tab_title')),
-                    Tab(text: _tabTitle('cv_tab', '@before.cv.tab_title')),
+                    Tab(text: tabTitle('preparation_tab', '@before.prep.tab_title')),
+                    Tab(text: tabTitle('lodging_tab', '@before.lodging.tab_title')),
+                    Tab(text: tabTitle('money_tab', '@before.money.tab_title')),
+                    Tab(text: tabTitle('cv_tab', '@before.cv.tab_title')),
                   ]
                 : isFaceToFacePage
                     ? [
@@ -242,7 +234,6 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         : [
                             Tab(text: _resolver('@ui.tab.info')),
                             if (hasChecklistTab) Tab(text: _resolver('@ui.tab.checklist')),
-                            if (hasActions) Tab(text: _resolver('@ui.tab.actions')),
                           ];
     final resolvedTitle = _resolver(widget.page.title);
     final tabBar = TabBar(
@@ -448,15 +439,6 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                             onToggle: _toggleChecklist,
                             resolve: _resolver,
                           ),
-                          if (hasActions)
-                            _ActionsTab(
-                              mapCategory: cta?.mapCategory,
-                              forumTag: cta?.forumTag,
-                              externalLinks: cta?.externalLinks ?? const [],
-                              goToMap: () => _goToTab(0),
-                              goToForum: () => _goToTab(3),
-                              t: _t,
-                            ),
                         ],
                       ),
                     ),
@@ -568,7 +550,7 @@ class _FindWorkTabContent extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: widgets.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
       itemBuilder: (context, index) => widgets[index],
     );
@@ -598,7 +580,7 @@ class _SectionBlocksView extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: section!.blocks.length,
-      separatorBuilder: (_, __) => const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
+      separatorBuilder: (_, _) => const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
       itemBuilder: (context, index) => _buildBlockWidget(
         context,
         section!.blocks[index],
@@ -614,13 +596,11 @@ class _SectionBlocksView extends StatelessWidget {
 class _InfoTab extends StatelessWidget {
   const _InfoTab({
     required this.blocks,
-    this.footer,
     required this.t,
     required this.resolve,
   });
 
   final List<GuideBlock> blocks;
-  final Widget? footer;
   final String Function(String key) t;
   final String Function(dynamic value) resolve;
 
@@ -628,13 +608,10 @@ class _InfoTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: blocks.length + (footer != null ? 1 : 0),
-      separatorBuilder: (_, __) =>
+      itemCount: blocks.length,
+      separatorBuilder: (_, _) =>
           const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
       itemBuilder: (context, index) {
-        if (footer != null && index == blocks.length) {
-          return footer!;
-        }
         return _buildBlockWidget(
           context,
           blocks[index],
@@ -662,7 +639,7 @@ class _ChecklistTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: checklist.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
       itemBuilder: (context, index) {
         final item = checklist[index];
@@ -672,7 +649,7 @@ class _ChecklistTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -876,22 +853,16 @@ class _SalaryTab extends StatelessWidget {
 class _BulletText extends StatelessWidget {
   const _BulletText({
     required this.text,
-    this.label,
     this.orderedIndex,
   });
 
   final String text;
-  final String? label;
   final int? orderedIndex;
 
   @override
   Widget build(BuildContext context) {
     final baseStyle = DefaultTextStyle.of(context).style;
     final spans = <TextSpan>[
-      if (label != null && label!.trim().isNotEmpty)
-        TextSpan(text: label, style: baseStyle.copyWith(fontWeight: FontWeight.bold)),
-      if (label != null && label!.trim().isNotEmpty)
-        TextSpan(text: text.isNotEmpty ? ': ' : ' ', style: baseStyle),
       TextSpan(text: text, style: baseStyle),
     ];
 
@@ -992,7 +963,7 @@ Widget _buildBlockWidget(
   required String Function(String key) t,
   required String Function(dynamic value) resolve,
 }) {
-  Widget _actionButton({required Widget label, required VoidCallback onPressed, IconData? icon}) {
+  Widget actionButton({required Widget label, required VoidCallback onPressed, IconData? icon}) {
     final btn = icon != null
         ? ElevatedButton.icon(
             onPressed: onPressed,
@@ -1014,7 +985,7 @@ Widget _buildBlockWidget(
     return SizedBox(width: double.infinity, child: btn);
   }
 
-  Widget _buttonIfAny() {
+  Widget buttonIfAny() {
     if (block.buttonLabel == null || block.buttonUrl == null) return const SizedBox.shrink();
     final isCopyAction = block.buttonUrl!.startsWith('copy:');
     final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
@@ -1062,10 +1033,11 @@ Widget _buildBlockWidget(
                 : block.items.join('\n');
             if (textToCopy.isNotEmpty) {
               await Clipboard.setData(ClipboardData(text: textToCopy));
+              if (!context.mounted) return;
               if (vsync != null) {
                 await OverlayHelper.showCopiedOverlay(
                   context,
-                  vsync!,
+                  vsync,
                   resolve(block.buttonLabel ?? 'ui.copy'),
                 );
               }
@@ -1106,23 +1078,23 @@ Widget _buildBlockWidget(
     );
   }
 
-  Widget _cvSheet(GuideBlock block) {
+  Widget cvSheet(GuideBlock block) {
     final lines = (block.content ?? '').split('\n');
     final headings = ['PROFILE', 'WORK EXPERIENCE', 'SKILLS', 'AVAILABILITY'];
 
-    String _line(int index) => index >= 0 && index < lines.length ? lines[index] : '';
-    int _headingIndex(String heading) => lines.indexOf(heading);
+    String line(int index) => index >= 0 && index < lines.length ? lines[index] : '';
+    int headingIndex(String heading) => lines.indexOf(heading);
 
-    List<String> _sectionContent(String heading) {
-      final start = _headingIndex(heading);
+    List<String> sectionContent(String heading) {
+      final start = headingIndex(heading);
       if (start == -1) return [];
       final nextIndices =
-          headings.map(_headingIndex).where((i) => i > start).toList()..sort();
+          headings.map(headingIndex).where((i) => i > start).toList()..sort();
       final end = nextIndices.isNotEmpty ? nextIndices.first : lines.length;
       return lines.sublist(start + 1, end).where((l) => l.trim().isNotEmpty).toList();
     }
 
-    Widget _section(String title, List<String> content) {
+    Widget section(String title, List<String> content) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1162,7 +1134,7 @@ Widget _buildBlockWidget(
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -1172,7 +1144,7 @@ Widget _buildBlockWidget(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _line(0),
+                    line(0),
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
@@ -1182,19 +1154,19 @@ Widget _buildBlockWidget(
                   const SizedBox(height: 6),
                   Text(
                     [
-                      _line(1),
-                      _line(2),
+                      line(1),
+                      line(2),
                     ].where((l) => l.isNotEmpty).join('\n'),
                     style: const TextStyle(color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
-                  _section('PROFILE', _sectionContent('PROFILE')),
+                  section('PROFILE', sectionContent('PROFILE')),
                   const SizedBox(height: 14),
-                  _section('WORK EXPERIENCE', _sectionContent('WORK EXPERIENCE')),
+                  section('WORK EXPERIENCE', sectionContent('WORK EXPERIENCE')),
                   const SizedBox(height: 14),
-                  _section('SKILLS', _sectionContent('SKILLS')),
+                  section('SKILLS', sectionContent('SKILLS')),
                   const SizedBox(height: 14),
-                  _section('AVAILABILITY', _sectionContent('AVAILABILITY')),
+                  section('AVAILABILITY', sectionContent('AVAILABILITY')),
                 ],
               ),
             ),
@@ -1202,13 +1174,13 @@ Widget _buildBlockWidget(
         ),
         if (block.buttonLabel != null && block.buttonUrl != null) ...[
           const SizedBox(height: 12),
-          _buttonIfAny(),
+          buttonIfAny(),
         ],
       ],
     );
   }
 
-  Widget _textWithLinks(dynamic textValue, String Function(dynamic) resolve) {
+  Widget textWithLinks(dynamic textValue, String Function(dynamic) resolve) {
     final resolved = resolve(textValue);
     if (resolved.isEmpty) return const SizedBox.shrink();
     final spans = _parseLinkTextSpans(resolved);
@@ -1233,7 +1205,7 @@ Widget _buildBlockWidget(
         final isCopyAction = block.buttonUrl!.startsWith('copy:');
         final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
         final isAction = block.buttonUrl!.startsWith('action:');
-        Future<void> _handleTap() async {
+        Future<void> handleTap() async {
           if (isCopyAction) {
             final textToCopy =
                 block.content?.isNotEmpty == true ? block.content! : block.items.join('\n');
@@ -1268,9 +1240,9 @@ Widget _buildBlockWidget(
         }
         final label = Text(resolve(block.buttonLabel));
         // No card wrapper; match Facebook button styling
-        return _actionButton(
+        return actionButton(
           label: label,
-          onPressed: _handleTap,
+          onPressed: handleTap,
           icon: block.icon != null ? Icons.open_in_new : null,
         );
       }
@@ -1285,7 +1257,7 @@ Widget _buildBlockWidget(
       } else if (block.variant == 'milestone') {
         cardColor = Colors.orange.shade50;
       }
-      IconData? _iconFromString(String? name) {
+      IconData? iconFromString(String? name) {
         switch (name) {
           case 'local_florist':
             return Icons.local_florist;
@@ -1297,7 +1269,7 @@ Widget _buildBlockWidget(
             return null;
         }
       }
-      final leadingIcon = _iconFromString(block.icon);
+      final leadingIcon = iconFromString(block.icon);
 
       final resolvedTitle = resolve(block.title ?? '');
       final isProcessingCard = block.title == '@visa.requirements.processing_title';
@@ -1427,7 +1399,7 @@ Widget _buildBlockWidget(
                         }).toList(),
                       ),
               ),
-            if (block.buttonLabel != null && block.buttonUrl != null) _buttonIfAny(),
+            if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
           ],
         ),
       );
@@ -1470,7 +1442,7 @@ Widget _buildBlockWidget(
                         padding: const EdgeInsets.only(right: 6, top: 2),
                         child: bulletIcon(),
                       ),
-                      Expanded(child: _textWithLinks(item, resolve)),
+                      Expanded(child: textWithLinks(item, resolve)),
                     ],
                   ),
                 ),
@@ -1478,7 +1450,7 @@ Widget _buildBlockWidget(
               .toList(),
         );
       } else {
-        body = _textWithLinks(block.content, resolve);
+        body = textWithLinks(block.content, resolve);
       }
 
       Future<void> handleCopy() async {
@@ -1486,9 +1458,10 @@ Widget _buildBlockWidget(
         final resolvedCopy = resolve(copyTarget);
         if (resolvedCopy.trim().isEmpty) return;
         await Clipboard.setData(ClipboardData(text: resolvedCopy));
+        if (!context.mounted) return;
         final msgKey = block.copyMessageKey ?? '@ui.message_copied';
         if (vsync != null) {
-          await OverlayHelper.showCopiedOverlay(context, vsync!, resolve(msgKey));
+          await OverlayHelper.showCopiedOverlay(context, vsync, resolve(msgKey));
         } else {
           final snack = SnackBar(
             behavior: SnackBarBehavior.floating,
@@ -1520,7 +1493,7 @@ Widget _buildBlockWidget(
     case 'paragraph':
       return _InfoCard(
         title: resolve(block.title ?? ''),
-        child: _textWithLinks(block.content, resolve),
+        child: textWithLinks(block.content, resolve),
       );
     case 'header':
       return Padding(
@@ -1548,7 +1521,7 @@ Widget _buildBlockWidget(
         ),
       );
     case 'cv_sheet':
-      return _cvSheet(block);
+      return cvSheet(block);
     default:
       if (block.type == 'button') {
         final isCopyAction = block.buttonUrl?.startsWith('copy:') ?? false;
@@ -1557,17 +1530,18 @@ Widget _buildBlockWidget(
         if (isAction && (block.buttonUrl?.contains('check_postcode') ?? false)) {
           return InlinePostcodeChecker(t: t);
         }
-        Future<void> _handleTap() async {
+        Future<void> handleTap() async {
           if (block.buttonLabel == null || block.buttonUrl == null) return;
           if (isCopyAction) {
             final textToCopy =
                 block.content?.isNotEmpty == true ? block.content! : block.items.join('\\n');
             if (textToCopy.isNotEmpty) {
               await Clipboard.setData(ClipboardData(text: textToCopy));
+              if (!context.mounted) return;
               if (vsync != null) {
                 await OverlayHelper.showCopiedOverlay(
                   context,
-                  vsync!,
+                  vsync,
                   block.buttonLabel ?? 'Copied',
                 );
               }
@@ -1598,7 +1572,7 @@ Widget _buildBlockWidget(
             shape: const StadiumBorder(),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: block.buttonLabel != null && block.buttonUrl != null ? _handleTap : null,
+              onTap: block.buttonLabel != null && block.buttonUrl != null ? handleTap : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 child: Text(
@@ -1621,11 +1595,12 @@ Widget _buildBlockWidget(
           onTap: content.isNotEmpty
               ? () async {
                   await Clipboard.setData(ClipboardData(text: content));
+                  if (!context.mounted) return;
                   if (vsync != null) {
                     await OverlayHelper.showCopiedOverlay(
                       context,
-                      vsync!,
-                    resolve(copyLabel ?? 'ui.copy'),
+                      vsync,
+                      resolve(copyLabel ?? 'ui.copy'),
                     );
                   }
                 }
@@ -1640,8 +1615,8 @@ Widget _buildBlockWidget(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _textWithLinks(content, resolve),
-                if (block.buttonLabel != null && block.buttonUrl != null) _buttonIfAny(),
+                textWithLinks(content, resolve),
+                if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
               ],
             ),
           ),
@@ -1658,8 +1633,8 @@ Widget _buildBlockWidget(
                   orderedIndex: ordered ? entry.key : null,
                 )),
             if (block.content != null && block.content!.isNotEmpty && block.items.isEmpty)
-              _textWithLinks(block.content, resolve),
-            if (block.buttonLabel != null && block.buttonUrl != null) _buttonIfAny(),
+              textWithLinks(block.content, resolve),
+            if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
           ],
         ),
       );
@@ -1754,73 +1729,6 @@ class _InlinePostcodeCheckerState extends State<InlinePostcodeChecker> {
   }
 }
 
-class _ActionsTab extends StatelessWidget {
-  const _ActionsTab({
-    this.mapCategory,
-    this.forumTag,
-    required this.externalLinks,
-    required this.goToMap,
-    required this.goToForum,
-    required this.t,
-  });
-
-  final String? mapCategory;
-  final String? forumTag;
-  final List<String> externalLinks;
-  final VoidCallback goToMap;
-  final VoidCallback goToForum;
-  final String Function(String key) t;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton.icon(
-            onPressed: goToMap,
-            icon: const Icon(Icons.map_outlined),
-            label: Text(
-              '${t('ui.actions.map')}${mapCategory != null ? ' ($mapCategory)' : ''}',
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: goToForum,
-            icon: const Icon(Icons.forum_outlined),
-            label: Text(
-              '${t('ui.actions.forum')}${forumTag != null ? ' (#$forumTag)' : ''}',
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-          if (externalLinks.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              t('ui.actions.links_title'),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            ...externalLinks.map(
-              (link) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(link, style: const TextStyle(color: Colors.blue)),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 Widget? _buildForumButton({required String? tag, required VoidCallback onPressed}) {
   if (tag == null || tag.isEmpty) return null;
   return SizedBox(
@@ -1837,14 +1745,6 @@ Widget? _buildForumButton({required String? tag, required VoidCallback onPressed
       ),
     ),
   );
-}
-
-bool _hasActions(GuideCtaLink? cta) {
-  if (cta == null) return false;
-  final hasMap = (cta.mapCategory ?? '').isNotEmpty;
-  final hasForum = (cta.forumTag ?? '').isNotEmpty;
-  final hasLinks = cta.externalLinks.isNotEmpty;
-  return hasMap || hasForum || hasLinks;
 }
 
 List<InlineSpan> _parseLinkTextSpans(String text) {
@@ -1905,7 +1805,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

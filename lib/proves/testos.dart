@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'emails_list_page.dart';
-import 'careers_list_page.dart';
 
 class HousePage extends StatelessWidget {
   const HousePage({super.key});

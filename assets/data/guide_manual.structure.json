@@ -1010,7 +1010,11 @@
                 "@money.wages.key_3",
                 "@money.wages.key_4",
                 "@money.wages.key_5"
-              ]
+              ],
+              "button": {
+                "label": "@money.wages.fairwork_button",
+                "url": "https://www.fairwork.gov.au/employment-conditions/awards/list-of-awards"
+              }
             },
             {
               "type": "card",

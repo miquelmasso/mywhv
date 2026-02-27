@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/io_client.dart';
 
 class FacebookExtractor {
@@ -7,7 +8,7 @@ class FacebookExtractor {
   void _log(String msg) {
     if (_verboseLogs) {
       // ignore: avoid_print
-      print(msg);
+      debugPrint(msg);
     }
   }
 
@@ -85,7 +86,7 @@ class FacebookExtractor {
   Future<String?> _fetchHtmlUnsafe(String url) async {
     try {
       final client = HttpClient()
-        ..badCertificateCallback = (_, __, ___) => true;
+        ..badCertificateCallback = (_, _, _) => true;
       final ioClient = IOClient(client);
       final response = await ioClient
           .get(Uri.parse(url))
@@ -265,7 +266,6 @@ class FacebookExtractor {
 
     final pathSegments =
         uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
-    final lastSegment = pathSegments.isNotEmpty ? pathSegments.last : '';
 
     // profile.php with id
     if (uri.path == '/profile.php' &&

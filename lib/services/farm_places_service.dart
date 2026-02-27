@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'email_extractor.dart';
 import 'careers_extractor.dart';
@@ -63,7 +64,7 @@ class FarmPlacesService {
   }) async {
     final startedAt = DateTime.now();
     final postcodeDisplay = postcode.toString().padLeft(4, '0');
-    print('🌾 Iniciant cerca de farms per postcode $postcodeDisplay');
+    debugPrint('🌾 Iniciant cerca de farms per postcode $postcodeDisplay');
 
     final List<String> farmKeywords = [
       'orchard',
@@ -181,13 +182,13 @@ class FarmPlacesService {
 
     final elapsedSeconds =
         DateTime.now().difference(startedAt).inMilliseconds / 1000;
-    print(
+    debugPrint(
       '📊 Farms $postcodeDisplay → trobats=$totalFound, dupId=$skippedByPlaceId, '
       'dupAlt=$skippedByAltKey, postcodeKO=$skippedByPostcode, '
       'detallsKO=$failedDetails, guardats=${saved.length}, '
       'temps=${elapsedSeconds.toStringAsFixed(2)}s',
     );
-    print(
+    debugPrint(
       '🎯 S’han guardat ${saved.length} farms per $postcodeDisplay '
       'en ${elapsedSeconds.toStringAsFixed(2)}s',
     );
@@ -202,7 +203,7 @@ class FarmPlacesService {
     final startedAt = DateTime.now();
     final pivots = _ruralPivots[stateCode.toUpperCase()];
     if (pivots == null || pivots.isEmpty) {
-      print('⚠️ Sense pivots rurals definits per $stateCode');
+      debugPrint('⚠️ Sense pivots rurals definits per $stateCode');
       return [];
     }
 
@@ -365,7 +366,7 @@ class FarmPlacesService {
 
     final elapsedSeconds =
         DateTime.now().difference(startedAt).inMilliseconds / 1000;
-    print(
+    debugPrint(
       '📊 Farms $stateCode → trobats=$totalFound, guardats=${saved.length}, '
       'altDup=$skippedByAlt, typeSkip=$skippedByType, pcSkip=$skippedByPostcode, '
       'detallsKO=$failedDetails, temps=${elapsedSeconds.toStringAsFixed(2)}s',
@@ -410,7 +411,7 @@ class FarmPlacesService {
     });
 
     if (resp == null || resp.statusCode != 200) {
-      print('⚠️ Error cercant "$query": ${resp?.statusCode}');
+      debugPrint('⚠️ Error cercant "$query": ${resp?.statusCode}');
       return [];
     }
 
@@ -451,12 +452,12 @@ class FarmPlacesService {
       try {
         resp = await ioClient.get(uri);
       } catch (e) {
-        print('⚠️ GET nearby error $query @ $lat,$lng → $e');
+        debugPrint('⚠️ GET nearby error $query @ $lat,$lng → $e');
         break;
       }
 
       if (resp.statusCode != 200) {
-        print(
+        debugPrint(
           '⚠️ GET nearby ${uri.replace(queryParameters: {...params, 'key': '***'})} '
           'status=${resp.statusCode} body=${resp.body}',
         );
@@ -465,7 +466,7 @@ class FarmPlacesService {
 
       final data = jsonDecode(resp.body);
       if (data['status'] != 'OK' && data['status'] != 'ZERO_RESULTS') {
-        print(
+        debugPrint(
           '⚠️ Nearby status=${data['status']} '
           'message=${data['error_message'] ?? ''} '
           'query=$query lat=$lat lng=$lng',
@@ -608,13 +609,13 @@ class FarmPlacesService {
         if (resp.statusCode == 429 || resp.statusCode >= 500) {
           last = resp;
           final delay = delays[i];
-          print('⏳ Retry HTTP (${resp.statusCode}) in ${delay}s');
+          debugPrint('⏳ Retry HTTP (${resp.statusCode}) in ${delay}s');
           await Future.delayed(Duration(milliseconds: (delay * 1000).toInt()));
           continue;
         }
         return resp;
       } catch (e) {
-        print('⚠️ Error HTTP: $e');
+        debugPrint('⚠️ Error HTTP: $e');
         if (i == delays.length - 1) rethrow;
         final delay = delays[i];
         await Future.delayed(Duration(milliseconds: (delay * 1000).toInt()));

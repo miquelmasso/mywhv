@@ -4,12 +4,12 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
 import 'navigation/route_observer.dart';
 import 'screens/screens.dart';
-import 'screens/map_osm_vector_page.dart';
 import 'screens/admin_gate_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
 import 'services/offline_state.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 
 
@@ -28,10 +28,13 @@ Future<void> main() async {
   );
   // Mantén la xarxa de Firestore desactivada per defecte
   //await FirebaseFirestore.instance.disableNetwork();
-  print('✅ Firebase initialized correctly');
+  debugPrint('✅ Firebase initialized correctly');
+
+  await FMTCObjectBoxBackend().initialise();
+  await FMTCStore('basemap').manage.create();
 
   await OfflineBootstrapService.instance.init();
-  print('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
+  debugPrint('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
   
   FlutterNativeSplash.remove();
 
@@ -68,13 +71,10 @@ class MyHomePage extends StatefulWidget {
   final int initialIndex;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState(initialIndex: initialIndex);
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  _MyHomePageState({this.initialIndex = 1});
-
-  final int initialIndex;
   late int _selectedIndex;
   int _adminTapCount = 0;
   DateTime? _adminFirstTap;
@@ -85,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = initialIndex;
+    _selectedIndex = widget.initialIndex;
     _pages = <Widget>[
       MapOSMVectorPage(key: _mapPageKey),
       GuideScreen(onNavigateToTab: _onItemTapped),
@@ -152,7 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
       curve: Curves.easeOut,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       decoration: BoxDecoration(
-        color: selected ? primary.withOpacity(0.14) : Colors.transparent,
+        color: selected ? primary.withValues(alpha: 0.14) : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(

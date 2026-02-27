@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:http/io_client.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/io_client.dart';
 
 class EmailExtractor {
   String? lastFacebookUrl;
@@ -9,7 +9,7 @@ class EmailExtractor {
   void _logEmail(String msg) {
     if (!_debugEmailFilterLogs) return;
     // ignore: avoid_print
-    print(msg);
+    debugPrint(msg);
   }
 
   Future<String?> extract(String baseUrl, {String? businessName, String? locationName}) async {
@@ -79,9 +79,9 @@ final urlsToCheck = <String>{
 
     found.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
 
-    // print('📧 Candidats vàlids trobats per $baseUrl:');
+    // debugPrint('📧 Candidats vàlids trobats per $baseUrl:');
     // for (final e in found) {
-    //   print('   • ${e['email']} → ${e['score']}%  (origen: ${e['origin']})');
+    //   debugPrint('   • ${e['email']} → ${e['score']}%  (origen: ${e['origin']})');
     // }
 
     final best = found.first;
@@ -97,7 +97,7 @@ final urlsToCheck = <String>{
   // ---------------- HTTP amb SSL relaxat ----------------
   Future<String?> _fetchHtmlUnsafe(String url) async {
     try {
-      final client = HttpClient()..badCertificateCallback = (_, __, ___) => true;
+      final client = HttpClient()..badCertificateCallback = (_, _, _) => true;
       final ioClient = IOClient(client);
       final response = await ioClient.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
@@ -133,8 +133,6 @@ final urlsToCheck = <String>{
       .replaceAll(RegExp(r'\s*(?:dot|DOT)\s*'), '.');
 
   // ---------------- Helpers ----------------
-  String _combine(String base, String path) => base.endsWith('/') ? '$base$path' : '$base/$path';
-
   String _domain(String url) {
     try {
       return Uri.parse(url).host.replaceAll('www.', '');
@@ -191,7 +189,9 @@ final urlsToCheck = <String>{
     // 🔹 Pàgina d’origen rellevant
     if (origin.contains('/contact') || origin.contains('/about')) {
       score += 20;
-    } else if (origin.endsWith('/') || origin == domain) score += 10;
+    } else if (origin.endsWith('/') || origin == domain) {
+      score += 10;
+    }
 
     // 🔹 Penalitzacions
     if (e.contains('noreply') || e.contains('do-not-reply')) score -= 30;

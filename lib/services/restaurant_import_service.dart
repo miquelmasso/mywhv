@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'google_places_service.dart';
-import 'postcode_state_helper.dart';
 
 class ImportResult {
   final String postcode;
@@ -81,7 +80,7 @@ class RestaurantImportService {
       );
     }
 
-    final list = await _placesService.SaveTwoRestaurantsForPostcode(number);
+    final list = await _placesService.saveTwoRestaurantsForPostcode(number);
     return ImportResult(
       postcode: normalized,
       valid: true,
@@ -108,7 +107,7 @@ class RestaurantImportService {
     if (!allowed) return 0;
 
     // 🔹 Importa tots els restaurants disponibles per aquest codi (sense límit)
-    final list = await _placesService.SaveTwoRestaurantsForPostcode(
+    final list = await _placesService.saveTwoRestaurantsForPostcode(
       postcodeNum,
       maxToSave: 0, // sense límit: volem tots els del codi en una sola passada
     );

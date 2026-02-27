@@ -79,7 +79,7 @@ class TileCacheService {
     // Quantize key to avoid spamming same area
     final qLat = (center.latitude / 0.5).round() * 0.5;
     final qLon = (center.longitude / 0.5).round() * 0.5;
-    final key = '${zoom}_${qLat}_${qLon}';
+    final key = '${zoom}_${qLat}_$qLon';
     if (_areaPrefetched.contains(key)) return;
     _areaPrefetched.add(key);
 

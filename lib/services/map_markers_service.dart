@@ -9,9 +9,16 @@ class MapMarkersService {
   static final _firestore = FirebaseFirestore.instance;
   static const _cacheKeyJson = 'restaurants_cache_json';
   static const _cacheKeySynced = 'restaurants_cache_synced';
+  static List<Map<String, dynamic>>? _memoryRestaurants;
+  static bool _memorySynced = false;
+
   static Future<List<Map<String, dynamic>>> loadRestaurants({
     required bool fromServer,
   }) async {
+    if (_memoryRestaurants != null && (!fromServer || _memorySynced)) {
+      return _memoryRestaurants!;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final cachedJson = prefs.getString(_cacheKeyJson);
     final cacheSynced = prefs.getBool(_cacheKeySynced) ?? false;
@@ -20,11 +27,9 @@ class MapMarkersService {
     if (!fromServer) {
       if (cacheSynced && cachedJson != null && cachedJson.isNotEmpty) {
         try {
-          final decoded = jsonDecode(cachedJson) as List<dynamic>;
-          final cachedList = decoded
-              .whereType<Map<String, dynamic>>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
+          final cachedList = _decodeCachedList(cachedJson);
+          _memoryRestaurants = cachedList;
+          _memorySynced = cacheSynced;
           debugPrint('📦 CACHE restaurants loaded: ${cachedList.length}');
           return cachedList;
         } catch (e) {
@@ -37,14 +42,14 @@ class MapMarkersService {
     if (fromServer && cacheSynced) {
       try {
         if (cachedJson != null && cachedJson.isNotEmpty) {
-          final decoded = jsonDecode(cachedJson) as List<dynamic>;
-          final cachedList = decoded
-              .whereType<Map<String, dynamic>>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
+          final cachedList = _decodeCachedList(cachedJson);
+          _memoryRestaurants = cachedList;
+          _memorySynced = true;
           debugPrint('📦 CACHE restaurants used (synced): ${cachedList.length}');
           return cachedList;
         } else {
+          _memoryRestaurants = const [];
+          _memorySynced = true;
           debugPrint('📦 CACHE restaurants empty but synced flag set; skipping server call.');
           return const [];
         }
@@ -70,6 +75,8 @@ class MapMarkersService {
     }
 
     debugPrint('✅ Valid restaurants after filter: ${filtered.length}');
+    _memoryRestaurants = filtered;
+    _memorySynced = true;
 
     try {
       final sanitized = filtered.map(_sanitizeForJson).toList();
@@ -81,6 +88,14 @@ class MapMarkersService {
     }
 
     return filtered;
+  }
+
+  static List<Map<String, dynamic>> _decodeCachedList(String cachedJson) {
+    final decoded = jsonDecode(cachedJson) as List<dynamic>;
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(growable: false);
   }
 
   static Set<Marker> buildMarkers(
@@ -140,7 +155,7 @@ class MapMarkersService {
       final data = doc.data();
       if (!data.containsKey('worked_here_count')) {
         await doc.reference.update({'worked_here_count': 0});
-        print('Inicialitzat worked_here_count per ${data['name']}');
+        debugPrint('Inicialitzat worked_here_count per ${data['name']}');
       }
     }
   }

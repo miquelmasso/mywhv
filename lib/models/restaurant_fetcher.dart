@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class RestaurantFetcher {
@@ -74,7 +75,7 @@ class RestaurantFetcher {
 
       return allRestaurants.take(10).toList();
     } catch (e) {
-      print("❌ Error amb el codi $postcode: $e");
+      debugPrint("❌ Error amb el codi $postcode: $e");
       return [];
     }
   }
@@ -101,7 +102,7 @@ class RestaurantFetcher {
       ...snap462.docs.map((d) => d['postcode']),
     }.toList();
 
-    print("🚀 Trobats ${allPostcodes.length} codis únics per 417 i 462");
+    debugPrint("🚀 Trobats ${allPostcodes.length} codis únics per 417 i 462");
 
     for (final postcode in allPostcodes) {
       final restaurants = await _fetchRestaurants(postcode);
@@ -116,11 +117,11 @@ class RestaurantFetcher {
         batch.set(ref462.doc(), r);
       }
       await batch.commit();
-      print("✅ ${restaurants.length} restaurants guardats per $postcode");
+      debugPrint("✅ ${restaurants.length} restaurants guardats per $postcode");
 
       await Future.delayed(const Duration(seconds: 1));
     }
 
-    print("🎉 Finalitzat: tots els restaurants guardats a 417 i 462");
+    debugPrint("🎉 Finalitzat: tots els restaurants guardats a 417 i 462");
   }
 }

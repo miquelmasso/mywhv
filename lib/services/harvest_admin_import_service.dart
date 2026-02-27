@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -68,7 +69,7 @@ class HarvestAdminImportService {
 
     await commitBatch();
     // ignore: avoid_print
-    print('Imported $written harvest places');
+    debugPrint('Imported $written harvest places');
     return written;
   }
 
@@ -83,7 +84,7 @@ class HarvestAdminImportService {
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
-    return '${state}_$postcode\_$slug';
+    return '${state}_${postcode}_$slug';
   }
 
   Future<void> _ensureFirebase() async {
