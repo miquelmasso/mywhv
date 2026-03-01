@@ -26,6 +26,7 @@ import '../services/favorites_service.dart';
 import '../services/email_sender_service.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
+import 'report_message_page.dart';
 import 'admin_page.dart';
 import '../config/admin_config.dart';
 import 'package:mywhv/screens/_pin_tail_painter.dart';
@@ -94,13 +95,18 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   late final AnimationController _tooltipController;
   late final AnimationController _pulseController;
   late final Widget _markerFavoriteIcon;
+  late final Widget _markerFavoriteSelectedIcon;
   late final Widget _markerNightIcon;
+  late final Widget _markerNightSelectedIcon;
   late final Widget _markerCafeIcon;
+  late final Widget _markerCafeSelectedIcon;
   late final Widget _markerStandardIcon;
+  late final Widget _markerStandardSelectedIcon;
   late final Widget _markerHarvestIcon;
   OverlayEntry? _profileTooltip;
   Timer? _tooltipTimer;
   final GlobalKey _profileButtonKey = GlobalKey();
+  final GlobalKey _categorySwitchKey = GlobalKey();
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
@@ -282,20 +288,44 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       icon: Icons.favorite,
       iconSize: 15,
     );
+    _markerFavoriteSelectedIcon = _pinMarker(
+      fill: Colors.pinkAccent,
+      icon: Icons.favorite,
+      iconSize: 15,
+      outlineColor: const Color(0xFFE53935),
+    );
     _markerNightIcon = _pinMarker(
       fill: const Color(0xFF6D28D9),
       icon: Icons.local_bar,
       iconSize: 16,
+    );
+    _markerNightSelectedIcon = _pinMarker(
+      fill: const Color(0xFF6D28D9),
+      icon: Icons.local_bar,
+      iconSize: 16,
+      outlineColor: const Color(0xFFE53935),
     );
     _markerCafeIcon = _pinMarker(
       fill: const Color(0xFF111827),
       icon: Icons.local_cafe,
       iconSize: 16,
     );
+    _markerCafeSelectedIcon = _pinMarker(
+      fill: const Color(0xFF111827),
+      icon: Icons.local_cafe,
+      iconSize: 16,
+      outlineColor: const Color(0xFFE53935),
+    );
     _markerStandardIcon = _pinMarker(
       fill: const Color(0xFFFF8A00),
       icon: Icons.restaurant,
       iconSize: 16,
+    );
+    _markerStandardSelectedIcon = _pinMarker(
+      fill: const Color(0xFFFF8A00),
+      icon: Icons.restaurant,
+      iconSize: 16,
+      outlineColor: const Color(0xFFE53935),
     );
     _markerHarvestIcon = Icon(
       Icons.location_on,
@@ -546,25 +576,78 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   Widget _restaurantMarkerIcon(
     _RestaurantMarkerKind kind, {
     required bool isFavorite,
+    required bool isSelected,
   }) {
-    if (isFavorite) return _markerFavoriteIcon;
-    switch (kind) {
-      case _RestaurantMarkerKind.night:
-        return _markerNightIcon;
-      case _RestaurantMarkerKind.cafe:
-        return _markerCafeIcon;
-      case _RestaurantMarkerKind.standard:
-        return _markerStandardIcon;
+    if (isFavorite) {
+      return isSelected ? _markerFavoriteSelectedIcon : _markerFavoriteIcon;
     }
+    return switch (kind) {
+      _RestaurantMarkerKind.night =>
+        isSelected ? _markerNightSelectedIcon : _markerNightIcon,
+      _RestaurantMarkerKind.cafe =>
+        isSelected ? _markerCafeSelectedIcon : _markerCafeIcon,
+      _RestaurantMarkerKind.standard =>
+        isSelected ? _markerStandardSelectedIcon : _markerStandardIcon,
+    };
+  }
+
+  void _clearTemporarySelection() {
+    if (_selectedRestaurant == null && _selectedHarvest == null) return;
+    _selectedRestaurant = null;
+    _selectedHarvest = null;
+    _updateMarkers();
+  }
+
+  void _zoomToCluster(MarkerClusterNode cluster) {
+    _clearTemporarySelection();
+    var splitNode = cluster;
+    while (splitNode.children.length == 1) {
+      final onlyChild = splitNode.children.first;
+      if (onlyChild is! MarkerClusterNode) break;
+      splitNode = onlyChild;
+    }
+    final targetZoom = (splitNode.zoom + 1.05).clamp(3.0, 18.2).toDouble();
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: splitNode.bounds,
+        padding: const EdgeInsets.fromLTRB(56, 96, 56, 180),
+        minZoom: targetZoom,
+        maxZoom: targetZoom,
+      ),
+    );
+  }
+
+  bool get hasTransientSelection =>
+      _selectedRestaurant != null || _selectedHarvest != null;
+
+  bool consumeBackPress() {
+    if (!hasTransientSelection) return false;
+    _clearTemporarySelection();
+    return true;
+  }
+
+  void _selectRestaurantMarker(Map<String, Object?> marker) {
+    _selectedHarvest = null;
+    _selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
+    _updateMarkers();
+  }
+
+  void _selectHarvestMarker(Map<String, Object?> marker) {
+    _selectedRestaurant = null;
+    _selectedHarvest = marker['data'] as HarvestPlace;
+    _updateMarkers();
   }
 
   void _updateMarkers() {
+    final selectedRestaurantId = (_selectedRestaurant?['docId'] ?? '')
+        .toString();
     final source = _isHospitality
         ? _visibleRestaurantLocations
         : _harvestLocations;
     final nextMarkers = source
-        .map(
-          (r) => Marker(
+        .map((r) {
+          final markerId = (r['id'] ?? '').toString();
+          return Marker(
             point: LatLng(
               (r['lat'] as num).toDouble(),
               (r['lng'] as num).toDouble(),
@@ -573,28 +656,25 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
             height: 28,
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  if (_isHospitality) {
-                    _selectedHarvest = null;
-                    _selectedRestaurant = Map<String, dynamic>.from(
-                      r['data'] as Map,
-                    );
-                  } else {
-                    _selectedRestaurant = null;
-                    _selectedHarvest = r['data'] as HarvestPlace;
-                  }
-                });
+                if (_isHospitality) {
+                  _selectRestaurantMarker(r);
+                } else {
+                  _selectHarvestMarker(r);
+                }
               },
               child: _isHospitality
                   ? _restaurantMarkerIcon(
                       (r['marker_kind'] as _RestaurantMarkerKind?) ??
                           _RestaurantMarkerKind.standard,
-                      isFavorite: _favoritePlaces.contains(r['id']),
+                      isFavorite: _favoritePlaces.contains(markerId),
+                      isSelected:
+                          markerId.isNotEmpty &&
+                          markerId == selectedRestaurantId,
                     )
                   : _markerHarvestIcon,
             ),
-          ),
-        )
+          );
+        })
         .toList(growable: false);
 
     if (!mounted) {
@@ -610,9 +690,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     required Color fill,
     required IconData icon,
     double iconSize = 16,
+    Color? outlineColor,
   }) {
     const double circleSize = 20;
     const double tailHeight = 6;
+    const double outlineWidth = 2.0;
+    final hasOutline = outlineColor != null;
     return SizedBox(
       width: circleSize + 6,
       height: circleSize + tailHeight + 2,
@@ -628,6 +711,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
               decoration: BoxDecoration(
                 color: fill,
                 shape: BoxShape.circle,
+                border: hasOutline
+                    ? Border.all(color: outlineColor, width: outlineWidth)
+                    : null,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -635,6 +721,13 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                     spreadRadius: 0,
                     offset: const Offset(0, 2),
                   ),
+                  if (hasOutline)
+                    BoxShadow(
+                      color: outlineColor.withValues(alpha: 0.16),
+                      blurRadius: 6,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 1),
+                    ),
                 ],
               ),
               alignment: Alignment.center,
@@ -645,7 +738,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
             top: circleSize - 2,
             child: CustomPaint(
               size: const Size(10, tailHeight),
-              painter: PinTailPainter(color: fill),
+              painter: PinTailPainter(
+                color: fill,
+                borderColor: outlineColor,
+                borderWidth: outlineWidth * 0.9,
+                drawTopBorder: !hasOutline,
+              ),
             ),
           ),
         ],
@@ -687,6 +785,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     ).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
   }
 
+  void _openReports() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ReportMessagePage()));
+  }
+
   void _openAdmin() {
     Navigator.of(
       context,
@@ -710,12 +814,16 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _removeProfileTooltip();
     final overlay = Overlay.of(context);
 
-    final renderBox =
+    final profileRenderBox =
         _profileButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-    final targetOffset = renderBox.localToGlobal(Offset.zero);
-    final targetSize = renderBox.size;
+    final switchRenderBox =
+        _categorySwitchKey.currentContext?.findRenderObject() as RenderBox?;
+    if (profileRenderBox == null || switchRenderBox == null) return;
+    final targetOffset = profileRenderBox.localToGlobal(Offset.zero);
+    final targetSize = profileRenderBox.size;
     final targetRect = targetOffset & targetSize;
+    final anchorOffset = switchRenderBox.localToGlobal(Offset.zero);
+    final anchorRect = anchorOffset & switchRenderBox.size;
 
     final animation = CurvedAnimation(
       parent: _tooltipController,
@@ -727,14 +835,16 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _profileTooltip = OverlayEntry(
       builder: (context) {
         return Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _removeProfileTooltip,
-            child: ProfileTooltipOverlay(
-              targetRect: targetRect,
-              fadeSlide: animation,
-              pulse: _pulseController,
-              onClose: _removeProfileTooltip,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _removeProfileTooltip(),
+            child: IgnorePointer(
+              child: ProfileTooltipOverlay(
+                anchorRect: anchorRect,
+                targetRect: targetRect,
+                fadeSlide: animation,
+                pulse: _pulseController,
+              ),
             ),
           ),
         );
@@ -742,7 +852,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
     overlay.insert(_profileTooltip!);
     _tooltipTimer?.cancel();
-    _tooltipTimer = Timer(const Duration(seconds: 4), _removeProfileTooltip);
+    _tooltipTimer = Timer(const Duration(seconds: 3), _removeProfileTooltip);
   }
 
   void _removeProfileTooltip() {
@@ -771,6 +881,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                 onMail: () {
                   Navigator.of(context).pop();
                   _openMailSetup();
+                },
+                onReports: () {
+                  Navigator.of(context).pop();
+                  _openReports();
                 },
                 onFavorites: () {
                   Navigator.of(context).pop();
@@ -1185,7 +1299,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       data: r,
       workedCount: (r['worked_here_count'] ?? 0) as int,
       isFavorite: _favoritePlaces.contains(docId),
-      onClose: () => setState(() => _selectedRestaurant = null),
+      onClose: _clearTemporarySelection,
       onWorkedHere: () => _showWorkedDialog(docId, r['name'] ?? 'this place'),
       onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
       onEmail: () => _showEmailOptions(r['email']),
@@ -1527,10 +1641,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                   ),
                   onTap: (tapPosition, point) {
-                    setState(() {
-                      _selectedRestaurant = null;
-                      _selectedHarvest = null;
-                    });
+                    _clearTemporarySelection();
                   },
                   onPositionChanged: (position, _) {
                     final rotation = position.rotation;
@@ -1574,6 +1685,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                       zoomToBoundsOnClick: false,
                       centerMarkerOnClick: false,
                       spiderfyCluster: false,
+                      onClusterTap: _zoomToCluster,
                       maxClusterRadius:
                           28, // clusters a bit tighter for faster zoom redraws
                       size: const Size(30, 30),
@@ -1646,6 +1758,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                       const SizedBox(width: 10),
                       Expanded(
                         child: CompactCategorySwitch(
+                          key: _categorySwitchKey,
                           selected: _isHospitality
                               ? Category.hospitality
                               : Category.farm,
@@ -1901,8 +2014,8 @@ class _TooltipArrowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white;
     final path = Path()
-      ..moveTo(0, size.height / 2)
-      ..lineTo(size.width, 0)
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(0, size.height)
       ..lineTo(size.width, size.height)
       ..close();
     canvas.drawPath(path, paint);
@@ -1910,7 +2023,7 @@ class _TooltipArrowPainter extends CustomPainter {
     final shadowPaint = Paint()
       ..color = Colors.black.withValues(alpha: 0.08)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawPath(path.shift(const Offset(0.5, 1)), shadowPaint);
+    canvas.drawPath(path.shift(const Offset(0, 1)), shadowPaint);
   }
 
   @override
@@ -1920,21 +2033,37 @@ class _TooltipArrowPainter extends CustomPainter {
 class ProfileTooltipOverlay extends StatelessWidget {
   const ProfileTooltipOverlay({
     super.key,
+    required this.anchorRect,
     required this.targetRect,
     required this.fadeSlide,
     required this.pulse,
-    required this.onClose,
   });
 
+  final Rect anchorRect;
   final Rect targetRect;
   final Animation<double> fadeSlide;
   final Animation<double> pulse;
-  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final bubbleTop = targetRect.center.dy - 18;
-    final bubbleLeft = targetRect.right + 10;
+    final bubbleTop = anchorRect.bottom + 12;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalInset = 18.0;
+    final maxBubbleWidth = 320.0;
+    final arrowWidth = 18.0;
+    final availableWidth = screenWidth - (horizontalInset * 2);
+    final bubbleWidth = math.min(maxBubbleWidth, availableWidth);
+    final maxBubbleLeft = screenWidth - bubbleWidth - horizontalInset;
+    final bubbleLeft = math.max(
+      horizontalInset,
+      math.min(targetRect.left, maxBubbleLeft),
+    );
+    final preferredArrowLeft =
+        targetRect.center.dx - bubbleLeft - (arrowWidth / 2);
+    final arrowLeft = math.max(
+      -(arrowWidth / 2),
+      math.min(preferredArrowLeft, bubbleWidth - (arrowWidth / 2)),
+    );
     return Stack(
       children: [
         Positioned.fill(child: Container(color: Colors.transparent)),
@@ -1965,16 +2094,17 @@ class ProfileTooltipOverlay extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: bubbleLeft,
           top: bubbleTop,
+          left: bubbleLeft,
+          width: bubbleWidth,
           child: FadeTransition(
             opacity: fadeSlide,
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(0, -0.05),
+                begin: const Offset(0, -0.08),
                 end: Offset.zero,
               ).animate(fadeSlide),
-              child: _EnhancedTooltip(onClose: onClose),
+              child: _EnhancedTooltip(arrowLeft: arrowLeft),
             ),
           ),
         ),
@@ -1984,9 +2114,9 @@ class ProfileTooltipOverlay extends StatelessWidget {
 }
 
 class _EnhancedTooltip extends StatelessWidget {
-  const _EnhancedTooltip({required this.onClose});
+  const _EnhancedTooltip({required this.arrowLeft});
 
-  final VoidCallback onClose;
+  final double arrowLeft;
 
   @override
   Widget build(BuildContext context) {
@@ -1996,49 +2126,71 @@ class _EnhancedTooltip extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.98),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFDBEAFE), width: 1.2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.mail_outline, size: 18, color: Colors.black87),
-                SizedBox(width: 8),
-                Text(
-                  'Prepare your mail here',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+              mainAxisSize: MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.mail_outline,
+                    size: 18,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Set up your email',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Tap the profile button above.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF4B5563),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
           Positioned(
-            left: -10,
-            top: 16,
+            top: -10,
+            left: arrowLeft,
             child: CustomPaint(
-              size: const Size(10, 10),
+              size: const Size(18, 10),
               painter: _TooltipArrowPainter(),
-            ),
-          ),
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onClose,
-                borderRadius: BorderRadius.circular(14),
-              ),
             ),
           ),
         ],
@@ -2050,12 +2202,14 @@ class _EnhancedTooltip extends StatelessWidget {
 class _ProfilePopupMenu extends StatelessWidget {
   const _ProfilePopupMenu({
     required this.onMail,
+    required this.onReports,
     required this.onFavorites,
     required this.onAdmin,
     required this.showAdmin,
   });
 
   final VoidCallback onMail;
+  final VoidCallback onReports;
   final VoidCallback onFavorites;
   final VoidCallback onAdmin;
   final bool showAdmin;
@@ -2096,6 +2250,14 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
               text: 'Favourites',
               onTap: onFavorites,
+            ),
+            const SizedBox(height: 14),
+            _ProfileTile(
+              icon: Icons.flag_outlined,
+              iconColor: const Color(0xFFB45309),
+              iconBg: const Color(0xFFFDEBD3),
+              text: 'Send report',
+              onTap: onReports,
             ),
             if (showAdmin) ...[
               const SizedBox(height: 14),

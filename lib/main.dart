@@ -11,8 +11,6 @@ import 'services/offline_bootstrap_service.dart';
 import 'services/offline_state.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
-
-
 // 👇 Fitxers per actualitzar codis postals
 // ignore: unused_import
 import 'models/visa_postcodes_uploader.dart';
@@ -23,9 +21,7 @@ Future<void> main() async {
 
   await dotenv.load(fileName: ".env");
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Mantén la xarxa de Firestore desactivada per defecte
   //await FirebaseFirestore.instance.disableNetwork();
   debugPrint('✅ Firebase initialized correctly');
@@ -35,12 +31,12 @@ Future<void> main() async {
 
   await OfflineBootstrapService.instance.init();
   debugPrint('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
-  
+
   FlutterNativeSplash.remove();
 
   // 🔽 Descomenta aquestes línies si vols actualitzar els codis postals al Firestore:
   //
-  //await VisaPostcodesUploader.uploadVisaPostcodes();     
+  //await VisaPostcodesUploader.uploadVisaPostcodes();
   //
   // Quan s’executin, pujaran tots els codis nous al Firebase i eliminaran els anteriors.
 
@@ -79,7 +75,8 @@ class _MyHomePageState extends State<MyHomePage> {
   int _adminTapCount = 0;
   DateTime? _adminFirstTap;
 
-  final GlobalKey<MapOSMVectorPageState> _mapPageKey = GlobalKey<MapOSMVectorPageState>();
+  final GlobalKey<MapOSMVectorPageState> _mapPageKey =
+      GlobalKey<MapOSMVectorPageState>();
   late final List<Widget> _pages;
 
   @override
@@ -99,7 +96,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final now = DateTime.now();
 
     if (index == forumIndex) {
-      if (_adminFirstTap == null || now.difference(_adminFirstTap!) > const Duration(seconds: 3)) {
+      if (_adminFirstTap == null ||
+          now.difference(_adminFirstTap!) > const Duration(seconds: 3)) {
         _adminFirstTap = now;
         _adminTapCount = 1;
       } else {
@@ -110,9 +108,9 @@ class _MyHomePageState extends State<MyHomePage> {
         _adminTapCount = 0;
         _adminFirstTap = null;
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin gate unlocked')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Admin gate unlocked')));
         _openAdminGate();
       }
     } else {
@@ -129,9 +127,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _openAdminGate() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AdminGatePage()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AdminGatePage()));
     if (result == true && mounted) {
       setState(() {}); // refresh UI to reflect admin session
     }
@@ -165,30 +163,38 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          currentIndex: _selectedIndex,
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          onTap: _onItemTapped,
-          items: <BottomNavigationBarItem>[
-            _buildNavItem(Icons.map_outlined, 0),
-            _buildNavItem(Icons.lightbulb_outline, 1),
-            _buildNavItem(Icons.auto_awesome, 2),
-            _buildNavItem(Icons.forum_outlined, 3),
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final handledByMap =
+            _selectedIndex == 0 &&
+            (_mapPageKey.currentState?.consumeBackPress() ?? false);
+        if (handledByMap) return;
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _selectedIndex, children: _pages),
+        bottomNavigationBar: Theme(
+          data: Theme.of(context).copyWith(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+          ),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            currentIndex: _selectedIndex,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            onTap: _onItemTapped,
+            items: <BottomNavigationBarItem>[
+              _buildNavItem(Icons.map_outlined, 0),
+              _buildNavItem(Icons.lightbulb_outline, 1),
+              _buildNavItem(Icons.auto_awesome, 2),
+              _buildNavItem(Icons.forum_outlined, 3),
+            ],
+          ),
         ),
       ),
     );

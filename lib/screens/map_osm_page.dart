@@ -483,7 +483,7 @@ class _MapPageOSMState extends State<MapPageOSM>
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.mywhv',
+                userAgentPackageName: 'com.workyday.mywhv',
                 maxZoom: 18.5,
                 minZoom: 3.0,
                 retinaMode: false,

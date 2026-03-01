@@ -13,7 +13,8 @@
     <application
         android:label="WorkyDay"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
 
         <!-- ✅ Clau d'API de Google Maps -->
         <meta-data

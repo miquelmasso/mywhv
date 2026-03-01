@@ -1,4 +1,4 @@
-package com.example.mywhv
+package com.workyday.mywhv
 
 import io.flutter.embedding.android.FlutterActivity
 
