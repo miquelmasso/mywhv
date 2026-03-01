@@ -59,7 +59,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Enviar report')),
+      appBar: AppBar(title: const Text('Send report')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -67,7 +67,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Missatge',
+                'Message',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -82,7 +82,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
                   decoration: InputDecoration(
-                    hintText: 'Escriu el teu missatge...',
+                    hintText: 'Write your message...',
                     filled: true,
                     fillColor: const Color(0xFFF8F6F6),
                     counterText: '',
@@ -155,7 +155,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
                           ),
                         )
                       : const Text(
-                          'Enviar',
+                          'Send',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -165,7 +165,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Entre 5 i 2000 caràcters.',
+                'Between 5 and 2000 characters.',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade600,
@@ -174,7 +174,7 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'El report s\'envia al backend segur de WorkyDay.',
+                'This report is sent through the secure WorkyDay backend.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
               const SizedBox(height: 2),

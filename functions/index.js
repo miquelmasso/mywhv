@@ -181,7 +181,7 @@ exports.extractContactsFromUrl = functions
 
 exports.sendReport = functions
   .region(REGION)
-  .runWith({ secrets: ['re_iW6ugcGv_GncJPSmj2CNfTcumkLvuyjsS'] })
+  .runWith({ secrets: ['RESEND_API_KEY'] })
   .https.onRequest(async (req, res) => {
     setCorsHeaders(req, res);
 

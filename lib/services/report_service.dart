@@ -35,7 +35,7 @@ class ReportService {
         trimmedMessage.length > _maxMessageLength) {
       return const ReportServiceResult(
         success: false,
-        message: 'El missatge ha de tenir entre 5 i 2000 caràcters.',
+        message: 'The message must be between 5 and 2000 characters.',
         statusCode: 400,
       );
     }
@@ -45,7 +45,7 @@ class ReportService {
       return const ReportServiceResult(
         success: false,
         message:
-            'Falta configurar REPORT_BACKEND_URL al client. Afegeix la URL real del backend de reports.',
+            'REPORT_BACKEND_URL is missing on the client. Add the real reports backend URL.',
       );
     }
 
@@ -53,7 +53,7 @@ class ReportService {
     if (parsedUri == null) {
       return const ReportServiceResult(
         success: false,
-        message: 'La URL del backend de reports no és vàlida.',
+        message: 'The reports backend URL is invalid.',
       );
     }
 
@@ -86,7 +86,7 @@ class ReportService {
     if (response == null) {
       return const ReportServiceResult(
         success: false,
-        message: 'No s\'ha pogut contactar amb el servidor de reports.',
+        message: 'Could not contact the reports server.',
       );
     }
 
@@ -97,7 +97,7 @@ class ReportService {
           : null;
       return ReportServiceResult(
         success: true,
-        message: 'Report enviat correctament.',
+        message: 'Report sent successfully.',
         statusCode: response.statusCode,
         reportId: reportId,
       );
@@ -106,7 +106,7 @@ class ReportService {
     if (response.statusCode == 429) {
       return const ReportServiceResult(
         success: false,
-        message: 'Has arribat al límit diari.',
+        message: 'You have reached the daily limit.',
         statusCode: 429,
       );
     }
@@ -118,7 +118,7 @@ class ReportService {
       success: false,
       message: serverError.isNotEmpty
           ? serverError
-          : 'No s\'ha pogut enviar el report.',
+          : 'Could not send the report.',
       statusCode: response.statusCode,
     );
   }

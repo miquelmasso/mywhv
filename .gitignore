@@ -45,7 +45,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-
-GOOGLE_PLACES_API_KEY=AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI
-FIREBASE_API_KEY=AIzaSyBry00LSqGVK_6iHAxC5HuqXUTgtkdXLVI
-
+/android/build/
+/patched_packages/**/build/
