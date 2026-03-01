@@ -1,11 +1,9 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../screens/restaurant_edit_page.dart';
+import 'csv_export_helper.dart';
 
 class EmailsListPage extends StatefulWidget {
   const EmailsListPage({super.key});
@@ -29,20 +27,29 @@ class _EmailsListPageState extends State<EmailsListPage> {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('restaurants')
-          .orderBy('name')
           .get();
 
-      final list = snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            return {
-              'docId': doc.id,
-              'name': (data['name'] ?? 'Sense nom').toString(),
-              'email': (data['email'] ?? '').toString().trim(),
-            };
-          })
-          .where((r) => (r['email'] as String).isNotEmpty)
-          .toList(growable: false);
+      final list =
+          snapshot.docs
+              .map((doc) {
+                final data = doc.data();
+                return {
+                  'docId': doc.id,
+                  'name': (data['name'] ?? 'Sense nom').toString(),
+                  'email': _extractEmail(data),
+                };
+              })
+              .where((r) => (r['email'] as String).isNotEmpty)
+              .toList(growable: true)
+            ..sort((a, b) {
+              final nameA = (a['name'] ?? '').toString().trim().toLowerCase();
+              final nameB = (b['name'] ?? '').toString().trim().toLowerCase();
+              final byName = nameA.compareTo(nameB);
+              if (byName != 0) return byName;
+              final idA = (a['docId'] ?? '').toString();
+              final idB = (b['docId'] ?? '').toString();
+              return idA.compareTo(idB);
+            });
 
       if (!mounted) return;
       setState(() {
@@ -56,50 +63,26 @@ class _EmailsListPageState extends State<EmailsListPage> {
     }
   }
 
-  String _csvEscape(String value) {
-    final escaped = value.replaceAll('"', '""');
-    final mustQuote =
-        escaped.contains(',') ||
-        escaped.contains('"') ||
-        escaped.contains('\n');
-    return mustQuote ? '"$escaped"' : escaped;
-  }
+  String _extractEmail(Map<String, dynamic> data) {
+    final primary = (data['email'] ?? '').toString().trim();
+    final legacyEmails =
+        (data['emails'] as List?)
+            ?.whereType<String>()
+            .map((email) => email.trim())
+            .where((email) => email.isNotEmpty)
+            .toList(growable: false) ??
+        const <String>[];
 
-  String _timestampForFileName(DateTime now) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}${two(now.second)}';
-  }
-
-  Future<Directory> _resolveExportDirectory() async {
-    final appDocuments = await getApplicationDocumentsDirectory();
-
-    // iOS Simulator: try to save directly in host Mac Downloads.
-    if (Platform.isIOS) {
-      const simulatorMarker = '/Library/Developer/CoreSimulator/Devices/';
-      final idx = appDocuments.path.indexOf(simulatorMarker);
-      if (idx > 0) {
-        final macHome = appDocuments.path.substring(0, idx);
-        final downloads = Directory('$macHome/Downloads');
-        if (await downloads.exists()) {
-          return downloads;
-        }
-      }
+    if (primary.isEmpty) {
+      return legacyEmails.join(', ');
     }
 
-    if (Platform.isAndroid) {
-      final external = await getExternalStorageDirectory();
-      if (external != null) return external;
+    if (legacyEmails.isEmpty) {
+      return primary;
     }
 
-    final home = Platform.environment['HOME'];
-    if (home != null && home.isNotEmpty) {
-      final downloads = Directory('$home/Downloads');
-      if (await downloads.exists()) {
-        return downloads;
-      }
-    }
-
-    return appDocuments;
+    final uniqueEmails = <String>{primary, ...legacyEmails};
+    return uniqueEmails.join(', ');
   }
 
   Future<void> _exportCsv() async {
@@ -107,28 +90,26 @@ class _EmailsListPageState extends State<EmailsListPage> {
 
     setState(() => _exporting = true);
     try {
-      final rows = <String>['doc_id,name,email'];
-      for (final row in _restaurants) {
-        final docId = (row['docId'] ?? '').toString();
-        final name = (row['name'] ?? '').toString();
-        final email = (row['email'] ?? '').toString();
-        rows.add(
-          '${_csvEscape(docId)},${_csvEscape(name)},${_csvEscape(email)}',
-        );
-      }
+      final filePath = await exportRowsAsCsv(
+        filePrefix: 'restaurants_emails',
+        headers: const ['doc_id', 'name', 'email'],
+        rows: _restaurants
+            .map(
+              (row) => [
+                (row['docId'] ?? '').toString(),
+                (row['name'] ?? '').toString(),
+                (row['email'] ?? '').toString(),
+              ],
+            )
+            .toList(growable: false),
+      );
 
-      final directory = await _resolveExportDirectory();
-      final fileName =
-          'restaurants_emails_${_timestampForFileName(DateTime.now())}.csv';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(rows.join('\n'), flush: true);
-
-      await Clipboard.setData(ClipboardData(text: file.path));
+      await Clipboard.setData(ClipboardData(text: filePath));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'CSV creat (${_restaurants.length} correus). Path copiat: ${file.path}',
+            'CSV creat (${_restaurants.length} correus). Path copiat: $filePath',
           ),
         ),
       );

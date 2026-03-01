@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/restaurant_edit_page.dart';
+import 'csv_export_helper.dart';
 
 class InstagramListPage extends StatefulWidget {
   const InstagramListPage({super.key});
@@ -13,6 +15,7 @@ class InstagramListPage extends StatefulWidget {
 
 class _InstagramListPageState extends State<InstagramListPage> {
   bool _loading = true;
+  bool _exporting = false;
   List<Map<String, dynamic>> _restaurants = [];
 
   @override
@@ -28,21 +31,65 @@ class _InstagramListPageState extends State<InstagramListPage> {
           .orderBy('name')
           .get();
 
-      final list = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'name': data['name'] ?? 'Sense nom',
-          'instagram_url': (data['instagram_url'] ?? '').toString(),
-        };
-      }).where((r) => (r['instagram_url'] as String).trim().isNotEmpty).toList();
+      final list = snapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            return {
+              'docId': doc.id,
+              'name': (data['name'] ?? 'Sense nom').toString(),
+              'instagram_url': (data['instagram_url'] ?? '').toString().trim(),
+            };
+          })
+          .where((r) => (r['instagram_url'] as String).isNotEmpty)
+          .toList(growable: false);
 
+      if (!mounted) return;
       setState(() {
         _restaurants = list;
         _loading = false;
       });
     } catch (e) {
       debugPrint('❌ Error carregant enllaços d\'Instagram: $e');
+      if (!mounted) return;
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    if (_loading || _exporting || _restaurants.isEmpty) return;
+
+    setState(() => _exporting = true);
+    try {
+      final filePath = await exportRowsAsCsv(
+        filePrefix: 'restaurants_instagram',
+        headers: const ['doc_id', 'name', 'instagram_url'],
+        rows: _restaurants
+            .map(
+              (row) => [
+                (row['docId'] ?? '').toString(),
+                (row['name'] ?? '').toString(),
+                (row['instagram_url'] ?? '').toString(),
+              ],
+            )
+            .toList(growable: false),
+      );
+
+      await Clipboard.setData(ClipboardData(text: filePath));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'CSV creat (${_restaurants.length} Instagram). Path copiat: $filePath',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error creant CSV: $e')));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
@@ -66,56 +113,104 @@ class _InstagramListPageState extends State<InstagramListPage> {
       appBar: AppBar(
         title: const Text('Enllaços d\'Instagram'),
         backgroundColor: Colors.pinkAccent,
+        actions: [
+          IconButton(
+            tooltip: 'Recarregar',
+            onPressed: _loading || _exporting ? null : _loadInstagramLinks,
+            icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            tooltip: 'Exportar CSV',
+            onPressed: _loading || _exporting ? null : _exportCsv,
+            icon: _exporting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download_outlined),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _restaurants.isEmpty
-              ? const Center(child: Text('⚠️ No hi ha dades.'))
-              : ListView.builder(
+          ? const Center(child: Text('⚠️ No hi ha dades.'))
+          : Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                   padding: const EdgeInsets.all(12),
-                  itemCount: _restaurants.length,
-                  itemBuilder: (context, i) {
-                    final r = _restaurants[i];
-                    final name = r['name'];
-                    final link = r['instagram_url'];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        title: Text(
-                          name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        subtitle: InkWell(
-                          onTap: () => _openUrl(link),
-                          child: Text(
-                            link,
-                            style: const TextStyle(
-                              color: Colors.blue,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          tooltip: 'Editar restaurant',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RestaurantEditPage(
-                                  initialSearch: name,
-                                ),
-                              ),
-                            );
-                          },
+                  decoration: BoxDecoration(
+                    color: Colors.pink.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.pink.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Enllaços totals: ${_restaurants.length}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                    );
-                  },
+                      ElevatedButton.icon(
+                        onPressed: _exporting ? null : _exportCsv,
+                        icon: const Icon(Icons.description_outlined),
+                        label: const Text('Generar CSV'),
+                      ),
+                    ],
+                  ),
                 ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _restaurants.length,
+                    itemBuilder: (context, i) {
+                      final r = _restaurants[i];
+                      final name = (r['name'] ?? '').toString();
+                      final link = (r['instagram_url'] ?? '').toString();
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(
+                            name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: InkWell(
+                            onTap: () => _openUrl(link),
+                            child: Text(
+                              link,
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            tooltip: 'Editar restaurant',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      RestaurantEditPage(initialSearch: name),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
