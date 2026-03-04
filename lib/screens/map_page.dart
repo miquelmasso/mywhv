@@ -13,7 +13,6 @@ import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -105,7 +104,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     Widget textWidget;
     final lower = label.toLowerCase();
     if (lower.contains('(soon)')) {
-      final mainText = label.replaceAll(RegExp(r'\s*\(soon\)', caseSensitive: false), '');
+      final mainText = label.replaceAll(
+        RegExp(r'\s*\(soon\)', caseSensitive: false),
+        '',
+      );
       textWidget = RichText(
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -117,7 +119,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             TextSpan(
               text: '(soon)',
               style: secondaryStyle.copyWith(
-                fontSize: baseStyle.fontSize != null ? baseStyle.fontSize! - 1 : null,
+                fontSize: baseStyle.fontSize != null
+                    ? baseStyle.fontSize! - 1
+                    : null,
                 color: baseStyle.color?.withValues(alpha: 0.7),
               ),
             ),
@@ -187,27 +191,33 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     String? statusLog;
     try {
       if (fromServer) statusLog = '🌐 Restaurants des del servidor...';
-      final restaurantDocs =
-          await MapMarkersService.loadRestaurants(fromServer: fromServer);
+      final restaurantDocs = await MapMarkersService.loadRestaurants(
+        fromServer: fromServer,
+      );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
       } else if (!fromServer) {
         final seeded = await _loadSeedRestaurantsFromAsset();
         if (seeded.isNotEmpty) {
-          debugPrint('🌱 Restaurants carregats des de seed local: ${seeded.length}');
+          debugPrint(
+            '🌱 Restaurants carregats des de seed local: ${seeded.length}',
+          );
           _restaurantLocations = _buildRestaurantLocations(seeded);
         } else {
           debugPrint('⚠️ Sense restaurants al cache ni seed local');
         }
       }
     } catch (e) {
-      debugPrint('❌ Error carregant restaurants (${fromServer ? 'server' : 'cache'}): $e');
+      debugPrint(
+        '❌ Error carregant restaurants (${fromServer ? 'server' : 'cache'}): $e',
+      );
     }
 
     try {
       if (fromServer) statusLog = '🌐 Harvest des del servidor...';
-      final harvestPlaces =
-          await HarvestPlacesService.loadHarvestPlaces(fromServer: fromServer);
+      final harvestPlaces = await HarvestPlacesService.loadHarvestPlaces(
+        fromServer: fromServer,
+      );
       if (harvestPlaces.isNotEmpty) {
         _harvestLocations = _buildHarvestLocations(harvestPlaces);
       } else if (!fromServer) {
@@ -220,7 +230,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error carregant harvest (${fromServer ? 'server' : 'cache'}): $e');
+      debugPrint(
+        '❌ Error carregant harvest (${fromServer ? 'server' : 'cache'}): $e',
+      );
     }
 
     if (!fromServer &&
@@ -229,7 +241,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         _markers.isEmpty) {
       _dataStatusMessage =
           'Sense dades locals. Prem “Actualitzar” quan tinguis internet o inclou un seed JSON.';
-    } else if (_restaurantLocations.isNotEmpty || _harvestLocations.isNotEmpty) {
+    } else if (_restaurantLocations.isNotEmpty ||
+        _harvestLocations.isNotEmpty) {
       _dataStatusMessage = null;
     }
 
@@ -239,7 +252,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Future<List<Map<String, dynamic>>> _loadSeedRestaurantsFromAsset() async {
     try {
-      final raw = await rootBundle.loadString('assets/data/restaurants_seed.json');
+      final raw = await rootBundle.loadString(
+        'assets/data/restaurants_seed.json',
+      );
       final data = jsonDecode(raw);
       final List list;
       if (data is List) {
@@ -265,19 +280,24 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   Future<List<HarvestPlace>> _loadSeedHarvestFromAsset() async {
     try {
-      final raw = await rootBundle.loadString('assets/data/harvest_places_2025.json');
+      final raw = await rootBundle.loadString(
+        'assets/data/harvest_places_2025.json',
+      );
       final data = jsonDecode(raw);
       if (data is List) {
         return data
-            .map((entry) => HarvestPlace(
-                  id: entry['id']?.toString() ?? '',
-                  name: (entry['name'] ?? '').toString(),
-                  postcode: (entry['postcode'] ?? '').toString(),
-                  state: (entry['state'] ?? '').toString(),
-                  latitude: (entry['latitude'] ?? entry['lat'])?.toDouble() ?? 0,
-                  longitude: (entry['longitude'] ?? entry['lng'])?.toDouble() ?? 0,
-                  description: entry['description']?.toString(),
-                ))
+            .map(
+              (entry) => HarvestPlace(
+                id: entry['id']?.toString() ?? '',
+                name: (entry['name'] ?? '').toString(),
+                postcode: (entry['postcode'] ?? '').toString(),
+                state: (entry['state'] ?? '').toString(),
+                latitude: (entry['latitude'] ?? entry['lat'])?.toDouble() ?? 0,
+                longitude:
+                    (entry['longitude'] ?? entry['lng'])?.toDouble() ?? 0,
+                description: entry['description']?.toString(),
+              ),
+            )
             .where((p) => p.id.isNotEmpty)
             .toList();
       }
@@ -301,7 +321,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       if (docId.isEmpty) continue;
       if (data['blocked'] == true) continue;
 
-      final hasData = ((data['facebook_url'] ?? '').toString().isNotEmpty ||
+      final hasData =
+          ((data['facebook_url'] ?? '').toString().isNotEmpty ||
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
@@ -329,9 +350,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     return locations;
   }
 
-  List<Map<String, Object?>> _buildHarvestLocations(
-    List<HarvestPlace> places,
-  ) {
+  List<Map<String, Object?>> _buildHarvestLocations(List<HarvestPlace> places) {
     final List<Map<String, Object?>> locations = [];
 
     for (final p in places) {
@@ -354,21 +373,21 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   void _openMailSetup() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MailSetupPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MailSetupPage()));
   }
 
   void _openFavorites() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FavoritesScreen()));
   }
 
   void _openAdmin() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AdminPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AdminPage()));
   }
 
   void _showProfilePopup() {
@@ -397,7 +416,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   Navigator.of(context).pop();
                   _openAdmin();
                 },
-                showAdmin: true, // Mateixa condició que l'accés anterior (ara era sempre visible).
+                showAdmin:
+                    true, // Mateixa condició que l'accés anterior (ara era sempre visible).
               ),
             ),
           ),
@@ -407,10 +427,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         final curved = Curves.easeOutCubic.transform(animation.value);
         return FadeTransition(
           opacity: animation,
-          child: Transform.scale(
-            scale: 0.95 + 0.05 * curved,
-            child: child,
-          ),
+          child: Transform.scale(scale: 0.95 + 0.05 * curved, child: child),
         );
       },
     );
@@ -440,8 +457,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       return;
     }
 
-    final filteredRestaurants =
-        _restaurantLocations.where(_passesFilter).toList();
+    final filteredRestaurants = _restaurantLocations
+        .where(_passesFilter)
+        .toList();
 
     if (filteredRestaurants.isEmpty) {
       setState(() {
@@ -458,12 +476,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     List<Map<String, Object?>> locations,
     double zoom,
   ) async {
-
-  // 🔹 2. Genera els marcadors (i clústers) amb totes les localitzacions
-  final newMarkers = await OverlayHelper.generateClusterMarkers(
-    locations: locations,
-    zoom: zoom,
-  );
+    // 🔹 2. Genera els marcadors (i clústers) amb totes les localitzacions
+    final newMarkers = await OverlayHelper.generateClusterMarkers(
+      locations: locations,
+      zoom: zoom,
+    );
 
     final Set<Marker> updatedMarkers = {};
 
@@ -472,10 +489,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       if (!marker.markerId.value.startsWith('cluster_')) {
         final id = marker.markerId.value;
         final baseId = _baseMarkerId(id);
-      final locationData = locations.cast<Map<String, Object?>>().firstWhere(
-            (loc) => loc['id'] == baseId,
-            orElse: () => <String, Object?>{},
-          );
+        final locationData = locations.cast<Map<String, Object?>>().firstWhere(
+          (loc) => loc['id'] == baseId,
+          orElse: () => <String, Object?>{},
+        );
 
         if (locationData.isEmpty) {
           updatedMarkers.add(marker);
@@ -486,8 +503,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         final workedCount = (rawCount is int)
             ? rawCount
             : (rawCount is num)
-                ? rawCount.toInt()
-                : int.tryParse(rawCount.toString()) ?? 0;
+            ? rawCount.toInt()
+            : int.tryParse(rawCount.toString()) ?? 0;
 
         final isFavorite = _favoritePlaces.contains(baseId);
         final customIcon = isFavorite
@@ -516,7 +533,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     for (final suffix in suffixes) {
       if (markerId.endsWith(suffix)) {
-        final candidate = markerId.substring(0, markerId.length - suffix.length);
+        final candidate = markerId.substring(
+          0,
+          markerId.length - suffix.length,
+        );
         final exists = _currentLocations().any((loc) => loc['id'] == candidate);
         if (exists) return candidate;
       }
@@ -585,15 +605,16 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               Positioned.fill(
                 child: GestureDetector(
                   onTap: _closeFilterOverlay,
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.25),
-                  ),
+                  child: Container(color: Colors.black.withValues(alpha: 0.25)),
                 ),
               ),
               CompositedTransformFollower(
                 link: _filterLink,
                 showWhenUnlinked: false,
-                offset: Offset(-(sheetWidth - 44), 56), // aligns popover to icon
+                offset: Offset(
+                  -(sheetWidth - 44),
+                  56,
+                ), // aligns popover to icon
                 child: StatefulBuilder(
                   builder: (context, setPopoverState) {
                     return Material(
@@ -632,7 +653,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                     leading: const Icon(Icons.select_all),
                                     title: const Text(
                                       'All',
-                                      style: TextStyle(fontWeight: FontWeight.w600),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     trailing: Checkbox(
                                       value: _allSelected,
@@ -647,14 +670,17 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                                     final key = option['key'] as String;
                                     final label = option['label'] as String;
                                     final icon = option['icon'] as IconData;
-                                    final selected = _selectedSources.contains(key);
+                                    final selected = _selectedSources.contains(
+                                      key,
+                                    );
                                     return CheckboxListTile(
                                       value: selected,
                                       onChanged: (_) {
                                         _setSourceSelection(key, !selected);
                                         setPopoverState(() {});
                                       },
-                                      controlAffinity: ListTileControlAffinity.trailing,
+                                      controlAffinity:
+                                          ListTileControlAffinity.trailing,
                                       secondary: Icon(
                                         icon,
                                         color: selected
@@ -735,8 +761,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     final Iterable<String> sources = rawSources is Set<String>
         ? rawSources
         : rawSources is Iterable
-            ? rawSources.whereType<String>()
-            : const Iterable.empty();
+        ? rawSources.whereType<String>()
+        : const Iterable.empty();
 
     if (sources.isEmpty) return false;
     return sources.any(_selectedSources.contains);
@@ -777,8 +803,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final offset = center -
-        Offset(textPainter.width / 2, textPainter.height / 2);
+    final offset =
+        center - Offset(textPainter.width / 2, textPainter.height / 2);
     textPainter.paint(canvas, offset);
 
     final img = await recorder.endRecording().toImage(size, size);
@@ -807,7 +833,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     }
 
     await prefs.setStringList('favorite_places', current.toList());
-    debugPrint('❤️ Toggle favorite $restaurantId -> $added; total=${current.length}');
+    debugPrint(
+      '❤️ Toggle favorite $restaurantId -> $added; total=${current.length}',
+    );
     setState(() => _favoritePlaces = current);
     _updateMarkers(_currentZoom);
     FavoritesService.broadcast(_favoritePlaces);
@@ -895,7 +923,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                         ),
                         onPressed: () async {
                           final saved =
-                              (await EmailSenderService.getSavedEmailContent())?.trim();
+                              (await EmailSenderService.getSavedEmailContent())
+                                  ?.trim();
                           if (!context.mounted) return;
                           if (saved == null || saved.isEmpty) {
                             entry.remove();
@@ -964,9 +993,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the link')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
     }
   }
 
@@ -1020,10 +1049,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
       if (undo == true) {
         try {
-          await FirebaseFirestore.instance
-              .collection('restaurants')
-              .doc(restaurantId)
-              .update({'worked_here_count': FieldValue.increment(-1)});
+          await MapMarkersService.decrementWorkedHere(restaurantId);
           workedList.remove(restaurantId);
           await prefs.setStringList('worked_places', workedList);
           _updateLocalWorkedHere(restaurantId, -1);
@@ -1081,27 +1107,20 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     if (result == true) {
       try {
-        await FirebaseFirestore.instance
-            .collection('restaurants')
-            .doc(restaurantId)
-            .update({'worked_here_count': FieldValue.increment(1)});
+        await MapMarkersService.incrementWorkedHere(restaurantId);
         workedList.add(restaurantId);
         await prefs.setStringList('worked_places', workedList);
         _updateLocalWorkedHere(restaurantId, 1);
         _updateMarkers(_currentZoom);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Thanks! $restaurantName added',
-            ),
-          ),
+          SnackBar(content: Text('✅ Thanks! $restaurantName added')),
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error registering: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error registering: $e')));
       }
     }
   }
@@ -1110,17 +1129,21 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     for (final loc in _restaurantLocations) {
       if (loc['id'] == restaurantId) {
         final raw = loc['worked_here_count'] ?? 0;
-        final current =
-            (raw is num) ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
-        loc['worked_here_count'] = current + delta;
+        final current = (raw is num)
+            ? raw.toInt()
+            : int.tryParse(raw.toString()) ?? 0;
+        final next = current + delta;
+        loc['worked_here_count'] = next < 0 ? 0 : next;
       }
     }
     if (_selectedRestaurant != null &&
         _selectedRestaurant?['docId'] == restaurantId) {
       final raw = _selectedRestaurant?['worked_here_count'] ?? 0;
-      final current =
-          (raw is num) ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
-      _selectedRestaurant!['worked_here_count'] = current + delta;
+      final current = (raw is num)
+          ? raw.toInt()
+          : int.tryParse(raw.toString()) ?? 0;
+      final next = current + delta;
+      _selectedRestaurant!['worked_here_count'] = next < 0 ? 0 : next;
     }
   }
 
@@ -1194,10 +1217,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   child: const SizedBox(
                     height: 48,
                     width: 48,
-                    child: Icon(
-                      Icons.person_outline,
-                      color: Colors.black87,
-                    ),
+                    child: Icon(Icons.person_outline, color: Colors.black87),
                   ),
                 ),
               ),
@@ -1219,10 +1239,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                     child: const SizedBox(
                       height: 48,
                       width: 48,
-                      child: Icon(
-                        Icons.filter_list,
-                        color: Colors.black87,
-                      ),
+                      child: Icon(Icons.filter_list, color: Colors.black87),
                     ),
                   ),
                 ),
@@ -1270,7 +1287,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               ),
             ),
           ),
-/*
+          /*
           Positioned(
             top: 50,
             right: 15,
@@ -1284,7 +1301,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             ),
           ),
 */
-          if (!_isHospitality && _selectedHarvest != null && _harvestScreenOffset != null)
+          if (!_isHospitality &&
+              _selectedHarvest != null &&
+              _harvestScreenOffset != null)
             HarvestMonthsRadialOverlay(
               centerScreen: _harvestScreenOffset!,
               radius: 52,
@@ -1301,7 +1320,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                   color: Colors.white,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     child: Row(
                       children: [
                         const Icon(Icons.offline_pin, color: Colors.blueAccent),
@@ -1335,10 +1357,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       workedCount: (r['worked_here_count'] ?? 0) as int,
       isFavorite: _favoritePlaces.contains(docId),
       onClose: () => setState(() => _selectedRestaurant = null),
-      onWorkedHere: () => _showWorkedDialog(
-        docId,
-        r['name'] ?? 'aquest lloc',
-      ),
+      onWorkedHere: () => _showWorkedDialog(docId, r['name'] ?? 'aquest lloc'),
       onCopyPhone: () => _copyToClipboard(r['phone'], 'Phone copied'),
       onEmail: () => _showEmailOptions(r['email']),
       onFacebook: () => _openUrl(r['facebook_url']),
@@ -1362,10 +1381,16 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   void _updateHarvestScreenOffset() async {
     if (_selectedHarvest == null || _controller == null) return;
-    final latLng = LatLng(_selectedHarvest!.latitude, _selectedHarvest!.longitude);
+    final latLng = LatLng(
+      _selectedHarvest!.latitude,
+      _selectedHarvest!.longitude,
+    );
     final sc = await _controller!.getScreenCoordinate(latLng);
     setState(() {
-      _harvestScreenOffset = Offset(sc.x.toDouble(), sc.y.toDouble() - 8); // slight lift
+      _harvestScreenOffset = Offset(
+        sc.x.toDouble(),
+        sc.y.toDouble() - 8,
+      ); // slight lift
     });
   }
 }
@@ -1499,7 +1524,10 @@ class _ProfileTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               const Icon(Icons.chevron_right, color: Colors.black45),

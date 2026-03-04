@@ -13,7 +13,6 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -49,6 +48,10 @@ final Map<String, TileProviders> _tileProvidersCache = {};
 
 class MapOSMVectorPageState extends State<MapOSMVectorPage>
     with TickerProviderStateMixin {
+  static const bool _showZoomOutButton = false;
+  static const double _locationFabBottom = 144;
+  static const double _initialKangarooBottomOffset = 212;
+
   final MapController _mapController = MapController();
   static const LatLng _defaultCenter = LatLng(-25.0, 133.0);
   static const double _defaultZoom = 4.5;
@@ -76,7 +79,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   Set<String> _favoritePlaces = {};
   StreamSubscription<Set<String>>? _favoritesSub;
   bool _isLocating = false;
+  bool _showInitialKangarooHint = false;
   Timer? _zoomPrefetchDebounce;
+  Timer? _initialKangarooTimer;
   bool _isZoomPrefetchRunning = false;
   final Queue<String> _prefetchedTileKeysQueue = Queue<String>();
   final Set<String> _prefetchedTileKeysSet = <String>{};
@@ -116,6 +121,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       ? streetsStyleUrl
       : minimalStyleUrl;
   bool _didKickstartRender = false;
+  bool _didCheckInitialKangarooHint = false;
   Future<Directory>? _vectorCacheFolderFuture;
   static const int _maxPrefetchTilesPerZoom = 28;
   static const int _maxPrefetchedTileKeys = 2400;
@@ -359,6 +365,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _persistDebounce?.cancel();
     _tileLoadingTimeout?.cancel();
     _zoomPrefetchDebounce?.cancel();
+    _initialKangarooTimer?.cancel();
     _favoritesSub?.cancel();
     _closeFilterOverlay();
     FlutterError.onError = _originalOnError;
@@ -464,6 +471,26 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     await prefs.setDouble('map_last_lat', center.latitude);
     await prefs.setDouble('map_last_lng', center.longitude);
     await prefs.setDouble('map_last_zoom', clampedZoom);
+  }
+
+  Future<void> _maybeShowInitialKangarooHint() async {
+    if (_didCheckInitialKangarooHint) return;
+    _didCheckInitialKangarooHint = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'seen_map_initial_kangaroo_hint';
+    final seen = prefs.getBool(key) ?? false;
+    if (seen || !mounted || !_isHospitality) return;
+
+    await prefs.setBool(key, true);
+    if (!mounted || !_isHospitality) return;
+
+    setState(() => _showInitialKangarooHint = true);
+    _initialKangarooTimer?.cancel();
+    _initialKangarooTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _showInitialKangarooHint = false);
+    });
   }
 
   Future<void> _loadData({required bool fromServer}) async {
@@ -954,7 +981,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         final current = (raw is num)
             ? raw.toInt()
             : int.tryParse(raw.toString()) ?? 0;
-        loc['worked_here_count'] = current + delta;
+        loc['worked_here_count'] = math.max(0, current + delta);
       }
     }
     if (_selectedRestaurant != null &&
@@ -963,7 +990,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       final current = (raw is num)
           ? raw.toInt()
           : int.tryParse(raw.toString()) ?? 0;
-      _selectedRestaurant!['worked_here_count'] = current + delta;
+      _selectedRestaurant!['worked_here_count'] = math.max(0, current + delta);
     }
   }
 
@@ -993,10 +1020,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
       if (undo == true) {
         try {
-          await FirebaseFirestore.instance
-              .collection('restaurants')
-              .doc(restaurantId)
-              .update({'worked_here_count': FieldValue.increment(-1)});
+          await MapMarkersService.decrementWorkedHere(restaurantId);
           workedList.remove(restaurantId);
           await prefs.setStringList('worked_places', workedList);
           _updateLocalWorkedHere(restaurantId, -1);
@@ -1021,10 +1045,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
     if (result == true) {
       try {
-        await FirebaseFirestore.instance
-            .collection('restaurants')
-            .doc(restaurantId)
-            .update({'worked_here_count': FieldValue.increment(1)});
+        await MapMarkersService.incrementWorkedHere(restaurantId);
         workedList.add(restaurantId);
         await prefs.setStringList('worked_places', workedList);
         _updateLocalWorkedHere(restaurantId, 1);
@@ -1548,7 +1569,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       future: _styleFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(body: Center(child: _kangarooLoader(size: 52)));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           debugPrint('❌ Error carregant estil: ${snapshot.error}');
@@ -1607,6 +1630,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
             if (!mounted) return;
             // Força petició inicial de tiles al centre d'Austràlia
             _mapController.move(_initialCenter, _initialZoom);
+            unawaited(_maybeShowInitialKangarooHint());
           });
         }
 
@@ -1722,14 +1746,6 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                   ),
                 ],
               ),
-              if (_isTileLoading)
-                Positioned(
-                  right: 10,
-                  bottom: 302,
-                  child: IgnorePointer(
-                    child: _kangarooLoader(size: 72, animate: false),
-                  ),
-                ),
               Positioned(
                 top: 16,
                 left: 12,
@@ -1792,12 +1808,21 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                   ),
                 ),
               ),
-              if (_isLoadingData) Center(child: _kangarooLoader(size: 48)),
+              if (_isLoadingData)
+                const Center(child: CircularProgressIndicator()),
               _buildRestaurantPopup(),
               _buildHarvestPopup(),
+              if (_isHospitality && _showInitialKangarooHint)
+                Positioned(
+                  bottom: _initialKangarooBottomOffset,
+                  right: 18,
+                  child: IgnorePointer(
+                    child: _kangarooLoader(size: 56, animate: true),
+                  ),
+                ),
               if (_isHospitality)
                 Positioned(
-                  bottom: 240,
+                  bottom: _locationFabBottom,
                   right: 16,
                   child: FloatingActionButton(
                     onPressed: _isLocating ? null : _goToUserLocation,
@@ -1805,11 +1830,15 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.blueGrey.shade700,
                     child: _isLocating
-                        ? _kangarooLoader(size: 20)
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                          )
                         : const Icon(Icons.my_location),
                   ),
                 ),
-              if (_isHospitality)
+              if (_isHospitality && _showZoomOutButton)
                 Positioned(
                   bottom: 180,
                   right: 16,

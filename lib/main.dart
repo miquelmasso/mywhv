@@ -144,18 +144,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildNavIcon(IconData iconData, bool selected) {
-    final primary = Theme.of(context).colorScheme.primary;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      decoration: BoxDecoration(
-        color: selected ? primary.withValues(alpha: 0.14) : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Icon(
         iconData,
-        color: selected ? primary : Colors.grey.shade600,
+        color: selected ? Colors.black87 : Colors.grey.shade600,
         size: 24,
       ),
     );

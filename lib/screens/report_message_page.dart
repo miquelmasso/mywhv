@@ -172,11 +172,6 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'This report is sent through the secure WorkyDay backend.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
               const SizedBox(height: 2),
               Align(
                 alignment: Alignment.centerRight,

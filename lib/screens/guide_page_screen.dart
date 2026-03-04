@@ -48,7 +48,9 @@ class _GuidePageScreenState extends State<GuidePageScreen>
   }) {
     if (value == null) return '';
     if (value is Iterable) {
-      return value.map((v) => _resolveTextValue(strings, v, onMissing: onMissing)).join('\n');
+      return value
+          .map((v) => _resolveTextValue(strings, v, onMissing: onMissing))
+          .join('\n');
     }
     if (value is Map && value['key'] is String) {
       final key = value['key'] as String;
@@ -88,7 +90,8 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     final isVisaPage = widget.page.id == 'visa_overview';
     final isBeforeArrivalPage = widget.page.id == 'before_arrival_overview';
     final hasChecklist = widget.page.checklist.isNotEmpty;
-    final bool hasChecklistTab = hasChecklist &&
+    final bool hasChecklistTab =
+        hasChecklist &&
         widget.sectionId != 'arrival_steps' &&
         widget.sectionId != 'housing' &&
         widget.sectionId != 'regional_and_extension' &&
@@ -109,9 +112,12 @@ class _GuidePageScreenState extends State<GuidePageScreen>
       tabLength = 1 + (hasChecklistTab ? 1 : 0);
     }
 
-    final initialIdx =
-        (widget.initialTabIndex ?? 0).clamp(0, tabLength - 1);
-    _controller = TabController(length: tabLength, vsync: this, initialIndex: initialIdx);
+    final initialIdx = (widget.initialTabIndex ?? 0).clamp(0, tabLength - 1);
+    _controller = TabController(
+      length: tabLength,
+      vsync: this,
+      initialIndex: initialIdx,
+    );
     _checklist = widget.page.checklist
         .map((c) => ChecklistItem(id: c.id, text: c.text, done: c.done))
         .toList();
@@ -155,8 +161,11 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     setState(() {
       final idx = _checklist.indexWhere((c) => c.id == id);
       if (idx != -1) {
-        _checklist[idx] =
-            ChecklistItem(id: _checklist[idx].id, text: _checklist[idx].text, done: value ?? false);
+        _checklist[idx] = ChecklistItem(
+          id: _checklist[idx].id,
+          text: _checklist[idx].text,
+          done: value ?? false,
+        );
       }
     });
   }
@@ -199,7 +208,9 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     );
     final hasChecklist = widget.page.checklist.isNotEmpty;
     final bool hasChecklistTab =
-        hasChecklist && widget.sectionId != 'arrival_steps' && widget.sectionId != 'housing';
+        hasChecklist &&
+        widget.sectionId != 'arrival_steps' &&
+        widget.sectionId != 'housing';
     String tabTitle(String sectionId, String fallbackKey) {
       final s = _findSectionById(sectionId);
       return _resolver(s?.title ?? fallbackKey);
@@ -207,34 +218,39 @@ class _GuidePageScreenState extends State<GuidePageScreen>
 
     final tabs = isFindWorkPage
         ? widget.page.sections
-            .map((s) => Tab(text: _resolver(s.title)))
-            .toList(growable: false)
+              .map((s) => Tab(text: _resolver(s.title)))
+              .toList(growable: false)
         : isVisaPage
-            ? [
-                Tab(text: tabTitle('requirements_tab', '@visa.requirements.tab_title')),
-                Tab(text: tabTitle('apply_steps_tab', '@visa.apply.tab_title')),
-              ]
-            : isBeforeArrivalPage
-                ? [
-                    Tab(text: tabTitle('preparation_tab', '@before.prep.tab_title')),
-                    Tab(text: tabTitle('lodging_tab', '@before.lodging.tab_title')),
-                    Tab(text: tabTitle('money_tab', '@before.money.tab_title')),
-                    Tab(text: tabTitle('cv_tab', '@before.cv.tab_title')),
-                  ]
-                : isFaceToFacePage
-                    ? [
-                        Tab(text: _resolver('@ui.tab.info')),
-                        Tab(text: _resolver('@ui.tab.cv')),
-                      ]
-                    : isContractsPage
-                        ? [
-                            Tab(text: _resolver('@ui.tab.contracts')),
-                            Tab(text: _resolver('@ui.tab.salary')),
-                          ]
-                        : [
-                            Tab(text: _resolver('@ui.tab.info')),
-                            if (hasChecklistTab) Tab(text: _resolver('@ui.tab.checklist')),
-                          ];
+        ? [
+            Tab(
+              text: tabTitle(
+                'requirements_tab',
+                '@visa.requirements.tab_title',
+              ),
+            ),
+            Tab(text: tabTitle('apply_steps_tab', '@visa.apply.tab_title')),
+          ]
+        : isBeforeArrivalPage
+        ? [
+            Tab(text: tabTitle('preparation_tab', '@before.prep.tab_title')),
+            Tab(text: tabTitle('lodging_tab', '@before.lodging.tab_title')),
+            Tab(text: tabTitle('money_tab', '@before.money.tab_title')),
+            Tab(text: tabTitle('cv_tab', '@before.cv.tab_title')),
+          ]
+        : isFaceToFacePage
+        ? [
+            Tab(text: _resolver('@ui.tab.info')),
+            Tab(text: _resolver('@ui.tab.cv')),
+          ]
+        : isContractsPage
+        ? [
+            Tab(text: _resolver('@ui.tab.contracts')),
+            Tab(text: _resolver('@ui.tab.salary')),
+          ]
+        : [
+            Tab(text: _resolver('@ui.tab.info')),
+            if (hasChecklistTab) Tab(text: _resolver('@ui.tab.checklist')),
+          ];
     final resolvedTitle = _resolver(widget.page.title);
     final tabBar = TabBar(
       controller: _controller,
@@ -248,10 +264,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
       tabs: tabs,
     );
     return Scaffold(
-      appBar: AppBar(
-        title: Text(resolvedTitle),
-        bottom: tabBar,
-      ),
+      appBar: AppBar(title: Text(resolvedTitle), bottom: tabBar),
       body: isFindWorkPage
           ? Column(
               children: [
@@ -267,7 +280,9 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         goToMailSetup: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const MailSetupPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const MailSetupPage(),
+                            ),
                           );
                         },
                         resolve: _resolver,
@@ -279,7 +294,9 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         goToMailSetup: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const MailSetupPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const MailSetupPage(),
+                            ),
                           );
                         },
                         resolve: _resolver,
@@ -292,7 +309,9 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         goToMailSetup: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const MailSetupPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const MailSetupPage(),
+                            ),
                           );
                         },
                         resolve: _resolver,
@@ -309,147 +328,155 @@ class _GuidePageScreenState extends State<GuidePageScreen>
               ],
             )
           : isFaceToFacePage
-              ? Column(
-                  children: [
-                    Expanded(
-                      child: TabBarView(
-                        controller: _controller,
-                        children: [
-        _InfoTab(blocks: widget.page.blocks, t: _t, resolve: _resolver),
-                          _CvTab(t: _t),
-                        ],
+          ? Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: [
+                      _InfoTab(
+                        blocks: widget.page.blocks,
+                        t: _t,
+                        resolve: _resolver,
                       ),
-                    ),
-                    if (forumButton != null)
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: forumButton,
-                      ),
-                  ],
-                )
-          : widget.page.id == 'visa_overview'
-              ? Column(
-                  children: [
-                    Expanded(
-                      child: TabBarView(
-                        controller: _controller,
-                        children: [
-                          _SectionBlocksView(
-                            section: _findSectionById('requirements_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                          _SectionBlocksView(
-                            section: _findSectionById('apply_steps_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (forumButton != null)
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: forumButton,
-                      ),
-                  ],
-                )
-          : widget.page.id == 'before_arrival_overview'
-              ? Column(
-                  children: [
-                    Expanded(
-                      child: TabBarView(
-                        controller: _controller,
-                        children: [
-                          _SectionBlocksView(
-                            section: _findSectionById('preparation_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                          _SectionBlocksView(
-                            section: _findSectionById('lodging_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                          _SectionBlocksView(
-                            section: _findSectionById('money_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                          _SectionBlocksView(
-                            section: _findSectionById('cv_tab'),
-                            vsync: this,
-                            onNavigateToTab: widget.onNavigateToTab,
-                            t: _t,
-                            resolve: _resolver,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (forumButton != null)
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: forumButton,
-                      ),
-                  ],
-                )
-          : isContractsPage
-              ? Column(
-                  children: [
-                    Expanded(
-                      child: TabBarView(
-                        controller: _controller,
-                        children: [
-                          _ContractsTab(t: _t),
-                          _SalaryTab(t: _t),
-                        ],
-                      ),
-                    ),
-                    if (forumButton != null)
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: forumButton,
-                      ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: TabBarView(
-                        controller: _controller,
-                        children: [
-                          _InfoTab(blocks: widget.page.blocks, t: _t, resolve: _resolver),
-                          if (hasChecklistTab)
-                          _ChecklistTab(
-                            checklist: _checklist,
-                            onToggle: _toggleChecklist,
-                            resolve: _resolver,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (forumButton != null)
-                      SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: forumButton,
-                      ),
-                  ],
+                      _CvTab(t: _t),
+                    ],
+                  ),
                 ),
+                if (forumButton != null)
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: forumButton,
+                  ),
+              ],
+            )
+          : widget.page.id == 'visa_overview'
+          ? Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: [
+                      _SectionBlocksView(
+                        section: _findSectionById('requirements_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                      _SectionBlocksView(
+                        section: _findSectionById('apply_steps_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                    ],
+                  ),
+                ),
+                if (forumButton != null)
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: forumButton,
+                  ),
+              ],
+            )
+          : widget.page.id == 'before_arrival_overview'
+          ? Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: [
+                      _SectionBlocksView(
+                        section: _findSectionById('preparation_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                      _SectionBlocksView(
+                        section: _findSectionById('lodging_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                      _SectionBlocksView(
+                        section: _findSectionById('money_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                      _SectionBlocksView(
+                        section: _findSectionById('cv_tab'),
+                        vsync: this,
+                        onNavigateToTab: widget.onNavigateToTab,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                    ],
+                  ),
+                ),
+                if (forumButton != null)
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: forumButton,
+                  ),
+              ],
+            )
+          : isContractsPage
+          ? Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: [
+                      _ContractsTab(t: _t),
+                      _SalaryTab(t: _t),
+                    ],
+                  ),
+                ),
+                if (forumButton != null)
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: forumButton,
+                  ),
+              ],
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: [
+                      _InfoTab(
+                        blocks: widget.page.blocks,
+                        t: _t,
+                        resolve: _resolver,
+                      ),
+                      if (hasChecklistTab)
+                        _ChecklistTab(
+                          checklist: _checklist,
+                          onToggle: _toggleChecklist,
+                          resolve: _resolver,
+                        ),
+                    ],
+                  ),
+                ),
+                if (forumButton != null)
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: forumButton,
+                  ),
+              ],
+            ),
     );
   }
 }
@@ -487,8 +514,8 @@ class _FindWorkTabContent extends StatelessWidget {
           copyLabel: section!.id == 'facebook'
               ? resolve('ui.copied')
               : section!.id == 'map'
-                  ? resolve('ui.email_copied')
-                  : resolve('ui.copy'),
+              ? resolve('ui.email_copied')
+              : resolve('ui.copy'),
           t: (k) => k,
           resolve: (v) => resolve(v),
         ),
@@ -498,7 +525,8 @@ class _FindWorkTabContent extends StatelessWidget {
     if (isFacebook) {
       widgets.add(
         ElevatedButton.icon(
-          onPressed: () => _launchExternal(Uri.parse('https://www.facebook.com/groups')),
+          onPressed: () =>
+              _launchExternal(Uri.parse('https://www.facebook.com/groups')),
           icon: const Icon(Icons.open_in_new),
           label: Text(resolve('ui.open_facebook_groups')),
           style: ElevatedButton.styleFrom(
@@ -580,7 +608,8 @@ class _SectionBlocksView extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: section!.blocks.length,
-      separatorBuilder: (_, _) => const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
+      separatorBuilder: (_, _) =>
+          const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
       itemBuilder: (context, index) => _buildBlockWidget(
         context,
         section!.blocks[index],
@@ -765,18 +794,16 @@ class _ContractsTab extends StatelessWidget {
               );
             }
             return Column(
-              children: [
-                cards[0],
-                const SizedBox(height: 12),
-                cards[1],
-              ],
+              children: [cards[0], const SizedBox(height: 12), cards[1]],
             );
           },
         ),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => _launchExternal(
-            Uri.parse('https://www.fairwork.gov.au/employment-conditions/awards'),
+            Uri.parse(
+              'https://www.fairwork.gov.au/employment-conditions/awards',
+            ),
           ),
           child: RichText(
             text: TextSpan(
@@ -813,9 +840,7 @@ class _SalaryTab extends StatelessWidget {
           title: t('ui.salary.tax_title'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t('ui.salary.tax_text')),
-            ],
+            children: [Text(t('ui.salary.tax_text'))],
           ),
         ),
         const SizedBox(height: 12),
@@ -823,9 +848,7 @@ class _SalaryTab extends StatelessWidget {
           title: t('ui.salary.super_title'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t('ui.salary.super_text')),
-            ],
+            children: [Text(t('ui.salary.super_text'))],
           ),
         ),
         const SizedBox(height: 12),
@@ -851,10 +874,7 @@ class _SalaryTab extends StatelessWidget {
 }
 
 class _BulletText extends StatelessWidget {
-  const _BulletText({
-    required this.text,
-    this.orderedIndex,
-  });
+  const _BulletText({required this.text, this.orderedIndex});
 
   final String text;
   final int? orderedIndex;
@@ -862,9 +882,7 @@ class _BulletText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseStyle = DefaultTextStyle.of(context).style;
-    final spans = <TextSpan>[
-      TextSpan(text: text, style: baseStyle),
-    ];
+    final spans = <TextSpan>[TextSpan(text: text, style: baseStyle)];
 
     final bullet = orderedIndex != null ? '${orderedIndex! + 1}. ' : '• ';
 
@@ -880,9 +898,7 @@ class _BulletText extends StatelessWidget {
                 : baseStyle,
           ),
           Expanded(
-            child: RichText(
-              text: TextSpan(children: spans),
-            ),
+            child: RichText(text: TextSpan(children: spans)),
           ),
         ],
       ),
@@ -963,7 +979,11 @@ Widget _buildBlockWidget(
   required String Function(String key) t,
   required String Function(dynamic value) resolve,
 }) {
-  Widget actionButton({required Widget label, required VoidCallback onPressed, IconData? icon}) {
+  Widget actionButton({
+    required Widget label,
+    required VoidCallback onPressed,
+    IconData? icon,
+  }) {
     final btn = icon != null
         ? ElevatedButton.icon(
             onPressed: onPressed,
@@ -971,14 +991,18 @@ Widget _buildBlockWidget(
             label: label,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           )
         : ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: label,
           );
@@ -986,12 +1010,15 @@ Widget _buildBlockWidget(
   }
 
   Widget buttonIfAny() {
-    if (block.buttonLabel == null || block.buttonUrl == null) return const SizedBox.shrink();
+    if (block.buttonLabel == null || block.buttonUrl == null) {
+      return const SizedBox.shrink();
+    }
     final isCopyAction = block.buttonUrl!.startsWith('copy:');
     final isGuideNavigation = block.buttonUrl!.startsWith('guide:');
     final isAction = block.buttonUrl!.startsWith('action:');
     final isCompactMapButton =
-        block.icon != null && block.buttonUrl!.contains('regional_and_extension#tab=0');
+        block.icon != null &&
+        block.buttonUrl!.contains('regional_and_extension#tab=0');
     if (isAction && block.buttonUrl!.contains('check_postcode')) {
       return Padding(
         padding: const EdgeInsets.only(top: 10),
@@ -1009,7 +1036,10 @@ Widget _buildBlockWidget(
               borderRadius: BorderRadius.circular(14),
               onTap: () async => _launchExternal(Uri.parse(block.buttonUrl!)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Text(
                   resolve(block.buttonLabel),
                   style: const TextStyle(
@@ -1073,7 +1103,7 @@ Widget _buildBlockWidget(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-          child: Text(resolve(block.buttonLabel)),
+        child: Text(resolve(block.buttonLabel)),
       ),
     );
   }
@@ -1082,7 +1112,8 @@ Widget _buildBlockWidget(
     final lines = (block.content ?? '').split('\n');
     final headings = ['PROFILE', 'WORK EXPERIENCE', 'SKILLS', 'AVAILABILITY'];
 
-    String line(int index) => index >= 0 && index < lines.length ? lines[index] : '';
+    String line(int index) =>
+        index >= 0 && index < lines.length ? lines[index] : '';
     int headingIndex(String heading) => lines.indexOf(heading);
 
     List<String> sectionContent(String heading) {
@@ -1091,7 +1122,10 @@ Widget _buildBlockWidget(
       final nextIndices =
           headings.map(headingIndex).where((i) => i > start).toList()..sort();
       final end = nextIndices.isNotEmpty ? nextIndices.first : lines.length;
-      return lines.sublist(start + 1, end).where((l) => l.trim().isNotEmpty).toList();
+      return lines
+          .sublist(start + 1, end)
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
     }
 
     Widget section(String title, List<String> content) {
@@ -1153,10 +1187,7 @@ Widget _buildBlockWidget(
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    [
-                      line(1),
-                      line(2),
-                    ].where((l) => l.isNotEmpty).join('\n'),
+                    [line(1), line(2)].where((l) => l.isNotEmpty).join('\n'),
                     style: const TextStyle(color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
@@ -1184,7 +1215,9 @@ Widget _buildBlockWidget(
     final resolved = resolve(textValue);
     if (resolved.isEmpty) return const SizedBox.shrink();
     final spans = _parseLinkTextSpans(resolved);
-    if (spans.length == 1 && spans.first is TextSpan && (spans.first as TextSpan).recognizer == null) {
+    if (spans.length == 1 &&
+        spans.first is TextSpan &&
+        (spans.first as TextSpan).recognizer == null) {
       return Text(resolved);
     }
     return RichText(
@@ -1207,8 +1240,9 @@ Widget _buildBlockWidget(
         final isAction = block.buttonUrl!.startsWith('action:');
         Future<void> handleTap() async {
           if (isCopyAction) {
-            final textToCopy =
-                block.content?.isNotEmpty == true ? block.content! : block.items.join('\n');
+            final textToCopy = block.content?.isNotEmpty == true
+                ? block.content!
+                : block.items.join('\n');
             if (textToCopy.isNotEmpty) {
               await Clipboard.setData(ClipboardData(text: textToCopy));
             }
@@ -1272,7 +1306,8 @@ Widget _buildBlockWidget(
       final leadingIcon = iconFromString(block.icon);
 
       final resolvedTitle = resolve(block.title ?? '');
-      final isProcessingCard = block.title == '@visa.requirements.processing_title';
+      final isProcessingCard =
+          block.title == '@visa.requirements.processing_title';
       if (block.variant == 'milestone') {
         final lines = resolve(block.content ?? '').split('\n');
         final value = lines.isNotEmpty ? lines.first : '';
@@ -1318,10 +1353,7 @@ Widget _buildBlockWidget(
                 const SizedBox(height: 8),
                 Text(
                   small,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black87,
-                  ),
+                  style: const TextStyle(fontSize: 13, color: Colors.black87),
                 ),
               ],
             ],
@@ -1331,11 +1363,15 @@ Widget _buildBlockWidget(
       return _InfoCard(
         title: resolvedTitle,
         color: cardColor,
-        leading: leadingIcon != null ? Icon(leadingIcon, color: Colors.brown.shade400) : null,
+        leading: leadingIcon != null
+            ? Icon(leadingIcon, color: Colors.brown.shade400)
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!isProcessingCard && block.content != null && block.content!.isNotEmpty)
+            if (!isProcessingCard &&
+                block.content != null &&
+                block.content!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
@@ -1343,8 +1379,7 @@ Widget _buildBlockWidget(
                   style: const TextStyle(color: Colors.black54, fontSize: 13),
                 ),
               ),
-            if (isProcessingCard)
-              Text(resolve('@visa.processing.simple')),
+            if (isProcessingCard) Text(resolve('@visa.processing.simple')),
             if (block.chips.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 6),
@@ -1374,8 +1409,12 @@ Widget _buildBlockWidget(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('${entry.key + 1}. ',
-                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(
+                                  '${entry.key + 1}. ',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 Expanded(child: Text(text)),
                               ],
                             ),
@@ -1399,7 +1438,8 @@ Widget _buildBlockWidget(
                         }).toList(),
                       ),
               ),
-            if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
+            if (block.buttonLabel != null && block.buttonUrl != null)
+              buttonIfAny(),
           ],
         ),
       );
@@ -1421,10 +1461,18 @@ Widget _buildBlockWidget(
       Widget body;
       Widget bulletIcon() {
         if (block.variant == 'warning') {
-          return Icon(Icons.cancel_outlined, size: 18, color: Colors.red.shade700);
+          return Icon(
+            Icons.cancel_outlined,
+            size: 18,
+            color: Colors.red.shade700,
+          );
         }
         if (block.variant == 'success') {
-          return Icon(Icons.check_circle_outline, size: 18, color: Colors.green.shade700);
+          return Icon(
+            Icons.check_circle_outline,
+            size: 18,
+            color: Colors.green.shade700,
+          );
         }
         return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
       }
@@ -1454,18 +1502,25 @@ Widget _buildBlockWidget(
       }
 
       Future<void> handleCopy() async {
-        final copyTarget = block.copyText ?? block.content ?? block.items.join('\n');
+        final copyTarget =
+            block.copyText ?? block.content ?? block.items.join('\n');
         final resolvedCopy = resolve(copyTarget);
         if (resolvedCopy.trim().isEmpty) return;
         await Clipboard.setData(ClipboardData(text: resolvedCopy));
         if (!context.mounted) return;
         final msgKey = block.copyMessageKey ?? '@ui.message_copied';
         if (vsync != null) {
-          await OverlayHelper.showCopiedOverlay(context, vsync, resolve(msgKey));
+          await OverlayHelper.showCopiedOverlay(
+            context,
+            vsync,
+            resolve(msgKey),
+          );
         } else {
           final snack = SnackBar(
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             content: Text(resolve(msgKey)),
             duration: const Duration(seconds: 2),
           );
@@ -1525,16 +1580,19 @@ Widget _buildBlockWidget(
     default:
       if (block.type == 'button') {
         final isCopyAction = block.buttonUrl?.startsWith('copy:') ?? false;
-        final isGuideNavigation = block.buttonUrl?.startsWith('guide:') ?? false;
+        final isGuideNavigation =
+            block.buttonUrl?.startsWith('guide:') ?? false;
         final isAction = block.buttonUrl?.startsWith('action:') ?? false;
-        if (isAction && (block.buttonUrl?.contains('check_postcode') ?? false)) {
+        if (isAction &&
+            (block.buttonUrl?.contains('check_postcode') ?? false)) {
           return InlinePostcodeChecker(t: t);
         }
         Future<void> handleTap() async {
           if (block.buttonLabel == null || block.buttonUrl == null) return;
           if (isCopyAction) {
-            final textToCopy =
-                block.content?.isNotEmpty == true ? block.content! : block.items.join('\\n');
+            final textToCopy = block.content?.isNotEmpty == true
+                ? block.content!
+                : block.items.join('\\n');
             if (textToCopy.isNotEmpty) {
               await Clipboard.setData(ClipboardData(text: textToCopy));
               if (!context.mounted) return;
@@ -1557,8 +1615,12 @@ Widget _buildBlockWidget(
               tabIndex = int.tryParse(parts[1].substring(4));
             }
             if (targetPageId.isNotEmpty) {
-              await _openGuidePage(context, targetPageId,
-                  onNavigateToTab: onNavigateToTab, initialTabIndex: tabIndex);
+              await _openGuidePage(
+                context,
+                targetPageId,
+                onNavigateToTab: onNavigateToTab,
+                initialTabIndex: tabIndex,
+              );
             }
             return;
           }
@@ -1572,9 +1634,14 @@ Widget _buildBlockWidget(
             shape: const StadiumBorder(),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: block.buttonLabel != null && block.buttonUrl != null ? handleTap : null,
+              onTap: block.buttonLabel != null && block.buttonUrl != null
+                  ? handleTap
+                  : null,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
                 child: Text(
                   resolve(block.buttonLabel),
                   textAlign: TextAlign.center,
@@ -1616,7 +1683,8 @@ Widget _buildBlockWidget(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 textWithLinks(content, resolve),
-                if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
+                if (block.buttonLabel != null && block.buttonUrl != null)
+                  buttonIfAny(),
               ],
             ),
           ),
@@ -1628,13 +1696,18 @@ Widget _buildBlockWidget(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ...block.items.asMap().entries.map((entry) => _BulletText(
-                  text: entry.value,
-                  orderedIndex: ordered ? entry.key : null,
-                )),
-            if (block.content != null && block.content!.isNotEmpty && block.items.isEmpty)
+            ...block.items.asMap().entries.map(
+              (entry) => _BulletText(
+                text: entry.value,
+                orderedIndex: ordered ? entry.key : null,
+              ),
+            ),
+            if (block.content != null &&
+                block.content!.isNotEmpty &&
+                block.items.isEmpty)
               textWithLinks(block.content, resolve),
-            if (block.buttonLabel != null && block.buttonUrl != null) buttonIfAny(),
+            if (block.buttonLabel != null && block.buttonUrl != null)
+              buttonIfAny(),
           ],
         ),
       );
@@ -1678,13 +1751,13 @@ class _InlinePostcodeCheckerState extends State<InlinePostcodeChecker> {
     final color = success
         ? Colors.green.shade700
         : failure
-            ? Colors.red.shade700
-            : Colors.black54;
+        ? Colors.red.shade700
+        : Colors.black54;
     final icon = success
         ? Icons.check_circle_outline
         : failure
-            ? Icons.cancel_outlined
-            : null;
+        ? Icons.cancel_outlined
+        : null;
 
     return _InfoCard(
       title: widget.t('@regional.extension.check_title'),
@@ -1714,10 +1787,7 @@ class _InlinePostcodeCheckerState extends State<InlinePostcodeChecker> {
                           ? '@regional.extension.check_result_regional'
                           : '@regional.extension.check_result_not',
                     ),
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -1729,8 +1799,13 @@ class _InlinePostcodeCheckerState extends State<InlinePostcodeChecker> {
   }
 }
 
-Widget? _buildForumButton({required String? tag, required VoidCallback onPressed}) {
-  if (tag == null || tag.isEmpty) return null;
+const bool _showGuideForumButtons = false;
+
+Widget? _buildForumButton({
+  required String? tag,
+  required VoidCallback onPressed,
+}) {
+  if (!_showGuideForumButtons || tag == null || tag.isEmpty) return null;
   return SizedBox(
     width: double.infinity,
     child: ElevatedButton.icon(
@@ -1814,10 +1889,7 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (leading != null) ...[
-            leading!,
-            const SizedBox(width: 10),
-          ],
+          if (leading != null) ...[leading!, const SizedBox(width: 10)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

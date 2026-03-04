@@ -85,8 +85,7 @@ Future<void> _openGuidePage(
       );
     } else {
       // Open first page if no tabs.
-      final firstPage =
-          section.pages.isNotEmpty ? section.pages.first : null;
+      final firstPage = section.pages.isNotEmpty ? section.pages.first : null;
       if (firstPage != null) {
         await Navigator.push(
           context,
@@ -219,63 +218,78 @@ class GuideSectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isTabbedSection) {
-      final tabs = section.pages.map((p) => Tab(text: _tabLabelForPage(p))).toList();
+      final tabs = section.pages
+          .map((p) => Tab(text: _tabLabelForPage(p)))
+          .toList();
       return DefaultTabController(
         length: section.pages.length,
-        initialIndex: _initialTabIndex.clamp(0, section.pages.length - 1).toInt(),
-            child: Builder(builder: (context) {
-              final controller = DefaultTabController.of(context);
-              return Scaffold(
-                appBar: AppBar(
-                  title: Text(_resolve(section.title)),
-                  bottom: TabBar(
-                    isScrollable: false,
-                    labelPadding: EdgeInsets.zero,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.black54,
-                labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-                tabs: tabs,
-              ),
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: TabBarView(
-                    children: section.pages
-                        .map(
-                          (page) => _PageBlocksView(
-                            page: page,
-                            sectionId: section.id,
-                            strings: strings,
-                            onNavigateToTab: onNavigateToTab,
-                          ),
-                        )
-                        .toList(),
+        initialIndex: _initialTabIndex
+            .clamp(0, section.pages.length - 1)
+            .toInt(),
+        child: Builder(
+          builder: (context) {
+            final controller = DefaultTabController.of(context);
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(_resolve(section.title)),
+                bottom: TabBar(
+                  isScrollable: false,
+                  labelPadding: EdgeInsets.zero,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Colors.black54,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w400,
                   ),
+                  tabs: tabs,
                 ),
-                AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) {
-                    final idx = controller.index.clamp(0, section.pages.length - 1);
-                    final tag = section.pages[idx].cta?.forumTag;
-                    final forumButton = _forumButton(tag, () {
-                      MainTabsController.goToTab(context, 3,
-                          forumTag: tag, onNavigateToTab: onNavigateToTab);
-                    });
-                    if (forumButton == null) return const SizedBox.shrink();
-                    return SafeArea(
-                      top: false,
-                      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: forumButton,
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
-        }),
+              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: TabBarView(
+                      children: section.pages
+                          .map(
+                            (page) => _PageBlocksView(
+                              page: page,
+                              sectionId: section.id,
+                              strings: strings,
+                              onNavigateToTab: onNavigateToTab,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: controller,
+                    builder: (context, _) {
+                      final idx = controller.index.clamp(
+                        0,
+                        section.pages.length - 1,
+                      );
+                      final tag = section.pages[idx].cta?.forumTag;
+                      final forumButton = _forumButton(tag, () {
+                        MainTabsController.goToTab(
+                          context,
+                          3,
+                          forumTag: tag,
+                          onNavigateToTab: onNavigateToTab,
+                        );
+                      });
+                      if (forumButton == null) return const SizedBox.shrink();
+                      return SafeArea(
+                        top: false,
+                        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: forumButton,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       );
     }
 
@@ -310,6 +324,7 @@ class GuideSectionScreen extends StatelessWidget {
                         return Icons.menu_book_rounded;
                     }
                   }
+
                   return InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () {
@@ -343,13 +358,13 @@ class GuideSectionScreen extends StatelessWidget {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(pageIcon(), color: Colors.blue),
                           ),
-                          child: Icon(pageIcon(), color: Colors.blue),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,7 +387,10 @@ class GuideSectionScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.black45),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.black45,
+                          ),
                         ],
                       ),
                     ),
@@ -460,10 +478,7 @@ class _BlockCard extends StatelessWidget {
   final String pageId;
   final TickerProvider? vsync;
 
-  Widget _callout({
-    required String variant,
-    required BuildContext context,
-  }) {
+  Widget _callout({required String variant, required BuildContext context}) {
     Color bg = Colors.blue.shade50;
     Color iconColor = Colors.blue.shade700;
     IconData icon = Icons.info_outline;
@@ -477,17 +492,27 @@ class _BlockCard extends StatelessWidget {
       icon = Icons.lightbulb_outline;
     }
     debugPrint(
-        'Guide callout render -> type=${block.type} variant=$variant section=$sectionId page=$pageId widget=GuideCallout');
+      'Guide callout render -> type=${block.type} variant=$variant section=$sectionId page=$pageId widget=GuideCallout',
+    );
     Widget body;
     Widget bulletIcon() {
       if (variant == 'warning') {
-        return Icon(Icons.cancel_outlined, size: 18, color: Colors.red.shade700);
+        return Icon(
+          Icons.cancel_outlined,
+          size: 18,
+          color: Colors.red.shade700,
+        );
       }
       if (variant == 'success') {
-        return Icon(Icons.check_circle_outline, size: 18, color: Colors.green.shade700);
+        return Icon(
+          Icons.check_circle_outline,
+          size: 18,
+          color: Colors.green.shade700,
+        );
       }
       return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
     }
+
     if (block.items.isNotEmpty) {
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +539,8 @@ class _BlockCard extends StatelessWidget {
     }
 
     Future<void> handleCopy() async {
-      final copyTarget = block.copyText ?? block.content ?? block.items.join('\n');
+      final copyTarget =
+          block.copyText ?? block.content ?? block.items.join('\n');
       final resolvedCopy = resolve(copyTarget);
       if (resolvedCopy.trim().isEmpty) return;
       await Clipboard.setData(ClipboardData(text: resolvedCopy));
@@ -531,7 +557,9 @@ class _BlockCard extends StatelessWidget {
             ..showSnackBar(
               SnackBar(
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 content: Text(resolvedMsg),
                 duration: const Duration(seconds: 2),
               ),
@@ -575,6 +603,7 @@ class _BlockCard extends StatelessWidget {
           return null;
       }
     }
+
     Color? cardColor;
     if (block.variant == 'warning') {
       cardColor = Colors.orange.shade50;
@@ -597,8 +626,9 @@ class _BlockCard extends StatelessWidget {
       }
       Future<void> handleTap() async {
         if (isCopyAction) {
-          final textToCopy =
-              block.content?.isNotEmpty == true ? resolve(block.content) : block.items.join('\\n');
+          final textToCopy = block.content?.isNotEmpty == true
+              ? resolve(block.content)
+              : block.items.join('\\n');
           if (textToCopy.isNotEmpty) {
             await Clipboard.setData(ClipboardData(text: textToCopy));
           }
@@ -607,7 +637,11 @@ class _BlockCard extends StatelessWidget {
         if (isGuideNavigation) {
           final targetPageId = block.buttonUrl!.substring('guide:'.length);
           if (targetPageId.isNotEmpty) {
-            await _openGuidePage(context, targetPageId, onNavigateToTab: onNavigateToTab);
+            await _openGuidePage(
+              context,
+              targetPageId,
+              onNavigateToTab: onNavigateToTab,
+            );
           }
           return;
         }
@@ -620,7 +654,9 @@ class _BlockCard extends StatelessWidget {
           onPressed: handleTap,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: Text(resolve(block.buttonLabel)),
         ),
@@ -629,20 +665,11 @@ class _BlockCard extends StatelessWidget {
 
     switch (block.type) {
       case 'callout':
-        return _callout(
-          variant: block.variant ?? 'info',
-          context: context,
-        );
+        return _callout(variant: block.variant ?? 'info', context: context);
       case 'warning':
-        return _callout(
-          variant: 'warning',
-          context: context,
-        );
+        return _callout(variant: 'warning', context: context);
       case 'tip':
-        return _callout(
-          variant: 'success',
-          context: context,
-        );
+        return _callout(variant: 'success', context: context);
       case 'header':
         return Padding(
           padding: const EdgeInsets.only(top: 4, bottom: 6),
@@ -682,8 +709,10 @@ class _BlockCard extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${e.key + 1}. ',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(
+                          '${e.key + 1}. ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         Expanded(child: Text(resolve(e.value))),
                       ],
                     ),
@@ -750,7 +779,9 @@ class _BlockCard extends StatelessWidget {
         return _InfoCard(
           title: resolve(block.title),
           color: cardColor,
-          leading: leadingIcon != null ? Icon(leadingIcon, color: Colors.brown.shade400) : null,
+          leading: leadingIcon != null
+              ? Icon(leadingIcon, color: Colors.brown.shade400)
+              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -789,8 +820,12 @@ class _BlockCard extends StatelessWidget {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('${entry.key + 1}. ',
-                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(
+                                  '${entry.key + 1}. ',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 Expanded(child: Text(text)),
                               ],
                             ),
@@ -802,16 +837,14 @@ class _BlockCard extends StatelessWidget {
                         children: block.items
                             .map(
                               (item) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 3,
+                                ),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text('• '),
-                                    Expanded(
-                                      child: Text(
-                                        resolve(item),
-                                      ),
-                                    ),
+                                    Expanded(child: Text(resolve(item))),
                                   ],
                                 ),
                               ),
@@ -829,17 +862,25 @@ class _BlockCard extends StatelessWidget {
                       onTap: () async {
                         if (block.buttonUrl == null) return;
                         if (block.buttonUrl!.startsWith('guide:')) {
-                          final targetPageId = block.buttonUrl!.substring('guide:'.length);
+                          final targetPageId = block.buttonUrl!.substring(
+                            'guide:'.length,
+                          );
                           if (targetPageId.isNotEmpty) {
-                            await _openGuidePage(context, targetPageId,
-                                onNavigateToTab: onNavigateToTab);
+                            await _openGuidePage(
+                              context,
+                              targetPageId,
+                              onNavigateToTab: onNavigateToTab,
+                            );
                           }
                           return;
                         }
                         await _launchExternal(Uri.parse(block.buttonUrl!));
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         child: Text(
                           resolve(block.buttonLabel),
                           style: const TextStyle(
@@ -858,8 +899,10 @@ class _BlockCard extends StatelessWidget {
   }
 }
 
+const bool _showSectionForumButtons = false;
+
 Widget? _forumButton(String? tag, VoidCallback onPressed) {
-  if (tag == null || tag.isEmpty) return null;
+  if (!_showSectionForumButtons || tag == null || tag.isEmpty) return null;
   return SizedBox(
     width: double.infinity,
     child: ElevatedButton.icon(
@@ -909,10 +952,7 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (leading != null) ...[
-            leading!,
-            const SizedBox(width: 10),
-          ],
+          if (leading != null) ...[leading!, const SizedBox(width: 10)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,13 +1014,13 @@ class _InlinePostcodeCheckerState extends State<_InlinePostcodeChecker> {
     final color = success
         ? Colors.green.shade700
         : failure
-            ? Colors.red.shade700
-            : Colors.black54;
+        ? Colors.red.shade700
+        : Colors.black54;
     final icon = success
         ? Icons.check_circle_outline
         : failure
-            ? Icons.cancel_outlined
-            : null;
+        ? Icons.cancel_outlined
+        : null;
 
     return _InfoCard(
       title: widget.t('@regional.extension.check_title'),
@@ -1010,10 +1050,7 @@ class _InlinePostcodeCheckerState extends State<_InlinePostcodeChecker> {
                           ? '@regional.extension.check_result_regional'
                           : '@regional.extension.check_result_not',
                     ),
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
