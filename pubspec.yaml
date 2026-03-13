@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+19
+version: 1.0.0+22
 
 environment:
   sdk: ^3.9.2
@@ -47,7 +47,9 @@ dependencies:
   url_launcher: ^6.3.0
   flutter_dotenv: ^6.0.0
   flutter_email_sender: ^6.0.3
+  in_app_review: ^2.0.10
   path_provider: ^2.1.2
+  package_info_plus: ^8.0.2
   shared_preferences: ^2.2.3
   permission_handler: ^11.3.0
   file_picker: ^8.0.0
@@ -61,6 +63,12 @@ dependencies:
   flutter_native_splash: ^2.4.1
 
   path: ^1.9.1
+
+dependency_overrides:
+  # Work around App Store validation failure caused by objective_c.framework
+  # being bundled as an iOS simulator binary via path_provider_foundation 2.6.x.
+  path_provider_foundation: 2.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

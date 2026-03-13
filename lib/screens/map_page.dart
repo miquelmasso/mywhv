@@ -11,6 +11,7 @@ import '../services/harvest_places_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
+import '../services/review_service.dart';
 import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -773,6 +774,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       _selectedRestaurant = data;
       _selectedHarvest = null;
     });
+    unawaited(
+      _handlePositiveReviewAction(ReviewService.actionWorkplaceDetailOpened),
+    );
   }
 
   void _showHarvestDetails(Map<String, dynamic> data) {
@@ -839,6 +843,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     setState(() => _favoritePlaces = current);
     _updateMarkers(_currentZoom);
     FavoritesService.broadcast(_favoritePlaces);
+    if (added) {
+      unawaited(_handlePositiveReviewAction(ReviewService.actionFavoriteSaved));
+    }
 
     // No Snackbar: l'usuari veu el cor canviat i manté la lògica de preferits.
   }
@@ -847,6 +854,18 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     OverlayHelper.showCopiedOverlay(context, this, '$label copied');
+    unawaited(
+      _handlePositiveReviewAction(
+        ReviewService.actionContactOrExternalLinkTapped,
+      ),
+    );
+  }
+
+  // Reuse this helper when you want to add more review triggers elsewhere.
+  Future<void> _handlePositiveReviewAction(String actionType) async {
+    await ReviewService.instance.registerPositiveAction(actionType: actionType);
+    if (!mounted) return;
+    await ReviewService.instance.maybeAskForReview(context);
   }
 
   void _showEmailOptions(String email) {
@@ -902,6 +921,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                             this,
                             'copied email',
                           );
+                          unawaited(
+                            _handlePositiveReviewAction(
+                              ReviewService.actionContactOrExternalLinkTapped,
+                            ),
+                          );
                         },
                         child: const Text(
                           'Copy email',
@@ -942,6 +966,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                             email: email,
                           );
                           entry.remove();
+                          unawaited(
+                            _handlePositiveReviewAction(
+                              ReviewService.actionContactOrExternalLinkTapped,
+                            ),
+                          );
                         },
                         child: const Text(
                           'Send email',
@@ -992,6 +1021,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     if (!mounted) return;
     if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+      unawaited(
+        _handlePositiveReviewAction(
+          ReviewService.actionContactOrExternalLinkTapped,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(
         context,
@@ -1004,7 +1038,9 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     String restaurantName,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final workedList = prefs.getStringList('worked_places') ?? [];
+    final workedPlaces = Set<String>.from(
+      prefs.getStringList('worked_places') ?? const <String>[],
+    );
     if (!mounted) return;
 
     if (restaurantId.trim().isEmpty) {
@@ -1014,61 +1050,32 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       return;
     }
 
-    if (workedList.contains(restaurantId)) {
-      final undo = await showDialog<bool>(
+    if (workedPlaces.contains(restaurantId)) {
+      await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text(
-            'You want to undo',
+            'Already marked',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          content: Text(
+            '$restaurantName is already in your worked list.',
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text(
-                'No',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueAccent,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Yes'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
             ),
           ],
         ),
       );
-
-      if (undo == true) {
-        try {
-          await MapMarkersService.decrementWorkedHere(restaurantId);
-          workedList.remove(restaurantId);
-          await prefs.setStringList('worked_places', workedList);
-          _updateLocalWorkedHere(restaurantId, -1);
-          _updateMarkers(_currentZoom);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '❎ You removed $restaurantName from your list of places you\'ve worked.',
-              ),
-            ),
-          );
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('❌ Error removing: $e')));
-        }
-      }
       return;
     }
 
@@ -1106,10 +1113,11 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     );
 
     if (result == true) {
+      workedPlaces.add(restaurantId);
       try {
+        await prefs.setStringList('worked_places', workedPlaces.toList());
         await MapMarkersService.incrementWorkedHere(restaurantId);
-        workedList.add(restaurantId);
-        await prefs.setStringList('worked_places', workedList);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
         _updateLocalWorkedHere(restaurantId, 1);
         _updateMarkers(_currentZoom);
         if (!mounted) return;
@@ -1117,6 +1125,8 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           SnackBar(content: Text('✅ Thanks! $restaurantName added')),
         );
       } catch (e) {
+        workedPlaces.remove(restaurantId);
+        await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,

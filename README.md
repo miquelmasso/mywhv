@@ -20,4 +20,11 @@ samples, guidance on mobile development, and a full API reference.
 - Desplegar la callable: `firebase deploy --only functions`
 - Llistar-les per verificar: `firebase functions:list`
 - Assegura que el `projectId` de Flutter (`Firebase.app().options.projectId`) coincideix amb el projecte on es despleguen les functions.
-- Regió usada: `us-central1` (client i backend alineats).
+- Regió usada al backend: `australia-southeast1`.
+
+## Reports
+
+- L'app guarda els reports directament a Firestore, a la col·lecció `reports`
+- Això funciona sense ordinador obert ni backend local
+- El límit actual és de `3` reports per dispositiu cada `24h`
+- `report-backend/` queda com a backend local opcional de desenvolupament, però l'app ja no en depèn per enviar reports

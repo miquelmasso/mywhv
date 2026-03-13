@@ -22,6 +22,7 @@ import '../services/harvest_places_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
+import '../services/review_service.dart';
 import '../services/email_sender_service.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -110,8 +111,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   late final Widget _markerHarvestIcon;
   OverlayEntry? _profileTooltip;
   Timer? _tooltipTimer;
+  final GlobalKey _mapAreaKey = GlobalKey();
   final GlobalKey _profileButtonKey = GlobalKey();
   final GlobalKey _categorySwitchKey = GlobalKey();
+  final GlobalKey _automaticEmailTileKey = GlobalKey();
+  bool _showOnboardingEmailPreview = false;
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
@@ -653,10 +657,37 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     return true;
   }
 
+  Rect? _globalRectForKey(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      return null;
+    }
+    final offset = renderObject.localToGlobal(Offset.zero);
+    return offset & renderObject.size;
+  }
+
+  Rect? get onboardingMapAreaRect => _globalRectForKey(_mapAreaKey);
+  Rect? get onboardingCategorySwitchRect =>
+      _globalRectForKey(_categorySwitchKey);
+  Rect? get onboardingProfileButtonRect => _globalRectForKey(_profileButtonKey);
+  Rect? get onboardingMailTileRect => _globalRectForKey(_automaticEmailTileKey);
+
+  void setOnboardingEmailPreviewVisible(bool visible) {
+    if (_showOnboardingEmailPreview == visible || !mounted) {
+      return;
+    }
+    setState(() {
+      _showOnboardingEmailPreview = visible;
+    });
+  }
+
   void _selectRestaurantMarker(Map<String, Object?> marker) {
     _selectedHarvest = null;
     _selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
     _updateMarkers();
+    unawaited(
+      _handlePositiveReviewAction(ReviewService.actionWorkplaceDetailOpened),
+    );
   }
 
   void _selectHarvestMarker(Map<String, Object?> marker) {
@@ -798,6 +829,18 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) return;
     await OverlayHelper.showCopiedOverlay(context, this, label);
+    unawaited(
+      _handlePositiveReviewAction(
+        ReviewService.actionContactOrExternalLinkTapped,
+      ),
+    );
+  }
+
+  // Centralizes review tracking so future triggers can reuse the same path.
+  Future<void> _handlePositiveReviewAction(String actionType) async {
+    await ReviewService.instance.registerPositiveAction(actionType: actionType);
+    if (!mounted) return;
+    await ReviewService.instance.maybeAskForReview(context);
   }
 
   void _openMailSetup() {
@@ -944,6 +987,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     if (!mounted) return;
     if (canOpen) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+      unawaited(
+        _handlePositiveReviewAction(
+          ReviewService.actionContactOrExternalLinkTapped,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(
         context,
@@ -972,6 +1020,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _favoritePlaces = current;
     _updateMarkers();
     FavoritesService.broadcast(_favoritePlaces);
+    if (current.contains(restaurantId)) {
+      unawaited(_handlePositiveReviewAction(ReviewService.actionFavoriteSaved));
+    }
   }
 
   void _updateLocalWorkedHere(String restaurantId, int delta) {
@@ -999,7 +1050,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     String restaurantName,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final workedList = prefs.getStringList('worked_places') ?? [];
+    final workedPlaces = Set<String>.from(
+      prefs.getStringList('worked_places') ?? const <String>[],
+    );
     if (!mounted) return;
 
     if (restaurantId.trim().isEmpty) {
@@ -1009,29 +1062,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       return;
     }
 
-    if (workedList.contains(restaurantId)) {
-      final undo = await _showDecisionDialog(
-        title: 'You want to undo?',
-        subtitle: 'Your feedback helps other users.',
-        yesLabel: 'Yes',
-        noLabel: 'No',
-        yesColor: Colors.green,
-      );
-
-      if (undo == true) {
-        try {
-          await MapMarkersService.decrementWorkedHere(restaurantId);
-          workedList.remove(restaurantId);
-          await prefs.setStringList('worked_places', workedList);
-          _updateLocalWorkedHere(restaurantId, -1);
-          if (mounted) setState(() {});
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('❌ Error en desfer: $e')));
-        }
-      }
+    if (workedPlaces.contains(restaurantId)) {
+      await _showAlreadyWorkedDialog(restaurantName);
       return;
     }
 
@@ -1044,13 +1076,16 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
 
     if (result == true) {
+      workedPlaces.add(restaurantId);
       try {
+        await prefs.setStringList('worked_places', workedPlaces.toList());
         await MapMarkersService.incrementWorkedHere(restaurantId);
-        workedList.add(restaurantId);
-        await prefs.setStringList('worked_places', workedList);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
         _updateLocalWorkedHere(restaurantId, 1);
         if (mounted) setState(() {});
       } catch (e) {
+        workedPlaces.remove(restaurantId);
+        await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
@@ -1146,6 +1181,69 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
   }
 
+  Future<void> _showAlreadyWorkedDialog(String restaurantName) {
+    final borderRadius = BorderRadius.circular(24);
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          elevation: 8,
+          backgroundColor: const Color(0xFFFFF7F5),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 28,
+                  color: Colors.black54,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Already marked',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$restaurantName is already in your worked list.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('OK'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showEmailOptions(String email) {
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
@@ -1199,6 +1297,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                             this,
                             'copied email',
                           );
+                          unawaited(
+                            _handlePositiveReviewAction(
+                              ReviewService.actionContactOrExternalLinkTapped,
+                            ),
+                          );
                         },
                         child: const Text('Copy email'),
                       ),
@@ -1233,6 +1336,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                             email: email,
                           );
                           entry.remove();
+                          unawaited(
+                            _handlePositiveReviewAction(
+                              ReviewService.actionContactOrExternalLinkTapped,
+                            ),
+                          );
                         },
                         child: const Text('Send email'),
                       ),
@@ -1645,106 +1753,109 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
           appBar: null,
           body: Stack(
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _initialCenter,
-                  initialZoom: _initialZoom,
-                  minZoom: 3.0,
-                  maxZoom: 18.2,
-                  onMapReady: () {
-                    _mapReady = true;
-                    if (_pendingCenter != null && _pendingZoom != null) {
-                      _mapController.move(_pendingCenter!, _pendingZoom!);
-                      _pendingCenter = null;
-                      _pendingZoom = null;
-                    }
-                    _scheduleAdjacentZoomPrefetch(tileProviders);
-                  },
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                  ),
-                  onTap: (tapPosition, point) {
-                    _clearTemporarySelection();
-                  },
-                  onPositionChanged: (position, _) {
-                    final rotation = position.rotation;
-                    if (rotation.abs() > 0.0001) _mapController.rotate(0);
-                    _currentCenter = position.center;
-                    final newZoom = position.zoom;
-                    if ((newZoom - _currentZoom).abs() > 0.02) {
-                      _setTileLoading(true);
-                    }
-                    _currentZoom = newZoom;
-                    _pendingCenter = _currentCenter;
-                    _pendingZoom = _currentZoom;
-                    _persistDebounce?.cancel();
-                    _persistDebounce = Timer(
-                      const Duration(milliseconds: 500),
-                      () {
-                        _saveLastMapPosition(_currentCenter, _currentZoom);
-                      },
-                    );
-                    _scheduleAdjacentZoomPrefetch(tileProviders);
-                  },
-                ),
-                children: [
-                  VectorTileLayer(
-                    theme: style.theme,
-                    sprites: style.sprites,
-                    tileProviders: tileProviders,
-                    cacheFolder: _resolveVectorCacheFolder,
-                    fileCacheTtl: const Duration(days: 45),
-                    fileCacheMaximumSizeInBytes: 160 * 1024 * 1024,
-                    memoryTileCacheMaxSize: 24 * 1024 * 1024,
-                    memoryTileDataCacheMaxSize: 80,
-                    textCacheMaxSize: 180,
-                    maximumTileSubstitutionDifference: 3,
-                    concurrency: 6,
-                    tileOffset: TileOffset.mapbox,
-                  ),
-                  MarkerClusterLayerWidget(
-                    options: MarkerClusterLayerOptions(
-                      markers: _markers,
-                      zoomToBoundsOnClick: false,
-                      centerMarkerOnClick: false,
-                      spiderfyCluster: false,
-                      onClusterTap: _zoomToCluster,
-                      maxClusterRadius:
-                          28, // clusters a bit tighter for faster zoom redraws
-                      size: const Size(30, 30),
-                      padding: const EdgeInsets.all(20),
-                      disableClusteringAtZoom:
-                          17, // avoid heavy re-clustering when zoomed in
-                      showPolygon:
-                          false, // evita dibuixar el polígon verd del clúster
-                      builder: (context, cluster) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF111827),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cluster.length.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                        );
-                      },
+              SizedBox.expand(
+                key: _mapAreaKey,
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _initialCenter,
+                    initialZoom: _initialZoom,
+                    minZoom: 3.0,
+                    maxZoom: 18.2,
+                    onMapReady: () {
+                      _mapReady = true;
+                      if (_pendingCenter != null && _pendingZoom != null) {
+                        _mapController.move(_pendingCenter!, _pendingZoom!);
+                        _pendingCenter = null;
+                        _pendingZoom = null;
+                      }
+                      _scheduleAdjacentZoomPrefetch(tileProviders);
+                    },
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                     ),
+                    onTap: (tapPosition, point) {
+                      _clearTemporarySelection();
+                    },
+                    onPositionChanged: (position, _) {
+                      final rotation = position.rotation;
+                      if (rotation.abs() > 0.0001) _mapController.rotate(0);
+                      _currentCenter = position.center;
+                      final newZoom = position.zoom;
+                      if ((newZoom - _currentZoom).abs() > 0.02) {
+                        _setTileLoading(true);
+                      }
+                      _currentZoom = newZoom;
+                      _pendingCenter = _currentCenter;
+                      _pendingZoom = _currentZoom;
+                      _persistDebounce?.cancel();
+                      _persistDebounce = Timer(
+                        const Duration(milliseconds: 500),
+                        () {
+                          _saveLastMapPosition(_currentCenter, _currentZoom);
+                        },
+                      );
+                      _scheduleAdjacentZoomPrefetch(tileProviders);
+                    },
                   ),
-                ],
+                  children: [
+                    VectorTileLayer(
+                      theme: style.theme,
+                      sprites: style.sprites,
+                      tileProviders: tileProviders,
+                      cacheFolder: _resolveVectorCacheFolder,
+                      fileCacheTtl: const Duration(days: 45),
+                      fileCacheMaximumSizeInBytes: 160 * 1024 * 1024,
+                      memoryTileCacheMaxSize: 24 * 1024 * 1024,
+                      memoryTileDataCacheMaxSize: 80,
+                      textCacheMaxSize: 180,
+                      maximumTileSubstitutionDifference: 3,
+                      concurrency: 6,
+                      tileOffset: TileOffset.mapbox,
+                    ),
+                    MarkerClusterLayerWidget(
+                      options: MarkerClusterLayerOptions(
+                        markers: _markers,
+                        zoomToBoundsOnClick: false,
+                        centerMarkerOnClick: false,
+                        spiderfyCluster: false,
+                        onClusterTap: _zoomToCluster,
+                        maxClusterRadius:
+                            28, // clusters a bit tighter for faster zoom redraws
+                        size: const Size(30, 30),
+                        padding: const EdgeInsets.all(20),
+                        disableClusteringAtZoom:
+                            17, // avoid heavy re-clustering when zoomed in
+                        showPolygon:
+                            false, // evita dibuixar el polígon verd del clúster
+                        builder: (context, cluster) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF111827),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cluster.length.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Positioned(
                 top: 16,
@@ -1808,6 +1919,34 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                   ),
                 ),
               ),
+              if (_showOnboardingEmailPreview)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        top: 70,
+                        right: 16,
+                      ),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: IgnorePointer(
+                          child: _ProfilePopupMenu(
+                            onMail: () {},
+                            onReports: () {},
+                            onFavorites: () {},
+                            onAdmin: () {},
+                            showAdmin: false,
+                            automaticEmailTileKey: _automaticEmailTileKey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (_isLoadingData)
                 const Center(child: CircularProgressIndicator()),
               _buildRestaurantPopup(),
@@ -2235,6 +2374,7 @@ class _ProfilePopupMenu extends StatelessWidget {
     required this.onFavorites,
     required this.onAdmin,
     required this.showAdmin,
+    this.automaticEmailTileKey,
   });
 
   final VoidCallback onMail;
@@ -2242,6 +2382,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   final VoidCallback onFavorites;
   final VoidCallback onAdmin;
   final bool showAdmin;
+  final Key? automaticEmailTileKey;
 
   @override
   Widget build(BuildContext context) {
@@ -2271,6 +2412,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconBg: Colors.redAccent.withValues(alpha: 0.12),
               text: 'Automatic email editing',
               onTap: onMail,
+              tileKey: automaticEmailTileKey,
             ),
             const SizedBox(height: 14),
             _ProfileTile(
@@ -2312,6 +2454,7 @@ class _ProfileTile extends StatelessWidget {
     this.iconColor = Colors.black87,
     this.iconBg = Colors.black12,
     required this.onTap,
+    this.tileKey,
   });
 
   final IconData icon;
@@ -2319,12 +2462,14 @@ class _ProfileTile extends StatelessWidget {
   final Color iconColor;
   final Color iconBg;
   final VoidCallback onTap;
+  final Key? tileKey;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Padding(
+        key: tileKey,
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),

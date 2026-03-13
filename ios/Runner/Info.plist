@@ -61,14 +61,17 @@
   </dict>
 
   <!-- ✅ I DESPRÉS les strings de privacitat -->
-  <key>NSLocationWhenInUseUsageDescription</key>
-  <string>We use your location to show nearby places and improve map results.</string>
+	  <key>NSLocationWhenInUseUsageDescription</key>
+	  <string>We use your location to show nearby places and improve map results.</string>
 
-  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-  <string>We use your location to show nearby places and improve map results, even when the app is in the background (if enabled).</string>
+	  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	  <string>We use your location to show nearby places and improve map results, even when the app is in the background (if enabled).</string>
 
-  <key>NSPhotoLibraryUsageDescription</key>
-  <string>We need access to your photo library so you can select and upload images.</string>
+	  <key>NSLocalNetworkUsageDescription</key>
+	  <string>We use your local network connection to send reports to the development backend while testing on your Wi-Fi.</string>
+
+	  <key>NSPhotoLibraryUsageDescription</key>
+	  <string>We need access to your photo library so you can select and upload images.</string>
 
   <key>UILaunchStoryboardName</key>
   <string>LaunchScreen</string>

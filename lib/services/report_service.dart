@@ -1,10 +1,8 @@
-import 'dart:convert';
-import 'dart:math';
 import 'dart:async';
+import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReportServiceResult {
@@ -26,7 +24,9 @@ class ReportService {
 
   static const int _minMessageLength = 5;
   static const int _maxMessageLength = 2000;
+  static const int _maxReportsPerDay = 3;
   static const String _clientIdPrefsKey = 'report_client_id';
+  static const String _reportTimestampsPrefsKey = 'report_send_timestamps';
   static final Random _random = _createRandom();
 
   Future<ReportServiceResult> sendReport(String message) async {
@@ -40,70 +40,9 @@ class ReportService {
       );
     }
 
-    final endpoint = _resolveEndpoint();
-    if (endpoint == null) {
-      return const ReportServiceResult(
-        success: false,
-        message:
-            'REPORT_BACKEND_URL is missing on the client. Add the real reports backend URL.',
-      );
-    }
-
-    final parsedUri = Uri.tryParse(endpoint);
-    if (parsedUri == null) {
-      return const ReportServiceResult(
-        success: false,
-        message: 'The reports backend URL is invalid.',
-      );
-    }
-
-    final candidateUris = _candidateUrisForRuntime(parsedUri);
-
-    final clientId = await _getOrCreateClientId();
-
-    http.Response? response;
-    for (final uri in candidateUris) {
-      try {
-        response = await http
-            .post(
-              uri,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'userId': clientId,
-                'message': trimmedMessage,
-                'platform': _platformName,
-              }),
-            )
-            .timeout(const Duration(seconds: 6));
-        break;
-      } on TimeoutException {
-        continue;
-      } catch (_) {
-        continue;
-      }
-    }
-
-    if (response == null) {
-      return const ReportServiceResult(
-        success: false,
-        message: 'Could not contact the reports server.',
-      );
-    }
-
-    final payload = _decodeJsonBody(response.body);
-    if (response.statusCode == 200 && payload['success'] == true) {
-      final reportId = payload['reportId'] is String
-          ? payload['reportId'] as String
-          : null;
-      return ReportServiceResult(
-        success: true,
-        message: 'Report sent successfully.',
-        statusCode: response.statusCode,
-        reportId: reportId,
-      );
-    }
-
-    if (response.statusCode == 429) {
+    final prefs = await SharedPreferences.getInstance();
+    final recentReportTimestamps = _readRecentReportTimestamps(prefs);
+    if (recentReportTimestamps.length >= _maxReportsPerDay) {
       return const ReportServiceResult(
         success: false,
         message: 'You have reached the daily limit.',
@@ -111,39 +50,47 @@ class ReportService {
       );
     }
 
-    final serverError = payload['error'] is String
-        ? (payload['error'] as String).trim()
-        : '';
-    return ReportServiceResult(
+    final clientId = await _getOrCreateClientId(prefs);
+    final now = DateTime.now();
+
+    try {
+      final document = await FirebaseFirestore.instance
+          .collection('reports')
+          .add({
+            'userId': clientId,
+            'message': trimmedMessage,
+            'platform': _platformName,
+            'source': 'app',
+            'status': 'new',
+            'createdAt': FieldValue.serverTimestamp(),
+            'clientCreatedAt': Timestamp.fromDate(now.toUtc()),
+          });
+      await _storeReportTimestamp(prefs, now, recentReportTimestamps);
+
+      return ReportServiceResult(
+        success: true,
+        message: 'Report sent successfully.',
+        statusCode: 200,
+        reportId: document.id,
+      );
+    } on FirebaseException catch (error) {
+      debugPrint(
+        'ReportService Firestore error (${error.code}): ${error.message}',
+      );
+    } catch (error) {
+      debugPrint('ReportService unexpected error saving report: $error');
+    }
+
+    return const ReportServiceResult(
       success: false,
-      message: serverError.isNotEmpty
-          ? serverError
-          : 'Could not send the report.',
-      statusCode: response.statusCode,
+      message: 'Could not send the report.',
     );
   }
 
-  String? _resolveEndpoint() {
-    const compileTimeUrl = String.fromEnvironment('REPORT_BACKEND_URL');
-    if (compileTimeUrl.trim().isNotEmpty) {
-      return compileTimeUrl.trim();
-    }
-
-    final envUrl = dotenv.env['REPORT_BACKEND_URL']?.trim() ?? '';
-    if (envUrl.isNotEmpty) {
-      return envUrl;
-    }
-
-    final legacyEnvUrl = dotenv.env['SEND_REPORT_URL']?.trim() ?? '';
-    if (legacyEnvUrl.isNotEmpty) {
-      return legacyEnvUrl;
-    }
-
-    return null;
-  }
-
-  Future<String> _getOrCreateClientId() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<String> _getOrCreateClientId([
+    SharedPreferences? providedPrefs,
+  ]) async {
+    final prefs = providedPrefs ?? await SharedPreferences.getInstance();
     final existing = prefs.getString(_clientIdPrefsKey)?.trim() ?? '';
     if (existing.isNotEmpty) {
       return existing;
@@ -164,23 +111,6 @@ class ReportService {
     return 'wd-$now-${parts.join()}';
   }
 
-  Map<String, dynamic> _decodeJsonBody(String body) {
-    if (body.trim().isEmpty) {
-      return const <String, dynamic>{};
-    }
-
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
-      }
-    } catch (_) {
-      // Ignore invalid JSON and fall back to an empty payload.
-    }
-
-    return const <String, dynamic>{};
-  }
-
   static Random _createRandom() {
     try {
       return Random.secure();
@@ -189,47 +119,40 @@ class ReportService {
     }
   }
 
-  List<Uri> _candidateUrisForRuntime(Uri uri) {
-    if (kIsWeb) {
-      return [uri];
-    }
+  List<DateTime> _readRecentReportTimestamps(SharedPreferences prefs) {
+    final rawValues =
+        prefs.getStringList(_reportTimestampsPrefsKey) ?? const [];
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(hours: 24));
+    final values = <DateTime>[];
 
-    final host = uri.host.toLowerCase();
-    final isLoopbackHost = host == 'localhost' || host == '127.0.0.1';
+    for (final rawValue in rawValues) {
+      final milliseconds = int.tryParse(rawValue);
+      if (milliseconds == null) {
+        continue;
+      }
 
-    if (!isLoopbackHost) {
-      return [uri];
-    }
-
-    final candidates = <Uri>[];
-    void addCandidate(Uri value) {
-      if (!candidates.contains(value)) {
-        candidates.add(value);
+      final timestamp = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+      if (timestamp.isAfter(cutoff)) {
+        values.add(timestamp);
       }
     }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      addCandidate(uri.replace(host: '10.0.2.2'));
-      addCandidate(uri.replace(host: '10.0.3.2'));
-      addCandidate(uri.replace(host: '127.0.0.1'));
-      addCandidate(uri.replace(host: 'localhost'));
-      return candidates;
-    }
+    return values;
+  }
 
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      addCandidate(uri.replace(host: 'localhost'));
-      addCandidate(uri.replace(host: '127.0.0.1'));
-      return candidates;
-    }
-
-    addCandidate(uri);
-    if (host != 'localhost') {
-      addCandidate(uri.replace(host: 'localhost'));
-    }
-    if (host != '127.0.0.1') {
-      addCandidate(uri.replace(host: '127.0.0.1'));
-    }
-    return candidates;
+  Future<void> _storeReportTimestamp(
+    SharedPreferences prefs,
+    DateTime timestamp,
+    List<DateTime> recentTimestamps,
+  ) async {
+    final updated = <String>[
+      ...recentTimestamps.map(
+        (value) => value.millisecondsSinceEpoch.toString(),
+      ),
+      timestamp.millisecondsSinceEpoch.toString(),
+    ];
+    await prefs.setStringList(_reportTimestampsPrefsKey, updated);
   }
 
   String get _platformName {

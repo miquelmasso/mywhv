@@ -60,6 +60,199 @@ const setCorsHeaders = (req, res) => {
   res.set('Vary', 'Origin');
 };
 
+const handleRequestPrelude = (req, res) => {
+  setCorsHeaders(req, res);
+
+  const origin = req.get('Origin') || '';
+  if (origin && !isAllowedOrigin(origin)) {
+    res.status(403).json({
+      success: false,
+      error: 'Origin not allowed',
+    });
+    return false;
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return false;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({
+      success: false,
+      error: 'Method not allowed',
+    });
+    return false;
+  }
+
+  return true;
+};
+
+const normalizeReportBody = (body) => {
+  if (typeof body === 'string') {
+    return JSON.parse(body);
+  }
+
+  return body && typeof body === 'object' ? body : {};
+};
+
+const getReportPayload = (body) => ({
+  userId: typeof body.userId === 'string' ? body.userId.trim() : '',
+  message: typeof body.message === 'string' ? body.message.trim() : '',
+  appVersion: typeof body.appVersion === 'string' ? body.appVersion.trim() : '',
+  platform: typeof body.platform === 'string' ? body.platform.trim() : '',
+});
+
+const validateReportPayload = ({ userId, message }) => {
+  if (!userId || !message) {
+    return 'userId and message are required';
+  }
+
+  if (
+    message.length < MIN_REPORT_MESSAGE_LENGTH ||
+    message.length > MAX_REPORT_MESSAGE_LENGTH
+  ) {
+    return `message must be between ${MIN_REPORT_MESSAGE_LENGTH} and ${MAX_REPORT_MESSAGE_LENGTH} characters`;
+  }
+
+  return null;
+};
+
+const submitReport = async ({
+  userId,
+  message,
+  appVersion,
+  platform,
+  logLabel,
+}) => {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    functions.logger.error(`${logLabel} missing RESEND_API_KEY secret`);
+    return {
+      success: false,
+      status: 500,
+      error: 'Report service is not configured',
+    };
+  }
+
+  const db = admin.firestore();
+  const now = admin.firestore.Timestamp.now();
+  const reportRef = db.collection('reports').doc();
+  const limitRef = db.collection('report_limits').doc(userId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const limitSnap = await transaction.get(limitRef);
+
+      let nextWindowStart = now;
+      let nextCount = 1;
+
+      if (limitSnap.exists) {
+        const data = limitSnap.data() || {};
+        const currentWindowStart = data.windowStart;
+        const currentCount = Number(data.count || 0);
+        const hasActiveWindow =
+          currentWindowStart &&
+          typeof currentWindowStart.toMillis === 'function' &&
+          now.toMillis() - currentWindowStart.toMillis() <= REPORT_WINDOW_MS;
+
+        if (hasActiveWindow) {
+          if (currentCount >= REPORT_LIMIT_PER_DAY) {
+            throw new RateLimitError('Limit reached');
+          }
+          nextWindowStart = currentWindowStart;
+          nextCount = currentCount + 1;
+        }
+      }
+
+      transaction.set(
+        limitRef,
+        {
+          windowStart: nextWindowStart,
+          count: nextCount,
+        },
+        { merge: true },
+      );
+
+      transaction.set(reportRef, {
+        userId,
+        message,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(appVersion ? { appVersion } : {}),
+        ...(platform ? { platform } : {}),
+      });
+    });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return {
+        success: false,
+        status: 429,
+        error: 'Limit reached',
+      };
+    }
+
+    functions.logger.error(`${logLabel} firestore transaction failed`, {
+      err: err.message,
+      userId,
+    });
+    return {
+      success: false,
+      status: 500,
+      error: 'Could not save report',
+    };
+  }
+
+  try {
+    const resend = new Resend(resendApiKey);
+    const createdAtIso = now.toDate().toISOString();
+    const escapedMessage = escapeHtml(message).replace(/\n/g, '<br>');
+
+    const emailResult = await resend.emails.send({
+      from: 'WorkyDay <hello@workyday.com>',
+      to: 'miquelmassomoreno@gmail.com',
+      subject: 'Nou report des de WorkyDay',
+      html: `
+        <h2>Nou report des de WorkyDay</h2>
+        <p><strong>UserId:</strong> ${escapeHtml(userId)}</p>
+        <p><strong>Data/hora:</strong> ${escapeHtml(createdAtIso)}</p>
+        ${
+          platform
+            ? `<p><strong>Platform:</strong> ${escapeHtml(platform)}</p>`
+            : ''
+        }
+        ${
+          appVersion
+            ? `<p><strong>App version:</strong> ${escapeHtml(appVersion)}</p>`
+            : ''
+        }
+        <hr>
+        <p>${escapedMessage}</p>
+      `,
+    });
+
+    if (emailResult && emailResult.error) {
+      throw new Error(emailResult.error.message || 'Resend email failed');
+    }
+  } catch (err) {
+    functions.logger.error(`${logLabel} email failed`, {
+      err: err.message,
+      reportId: reportRef.id,
+      userId,
+    });
+    return {
+      success: false,
+      status: 500,
+      error: 'Report saved, but email notification failed',
+    };
+  }
+
+  return {
+    success: true,
+    status: 200,
+    reportId: reportRef.id,
+  };
+};
+
 exports.extractContactsFromUrl = functions
   .region(REGION)
   .https.onCall(async (data, context) => {
@@ -183,27 +376,7 @@ exports.sendReport = functions
   .region(REGION)
   .runWith({ secrets: ['RESEND_API_KEY'] })
   .https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-
-    const origin = req.get('Origin') || '';
-    if (origin && !isAllowedOrigin(origin)) {
-      res.status(403).json({
-        success: false,
-        error: 'Origin not allowed',
-      });
-      return;
-    }
-
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-
-    if (req.method !== 'POST') {
-      res.status(405).json({
-        success: false,
-        error: 'Method not allowed',
-      });
+    if (!handleRequestPrelude(req, res)) {
       return;
     }
 
@@ -232,33 +405,23 @@ exports.sendReport = functions
       return;
     }
 
-    let body = req.body;
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (err) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid JSON body',
-        });
-        return;
-      }
-    }
-    body = body && typeof body === 'object' ? body : {};
-
-    const userId =
-      typeof body.userId === 'string' ? body.userId.trim() : '';
-    const message =
-      typeof body.message === 'string' ? body.message.trim() : '';
-    const appVersion =
-      typeof body.appVersion === 'string' ? body.appVersion.trim() : '';
-    const platform =
-      typeof body.platform === 'string' ? body.platform.trim() : '';
-
-    if (!userId || !message) {
+    let body;
+    try {
+      body = normalizeReportBody(req.body);
+    } catch (err) {
       res.status(400).json({
         success: false,
-        error: 'userId and message are required',
+        error: 'Invalid JSON body',
+      });
+      return;
+    }
+
+    const { userId, message, appVersion, platform } = getReportPayload(body);
+    const validationError = validateReportPayload({ userId, message });
+    if (validationError) {
+      res.status(400).json({
+        success: false,
+        error: validationError,
       });
       return;
     }
@@ -271,140 +434,70 @@ exports.sendReport = functions
       return;
     }
 
-    if (
-      message.length < MIN_REPORT_MESSAGE_LENGTH ||
-      message.length > MAX_REPORT_MESSAGE_LENGTH
-    ) {
-      res.status(400).json({
+    const result = await submitReport({
+      userId,
+      message,
+      appVersion,
+      platform,
+      logLabel: 'sendReport',
+    });
+
+    if (!result.success) {
+      res.status(result.status).json({
         success: false,
-        error: `message must be between ${MIN_REPORT_MESSAGE_LENGTH} and ${MAX_REPORT_MESSAGE_LENGTH} characters`,
-      });
-      return;
-    }
-
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      functions.logger.error('sendReport missing RESEND_API_KEY secret');
-      res.status(500).json({
-        success: false,
-        error: 'Report service is not configured',
-      });
-      return;
-    }
-
-    const db = admin.firestore();
-    const now = admin.firestore.Timestamp.now();
-    const reportRef = db.collection('reports').doc();
-    const limitRef = db.collection('report_limits').doc(userId);
-
-    try {
-      await db.runTransaction(async (transaction) => {
-        const limitSnap = await transaction.get(limitRef);
-
-        let nextWindowStart = now;
-        let nextCount = 1;
-
-        if (limitSnap.exists) {
-          const data = limitSnap.data() || {};
-          const currentWindowStart = data.windowStart;
-          const currentCount = Number(data.count || 0);
-          const hasActiveWindow =
-            currentWindowStart &&
-            typeof currentWindowStart.toMillis === 'function' &&
-            now.toMillis() - currentWindowStart.toMillis() <= REPORT_WINDOW_MS;
-
-          if (hasActiveWindow) {
-            if (currentCount >= REPORT_LIMIT_PER_DAY) {
-              throw new RateLimitError('Limit reached');
-            }
-            nextWindowStart = currentWindowStart;
-            nextCount = currentCount + 1;
-          }
-        }
-
-        transaction.set(
-          limitRef,
-          {
-            windowStart: nextWindowStart,
-            count: nextCount,
-          },
-          { merge: true },
-        );
-
-        transaction.set(reportRef, {
-          userId,
-          message,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          ...(appVersion ? { appVersion } : {}),
-          ...(platform ? { platform } : {}),
-        });
-      });
-    } catch (err) {
-      if (err instanceof RateLimitError) {
-        res.status(429).json({
-          success: false,
-          error: 'Limit reached',
-        });
-        return;
-      }
-
-      functions.logger.error('sendReport firestore transaction failed', {
-        err: err.message,
-        userId,
-      });
-      res.status(500).json({
-        success: false,
-        error: 'Could not save report',
-      });
-      return;
-    }
-
-    try {
-      const resend = new Resend(resendApiKey);
-      const createdAtIso = now.toDate().toISOString();
-      const escapedMessage = escapeHtml(message).replace(/\n/g, '<br>');
-
-      const emailResult = await resend.emails.send({
-        from: 'WorkyDay <hello@workyday.com>',
-        to: 'miquelmassomoreno@gmail.com',
-        subject: 'Nou report des de WorkyDay',
-        html: `
-          <h2>Nou report des de WorkyDay</h2>
-          <p><strong>UserId:</strong> ${escapeHtml(userId)}</p>
-          <p><strong>Data/hora:</strong> ${escapeHtml(createdAtIso)}</p>
-          ${
-            platform
-              ? `<p><strong>Platform:</strong> ${escapeHtml(platform)}</p>`
-              : ''
-          }
-          ${
-            appVersion
-              ? `<p><strong>App version:</strong> ${escapeHtml(appVersion)}</p>`
-              : ''
-          }
-          <hr>
-          <p>${escapedMessage}</p>
-        `,
-      });
-
-      if (emailResult && emailResult.error) {
-        throw new Error(emailResult.error.message || 'Resend email failed');
-      }
-    } catch (err) {
-      functions.logger.error('sendReport email failed', {
-        err: err.message,
-        reportId: reportRef.id,
-        userId,
-      });
-      res.status(500).json({
-        success: false,
-        error: 'Report saved, but email notification failed',
+        error: result.error,
       });
       return;
     }
 
     res.status(200).json({
       success: true,
-      reportId: reportRef.id,
+      reportId: result.reportId,
     });
+  });
+
+exports.sendPublicReport = functions
+  .region(REGION)
+  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .https.onCall(async (data) => {
+    let body;
+    try {
+      body = normalizeReportBody(data);
+    } catch (err) {
+      return {
+        success: false,
+        error: 'Invalid JSON body',
+        statusCode: 400,
+      };
+    }
+
+    const { userId, message, appVersion, platform } = getReportPayload(body);
+    const validationError = validateReportPayload({ userId, message });
+    if (validationError) {
+      return {
+        success: false,
+        error: validationError,
+        statusCode: 400,
+      };
+    }
+
+    const result = await submitReport({
+      userId,
+      message,
+      appVersion,
+      platform,
+      logLabel: 'sendPublicReport',
+    });
+
+    return result.success
+      ? {
+          success: true,
+          reportId: result.reportId,
+          statusCode: 200,
+        }
+      : {
+          success: false,
+          error: result.error,
+          statusCode: result.status,
+        };
   });

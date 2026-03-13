@@ -11,6 +11,10 @@ import '../services/postcode_eligibility_service.dart';
 import 'mail_setup_page.dart';
 import 'guide_section_screen.dart';
 
+const String _insuranceAffiliateUrl =
+    'https://www.yomeanimo.com/seguros-de-viaje-working-holiday?r=AdbiQKqt';
+const String _insuranceDiscountCode = 'MIQ5OFF';
+
 class GuidePageScreen extends StatefulWidget {
   const GuidePageScreen({
     super.key,
@@ -605,19 +609,34 @@ class _SectionBlocksView extends StatelessWidget {
     if (section == null) {
       return Center(child: Text(resolve('ui.no_content')));
     }
+    final widgets = <Widget>[];
+    var insertedPreparationInsurance = false;
+    for (final block in section!.blocks) {
+      widgets.add(
+        _buildBlockWidget(
+          context,
+          block,
+          vsync: vsync,
+          onNavigateToTab: onNavigateToTab,
+          t: t,
+          resolve: resolve,
+        ),
+      );
+      if (section!.id == 'preparation_tab' &&
+          block.title == '@before.prep.season_title') {
+        widgets.add(_BeforeArrivalInsuranceAffiliateCard(resolve: resolve));
+        insertedPreparationInsurance = true;
+      }
+    }
+    if (section!.id == 'preparation_tab' && !insertedPreparationInsurance) {
+      widgets.add(_BeforeArrivalInsuranceAffiliateCard(resolve: resolve));
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: section!.blocks.length,
+      itemCount: widgets.length,
       separatorBuilder: (_, _) =>
           const SizedBox(height: _GuidePageScreenState.kGuideBlockSpacing),
-      itemBuilder: (context, index) => _buildBlockWidget(
-        context,
-        section!.blocks[index],
-        vsync: vsync,
-        onNavigateToTab: onNavigateToTab,
-        t: t,
-        resolve: resolve,
-      ),
+      itemBuilder: (context, index) => widgets[index],
     );
   }
 }
@@ -1400,26 +1419,11 @@ Widget _buildBlockWidget(
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: block.ordered
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: block.items.asMap().entries.map((entry) {
-                          final text = resolve(entry.value);
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${entry.key + 1}. ',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Expanded(child: Text(text)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
+                    ? _OrderedBlockItems(
+                        items: block.items,
+                        resolve: resolve,
+                        appendAffiliateAfterVisaInsuranceItem:
+                            block.title == '@visa.requirements.title',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1909,6 +1913,175 @@ class _InfoCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OrderedBlockItems extends StatelessWidget {
+  const _OrderedBlockItems({
+    required this.items,
+    required this.resolve,
+    this.appendAffiliateAfterVisaInsuranceItem = false,
+  });
+
+  final List<dynamic> items;
+  final String Function(dynamic value) resolve;
+  final bool appendAffiliateAfterVisaInsuranceItem;
+
+  bool _isVisaInsuranceItem(dynamic item) {
+    return item == '@visa.requirements.item_4' ||
+        item == 'visa.requirements.item_4';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (final entry in items.asMap().entries) {
+      final text = resolve(entry.value);
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${entry.key + 1}. ',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Expanded(child: Text(text)),
+            ],
+          ),
+        ),
+      );
+      if (appendAffiliateAfterVisaInsuranceItem &&
+          _isVisaInsuranceItem(entry.value)) {
+        children.add(
+          _VisaRequirementsInsuranceAffiliatePanel(resolve: resolve),
+        );
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+}
+
+class _VisaRequirementsInsuranceAffiliatePanel extends StatelessWidget {
+  const _VisaRequirementsInsuranceAffiliatePanel({required this.resolve});
+
+  final String Function(dynamic value) resolve;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _GuideAffiliateCtaButton(
+            label: resolve('@insurance.affiliate.recommended_button'),
+          ),
+          const SizedBox(height: 8),
+          _GuideAffiliateDiscountNote(
+            label: resolve('@insurance.affiliate.discount_code_label'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BeforeArrivalInsuranceAffiliateCard extends StatelessWidget {
+  const _BeforeArrivalInsuranceAffiliateCard({required this.resolve});
+
+  final String Function(dynamic value) resolve;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      title: resolve('@before.insurance.title'),
+      color: const Color(0xFFFFF7F5),
+      leading: Icon(
+        Icons.health_and_safety_outlined,
+        color: Colors.brown.shade400,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            resolve('@before.insurance.body'),
+            style: const TextStyle(fontSize: 13.5, color: Colors.black87),
+          ),
+          const SizedBox(height: 12),
+          _GuideAffiliateCtaButton(
+            label: resolve('@insurance.affiliate.compare_button'),
+          ),
+          const SizedBox(height: 8),
+          _GuideAffiliateDiscountNote(
+            label: resolve('@insurance.affiliate.discount_code_label'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuideAffiliateDiscountNote extends StatelessWidget {
+  const _GuideAffiliateDiscountNote({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '$label: $_insuranceDiscountCode',
+      style: const TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        color: Colors.black54,
+      ),
+    );
+  }
+}
+
+class _GuideAffiliateCtaButton extends StatelessWidget {
+  const _GuideAffiliateCtaButton({this.label = 'Compare WHV insurance'});
+
+  final String label;
+
+  Future<void> _openAffiliate() async {
+    await _launchExternal(Uri.parse(_insuranceAffiliateUrl));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: const Color(0xFFF8EDEA),
+        shape: const StadiumBorder(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _openAffiliate,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF8A4A3A),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
