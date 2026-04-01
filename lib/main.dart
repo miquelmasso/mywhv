@@ -3,19 +3,22 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'firebase_options.dart';
 import 'features/onboarding/onboarding_controller.dart';
 import 'features/onboarding/onboarding_overlay.dart';
 import 'features/onboarding/onboarding_steps.dart';
 import 'navigation/route_observer.dart';
+import 'screens/map_maintenance_page.dart';
+import 'screens/map_osm_clone_page.dart';
 import 'screens/screens.dart';
 import 'screens/admin_gate_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
+import 'services/map_display_settings_service.dart';
 import 'services/offline_state.dart';
 import 'services/review_service.dart';
-import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 // 👇 Fitxers per actualitzar codis postals
 // ignore: unused_import
@@ -36,6 +39,7 @@ Future<void> main() async {
   await FMTCStore('basemap').manage.create();
 
   await OfflineBootstrapService.instance.init();
+  await MapDisplaySettingsService.instance.init();
   debugPrint('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
   await ReviewService.instance.registerAppOpen();
 
@@ -85,24 +89,32 @@ class _MyHomePageState extends State<MyHomePage> {
   DateTime? _adminFirstTap;
   int _onboardingSyncToken = 0;
 
-  final GlobalKey<MapOSMVectorPageState> _mapPageKey =
-      GlobalKey<MapOSMVectorPageState>();
+  final GlobalKey<MapOSMClonePageState> _primaryOsmMapPageKey =
+      GlobalKey<MapOSMClonePageState>();
   final GlobalKey _guideTabIconKey = GlobalKey();
-  late final List<Widget> _pages;
   OnboardingController? _onboardingController;
+  late bool _isMaintenanceScreenVisible;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
-    _pages = <Widget>[
-      MapOSMVectorPage(key: _mapPageKey),
-      GuideScreen(onNavigateToTab: _onItemTapped),
-      const TipsRandomPage(),
-      const ForumPage(),
-    ];
+    _isMaintenanceScreenVisible =
+        MapDisplaySettingsService.instance.isMaintenanceScreenVisible;
+    MapDisplaySettingsService.instance.showMaintenanceScreen.addListener(
+      _handleMapDisplaySettingsChanged,
+    );
     unawaited(_initOnboarding());
   }
+
+  List<Widget> get _pages => <Widget>[
+    _isMaintenanceScreenVisible
+        ? const MapMaintenancePage()
+        : MapOSMClonePage(key: _primaryOsmMapPageKey),
+    GuideScreen(onNavigateToTab: _onItemTapped),
+    const TipsRandomPage(),
+    const ForumPage(),
+  ];
 
   Future<void> _initOnboarding() async {
     if (!_enableOnboarding) {
@@ -116,6 +128,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _onboardingController = controller;
     });
+    if (_isMaintenanceScreenVisible && controller.shouldShowOnLaunch) {
+      await controller.complete();
+      return;
+    }
     if (controller.shouldShowOnLaunch) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _onboardingController != controller) {
@@ -133,6 +149,32 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _onItemTapped(int index) {
     _selectTab(index);
+  }
+
+  bool _isMapTab(int index) => index == 0;
+
+  void _handleMapDisplaySettingsChanged() {
+    final nextValue =
+        MapDisplaySettingsService.instance.isMaintenanceScreenVisible;
+    if (!mounted || _isMaintenanceScreenVisible == nextValue) {
+      return;
+    }
+    setState(() {
+      _isMaintenanceScreenVisible = nextValue;
+    });
+  }
+
+  void _showProfileTooltipForTab(int index) {
+    if (index == 0 && !_isMaintenanceScreenVisible) {
+      _primaryOsmMapPageKey.currentState?.showProfileTooltipIfNeeded();
+    }
+  }
+
+  bool _consumeActiveMapBackPress() {
+    if (_selectedIndex == 0 && !_isMaintenanceScreenVisible) {
+      return _primaryOsmMapPageKey.currentState?.consumeBackPress() ?? false;
+    }
+    return false;
   }
 
   void _selectTab(
@@ -168,9 +210,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_selectedIndex != index) {
       setState(() => _selectedIndex = index);
     }
-    if (showMapTooltip && index == 0) {
+    if (showMapTooltip && _isMapTab(index)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapPageKey.currentState?.showProfileTooltipIfNeeded();
+        _showProfileTooltipForTab(index);
       });
     }
   }
@@ -207,10 +249,16 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    final mapState = _mapPageKey.currentState;
+    final primaryOsmMapState = _primaryOsmMapPageKey.currentState;
     final shouldShowEmailPreview =
-        target == OnboardingTarget.automaticEmail && controller.isVisible;
-    mapState?.setOnboardingEmailPreviewVisible(shouldShowEmailPreview);
+        target == OnboardingTarget.automaticEmail &&
+        controller.isVisible &&
+        !_isMaintenanceScreenVisible;
+    if (!_isMaintenanceScreenVisible) {
+      primaryOsmMapState?.setOnboardingEmailPreviewVisible(
+        shouldShowEmailPreview,
+      );
+    }
 
     if (shouldShowEmailPreview) {
       await _waitForNextFrame();
@@ -246,7 +294,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (controller == null) {
       return;
     }
-    _mapPageKey.currentState?.setOnboardingEmailPreviewVisible(false);
+    _primaryOsmMapPageKey.currentState?.setOnboardingEmailPreviewVisible(false);
     _selectTab(1, trackAdmin: false, showMapTooltip: false);
     await _waitForNextFrame();
     if (!mounted) {
@@ -270,14 +318,20 @@ class _MyHomePageState extends State<MyHomePage> {
       return null;
     }
 
-    final mapState = _mapPageKey.currentState;
+    final primaryOsmMapState = _primaryOsmMapPageKey.currentState;
     switch (controller.currentStep.target) {
       case OnboardingTarget.none:
         return null;
       case OnboardingTarget.mapArea:
-        return mapState?.onboardingMapAreaRect;
+        if (_isMaintenanceScreenVisible) {
+          return null;
+        }
+        return primaryOsmMapState?.onboardingMapAreaRect;
       case OnboardingTarget.automaticEmail:
-        return mapState?.onboardingMailTileRect;
+        if (_isMaintenanceScreenVisible) {
+          return null;
+        }
+        return primaryOsmMapState?.onboardingMailTileRect;
       case OnboardingTarget.guideTab:
         return _rectForKey(_guideTabIconKey);
     }
@@ -334,6 +388,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void dispose() {
     _onboardingController?.removeListener(_handleOnboardingChanged);
+    MapDisplaySettingsService.instance.showMaintenanceScreen.removeListener(
+      _handleMapDisplaySettingsChanged,
+    );
     super.dispose();
   }
 
@@ -345,8 +402,7 @@ class _MyHomePageState extends State<MyHomePage> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         final handledByMap =
-            _selectedIndex == 0 &&
-            (_mapPageKey.currentState?.consumeBackPress() ?? false);
+            _isMapTab(_selectedIndex) && _consumeActiveMapBackPress();
         if (handledByMap) return;
         SystemNavigator.pop();
       },

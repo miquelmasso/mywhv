@@ -5,6 +5,7 @@ import 'manage_farms_page.dart';
 import 'restaurant_edit_page.dart';
 import 'data_lists_page.dart';
 import 'map_page.dart';
+import 'map_management_page.dart';
 import 'map_osm_vector_page.dart';
 
 class AdminPage extends StatelessWidget {
@@ -94,6 +95,27 @@ class AdminPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MapManagementPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.tune),
+                label: const Text('Gestio de mapa'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
                 onPressed: () => _showMapChooser(context),
                 icon: const Icon(Icons.map),
                 label: const Text('Mostrar mapa'),
@@ -132,9 +154,7 @@ class AdminPage extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const TipsPage(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const TipsPage()),
                   );
                 },
                 icon: const Icon(Icons.build_circle_outlined),
@@ -175,9 +195,9 @@ class AdminPage extends StatelessWidget {
                   await FirebaseAuth.instance.signOut();
                   if (context.mounted) {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Signed out')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Signed out')));
                   }
                 },
                 icon: const Icon(Icons.logout),
