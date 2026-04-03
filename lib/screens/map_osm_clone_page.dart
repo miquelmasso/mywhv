@@ -979,7 +979,11 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
         await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
+          const SnackBar(
+            content: Text(
+              'We could not save your vote right now. Please try again.',
+            ),
+          ),
         );
       }
     }

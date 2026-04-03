@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
@@ -10,7 +9,10 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 
 import 'offline_state.dart';
-import 'restaurant_local_store.dart';
+import 'farm_sqlite_store.dart';
+import 'harvest_places_sqlite_store.dart';
+import 'restaurant_sqlite_store.dart';
+import 'visa_postcodes_sqlite_store.dart';
 
 class OfflineBootstrapService {
   OfflineBootstrapService._();
@@ -20,8 +22,18 @@ class OfflineBootstrapService {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    final store = RestaurantLocalStore.instance;
+    final farmStore = FarmSqliteStore.instance;
+    final harvestStore = HarvestPlacesSqliteStore.instance;
+    final store = RestaurantSqliteStore.instance;
+    final visaStore = VisaPostcodesSqliteStore.instance;
+    await farmStore.init();
+    await harvestStore.init();
     await store.init();
+    await visaStore.init();
+    await farmStore.importSeedAssetIfEmpty();
+    await harvestStore.importSeedAssetIfEmpty();
+    await store.importSeedAssetIfEmpty();
+    await visaStore.importSeedAssetIfEmpty();
 
     final connectivity = await Connectivity().checkConnectivity();
     final hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
@@ -30,28 +42,12 @@ class OfflineBootstrapService {
     OfflineState.instance.isFirstLaunchDone = wasCompleted;
     OfflineState.instance.isOfflineMode = !hasInternet;
 
-    if (!wasCompleted && hasInternet) {
-      await _preloadRestaurants();
+    if (!wasCompleted && await store.hasData) {
       await prefs.setBool(_prefsFirstLaunchKey, true);
       OfflineState.instance.isFirstLaunchDone = true;
     }
 
     await _ensureTileCache();
-  }
-
-  Future<void> _preloadRestaurants() async {
-    final firestore = FirebaseFirestore.instance;
-    final snapshot = await firestore.collection('restaurants').get();
-
-    final restaurants = snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      return RestaurantLocal.fromJson(data);
-    }).where((r) => r.hasContact).toList();
-
-    if (restaurants.isNotEmpty) {
-      await RestaurantLocalStore.instance.saveAll(restaurants);
-    }
   }
 
   Future<void> _ensureTileCache() async {
@@ -82,14 +78,17 @@ class OfflineBootstrapService {
     const lonMax = 155.0;
 
     try {
-      await _prefetchBox(client, tilesDir,
-          lonMin: lonMin,
-          lonMax: lonMax,
-          latMin: latMin,
-          latMax: latMax,
-          minZoom: minZoom,
-          maxZoom: maxZoom,
-          maxTiles: 4500);
+      await _prefetchBox(
+        client,
+        tilesDir,
+        lonMin: lonMin,
+        lonMax: lonMax,
+        latMin: latMin,
+        latMax: latMax,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        maxTiles: 4500,
+      );
 
       // Focused higher-zoom around main populated east/south regions.
       const focusBoxes = [
@@ -145,7 +144,9 @@ class OfflineBootstrapService {
           if (file.existsSync()) continue;
           try {
             final url = 'https://tile.openstreetmap.org/$z/$x/$y.png';
-            final resp = await client.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+            final resp = await client
+                .get(Uri.parse(url))
+                .timeout(const Duration(seconds: 8));
             if (resp.statusCode == 200) {
               await file.parent.create(recursive: true);
               await file.writeAsBytes(resp.bodyBytes, flush: true);

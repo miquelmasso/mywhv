@@ -85,9 +85,13 @@ class _InstagramListPageState extends State<InstagramListPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error creant CSV: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'We could not create the CSV right now. Please try again.',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }

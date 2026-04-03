@@ -26,9 +26,9 @@ class _AdminGatePageState extends State<AdminGatePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.uid == adminUid) {
       setState(() => _alreadyAdmin = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Admin already enabled')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Admin already enabled')));
     }
   }
 
@@ -36,9 +36,9 @@ class _AdminGatePageState extends State<AdminGatePage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter email and password')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter email and password')));
       return;
     }
 
@@ -60,19 +60,27 @@ class _AdminGatePageState extends State<AdminGatePage> {
       } else {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not authorized')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Not authorized')));
       }
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Sign-in failed')),
+        const SnackBar(
+          content: Text(
+            'We could not sign you in. Check your details and try again.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign-in failed: $e')),
+        const SnackBar(
+          content: Text(
+            'We could not sign you in right now. Please try again.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -154,10 +162,7 @@ class _AdminGatePageState extends State<AdminGatePage> {
               ],
               if (isSignedIn) ...[
                 const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _signOut,
-                  child: const Text('Sign out'),
-                ),
+                TextButton(onPressed: _signOut, child: const Text('Sign out')),
               ],
             ],
           ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/map_markers_service.dart';
 import 'add_restaurants_by_postcode_page.dart';
 import 'add_restaurants_by_state_page.dart';
@@ -17,8 +16,9 @@ class _TipsPageState extends State<TipsPage> {
   Future<void> _refreshRestaurants() async {
     setState(() => _isRefreshing = true);
     try {
-      await FirebaseFirestore.instance.enableNetwork();
-      final restaurants = await MapMarkersService.loadRestaurants(fromServer: true);
+      final restaurants = await MapMarkersService.loadRestaurants(
+        fromServer: false,
+      );
       if (!mounted) return;
 
       final total = restaurants.length;
@@ -26,8 +26,8 @@ class _TipsPageState extends State<TipsPage> {
         SnackBar(
           content: Text(
             total == 0
-                ? '⚠️ No s’han trobat restaurants al servidor.'
-                : '✅ $total restaurants actualitzats des del servidor.',
+                ? '⚠️ No s’han trobat restaurants a SQLite.'
+                : '✅ $total restaurants carregats des de SQLite.',
           ),
           backgroundColor: total == 0 ? Colors.orange : Colors.green.shade700,
         ),
@@ -35,14 +35,15 @@ class _TipsPageState extends State<TipsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error actualitzant restaurants: $e'),
+          const SnackBar(
+            content: Text(
+              'We could not refresh the restaurants right now. Please try again.',
+            ),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
     } finally {
-      await FirebaseFirestore.instance.disableNetwork();
       if (mounted) setState(() => _isRefreshing = false);
     }
   }
@@ -127,7 +128,9 @@ class _TipsPageState extends State<TipsPage> {
                       ),
                     )
                   : const Icon(Icons.sync),
-              label: Text(_isRefreshing ? 'Actualitzant...' : 'Actualitzar restaurants'),
+              label: Text(
+                _isRefreshing ? 'Actualitzant...' : 'Actualitzar restaurants',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.orange.shade700,

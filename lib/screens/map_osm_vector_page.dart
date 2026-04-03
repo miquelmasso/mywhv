@@ -1088,7 +1088,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error en registrar el teu vot: $e')),
+          const SnackBar(
+            content: Text(
+              'We could not save your vote right now. Please try again.',
+            ),
+          ),
         );
       }
     }
@@ -1713,8 +1717,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Could not load the map style:\n${snapshot.error}',
+                    const Text(
+                      'We could not load the map right now. Please try again in a moment.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),

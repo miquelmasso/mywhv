@@ -1,6 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'restaurant_sqlite_store.dart';
 
 class FavoritesService {
   FavoritesService._();
@@ -18,29 +20,31 @@ class FavoritesService {
     return list.toSet();
   }
 
-  /// Carrega un snapshot únic dels restaurants que estan a preferits.
-  static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> fetchFavoriteRestaurantsOnce({
+  /// Carrega els restaurants preferits resolent els IDs contra SQLite local.
+  static Future<List<Map<String, dynamic>>> fetchFavoriteRestaurantsOnce({
     bool forceServer = false,
   }) async {
+    if (forceServer) {
+      // La signatura es manté per compatibilitat, però els preferits ja són local-only.
+    }
     final ids = await loadFavoriteIds();
     if (ids.isEmpty) return [];
-    final firestore = FirebaseFirestore.instance;
-    final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs = [];
-    final batches = <List<String>>[];
-    final list = ids.toList();
-    const int chunkSize = 10; // Firestore whereIn limit
-    for (var i = 0; i < list.length; i += chunkSize) {
-      batches.add(list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize));
+    final store = RestaurantSqliteStore.instance;
+    await store.init();
+    final restaurants = await store.getAll();
+    final favorites = <Map<String, dynamic>>[];
+
+    for (final id in ids) {
+      for (final restaurant in restaurants) {
+        final candidateId = (restaurant['docId'] ?? restaurant['id'] ?? '')
+            .toString();
+        if (candidateId != id) continue;
+        favorites.add(Map<String, dynamic>.from(restaurant));
+        break;
+      }
     }
-    for (final batch in batches) {
-      final source = forceServer ? Source.server : Source.cache;
-      final snapshot = await firestore
-          .collection('restaurants')
-          .where(FieldPath.documentId, whereIn: batch)
-          .get(GetOptions(source: source));
-      docs.addAll(snapshot.docs);
-    }
-    return docs;
+
+    return favorites;
   }
 
   /// Treu de preferits sense refrescar UI (mateixa clau que al mapa).

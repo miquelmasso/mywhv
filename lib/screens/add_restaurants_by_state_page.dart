@@ -14,7 +14,15 @@ class AddRestaurantsByStatePage extends StatefulWidget {
 class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
   final RestaurantImportService _importService = RestaurantImportService();
 
-  final List<String> _states = const ['QLD', 'VIC', 'NSW', 'SA', 'WA', 'TAS', 'NT'];
+  final List<String> _states = const [
+    'QLD',
+    'VIC',
+    'NSW',
+    'SA',
+    'WA',
+    'TAS',
+    'NT',
+  ];
   String? _selectedState;
   bool _isImporting = false;
   int _processed = 0;
@@ -23,20 +31,20 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
   Completer<void>? _skipCompleter;
 
   Map<String, (int start, int end)> get _stateRanges => {
-        'QLD': (4000, 4999),
-        'VIC': (3000, 3999),
-        'NSW': (2000, 2999),
-        'SA': (5000, 5999),
-        'WA': (6000, 6999),
-        'TAS': (7000, 7999),
-        'NT': (800, 999),
-      };
+    'QLD': (4000, 4999),
+    'VIC': (3000, 3999),
+    'NSW': (2000, 2999),
+    'SA': (5000, 5999),
+    'WA': (6000, 6999),
+    'TAS': (7000, 7999),
+    'NT': (800, 999),
+  };
 
   Future<void> _startImport() async {
     if (_selectedState == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un estat.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Selecciona un estat.')));
       return;
     }
 
@@ -48,7 +56,8 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     });
 
     try {
-      final range = _stateRanges[_selectedState!] ??
+      final range =
+          _stateRanges[_selectedState!] ??
           (_selectedState == 'NT' ? (800, 999) : (0, -1));
       final start = range.$1;
       final end = range.$2;
@@ -85,7 +94,11 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error important: $e')),
+        const SnackBar(
+          content: Text(
+            'We could not import restaurants for this state right now.',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -123,8 +136,9 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final progress =
-        _total == 0 ? 0.0 : (_processed / _total).clamp(0, 1).toDouble();
+    final progress = _total == 0
+        ? 0.0
+        : (_processed / _total).clamp(0, 1).toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -161,14 +175,11 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
                 ),
               ),
               items: _states
-                  .map(
-                    (s) => DropdownMenuItem(
-                      value: s,
-                      child: Text(s),
-                    ),
-                  )
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
-              onChanged: _isImporting ? null : (value) => setState(() => _selectedState = value),
+              onChanged: _isImporting
+                  ? null
+                  : (value) => setState(() => _selectedState = value),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(

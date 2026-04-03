@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'google_places_service.dart';
+import 'visa_postcodes_sqlite_store.dart';
 
 class ImportResult {
   final String postcode;
@@ -16,12 +16,13 @@ class ImportResult {
 }
 
 class RestaurantImportService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GooglePlacesService _placesService = GooglePlacesService();
-  QuerySnapshot<Map<String, dynamic>>? _visaPostcodesCache;
+  final VisaPostcodesSqliteStore _store = VisaPostcodesSqliteStore.instance;
+  List<Map<String, dynamic>>? _visaPostcodesCache;
 
-  Future<QuerySnapshot<Map<String, dynamic>>> _loadVisaPostcodes() async {
-    _visaPostcodesCache ??= await _firestore.collection('visa_postcodes').get();
+  Future<List<Map<String, dynamic>>> _loadVisaPostcodes() async {
+    await _store.init();
+    _visaPostcodesCache ??= await _store.getAll();
     return _visaPostcodesCache!;
   }
 
@@ -34,14 +35,13 @@ class RestaurantImportService {
   bool _isAllowedWithSnapshot(
     String normalized,
     int number,
-    QuerySnapshot<Map<String, dynamic>> snapshot,
+    List<Map<String, dynamic>> snapshot,
   ) {
     // Només considerem codis de Tourism & Hospitality (Remote & Very Remote Australia).
     // Els codis de "Regional Australia" NO s’utilitzen per a hospitality.
     if (_isNorthernTerritory(normalized, number)) return true;
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+    for (final data in snapshot) {
       final List<dynamic> postcodes = data['postcodes'] ?? [];
       final String industry = (data['industry'] ?? '').toString();
       final lowerIndustry = industry.toLowerCase();
@@ -56,7 +56,7 @@ class RestaurantImportService {
 
   Future<ImportResult> importRestaurantsForPostcode(
     String postcodeStr, {
-    QuerySnapshot<Map<String, dynamic>>? visaSnapshot,
+    List<Map<String, dynamic>>? visaSnapshot,
   }) async {
     final normalized = _normalize(postcodeStr.trim());
     final number = int.tryParse(normalized);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/farm_import_service.dart';
+import '../services/farm_sqlite_store.dart';
 import '../services/harvest_admin_import_service.dart';
 import '../services/harvest_geocode_service.dart';
 
@@ -13,9 +13,19 @@ class ManageFarmsPage extends StatefulWidget {
 }
 
 class _ManageFarmsPageState extends State<ManageFarmsPage> {
-  final List<String> _states = const ['QLD', 'VIC', 'NSW', 'SA', 'WA', 'TAS', 'NT'];
+  final List<String> _states = const [
+    'QLD',
+    'VIC',
+    'NSW',
+    'SA',
+    'WA',
+    'TAS',
+    'NT',
+  ];
   final FarmImportService _importService = FarmImportService();
-  final HarvestAdminImportService _harvestAssetService = HarvestAdminImportService();
+  final FarmSqliteStore _farmStore = FarmSqliteStore.instance;
+  final HarvestAdminImportService _harvestAssetService =
+      HarvestAdminImportService();
   final HarvestGeocodeService _harvestGeocodeService = HarvestGeocodeService();
   String? _selectedState;
   bool _isDeleting = false;
@@ -31,14 +41,14 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
   int _harvestErrors = 0;
 
   Map<String, (int start, int end)> get _stateRanges => {
-        'QLD': (4000, 4999),
-        'VIC': (3000, 3999),
-        'NSW': (2000, 2999),
-        'SA': (5000, 5999),
-        'WA': (6000, 6999),
-        'TAS': (7000, 7999),
-        'NT': (800, 999),
-      };
+    'QLD': (4000, 4999),
+    'VIC': (3000, 3999),
+    'NSW': (2000, 2999),
+    'SA': (5000, 5999),
+    'WA': (6000, 6999),
+    'TAS': (7000, 7999),
+    'NT': (800, 999),
+  };
 
   Future<void> _deleteByState() async {
     if (_selectedState == null) {
@@ -74,28 +84,19 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
     });
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      QuerySnapshot<Map<String, dynamic>> snapshot;
-      do {
-        snapshot = await firestore
-            .collection('farms')
-            .where('state', isEqualTo: _selectedState)
-            .limit(300)
-            .get();
+      await _farmStore.init();
+      final deleted = await _farmStore.deleteByState(_selectedState!);
+      setState(() => _deleted = deleted);
 
-        if (snapshot.docs.isEmpty) break;
-
-        final batch = firestore.batch();
-        for (final doc in snapshot.docs) {
-          batch.delete(doc.reference);
-        }
-        await batch.commit();
-        setState(() => _deleted += snapshot.docs.length);
-      } while (snapshot.docs.isNotEmpty);
-
-      _showSnack('Eliminades $_deleted farms de ${_selectedState!}', Colors.green);
+      _showSnack(
+        'Eliminades $_deleted farms de ${_selectedState!}',
+        Colors.green,
+      );
     } catch (e) {
-      _showSnack('Error eliminant: $e', Colors.red);
+      _showSnack(
+        'We could not delete farms for this state right now.',
+        Colors.red,
+      );
     } finally {
       setState(() => _isDeleting = false);
     }
@@ -114,7 +115,8 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
     });
 
     try {
-      final range = _stateRanges[_selectedState!] ??
+      final range =
+          _stateRanges[_selectedState!] ??
           (_selectedState == 'NT' ? (800, 999) : (0, -1));
       final start = range.$1;
       final end = range.$2;
@@ -133,7 +135,10 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
         Colors.green,
       );
     } catch (e) {
-      _showSnack('Error important: $e', Colors.red);
+      _showSnack(
+        'We could not import farms for this state right now.',
+        Colors.red,
+      );
     } finally {
       setState(() => _isImporting = false);
     }
@@ -158,12 +163,9 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       _harvestWritten = written;
       _harvestErrors = 0;
       _harvestStatus = 'Completat';
-      _showSnack(
-        'Harvest import. Docs: $written',
-        Colors.green,
-      );
+      _showSnack('Harvest import. Docs: $written', Colors.green);
     } catch (e) {
-      _showSnack('Error import Harvest: $e', Colors.red);
+      _showSnack('We could not import harvest data right now.', Colors.red);
     } finally {
       setState(() => _isImportingHarvest = false);
     }
@@ -186,7 +188,10 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
         Colors.green,
       );
     } catch (e) {
-      _showSnack('Error geocoding: $e', Colors.red);
+      _showSnack(
+        'We could not update harvest locations right now.',
+        Colors.red,
+      );
     } finally {
       setState(() {
         _isGeocodingHarvest = false;
@@ -195,11 +200,10 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
   }
 
   void _showSnack(String text, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -228,12 +232,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
                 border: OutlineInputBorder(),
               ),
               items: _states
-                  .map(
-                    (s) => DropdownMenuItem(
-                      value: s,
-                      child: Text(s),
-                    ),
-                  )
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
               onChanged: (_isDeleting || _isImporting)
                   ? null
@@ -243,7 +242,9 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ElevatedButton.icon(
               onPressed: (_isDeleting || _isImporting) ? null : _importByState,
               icon: const Icon(Icons.add),
-              label: Text(_isImporting ? 'Important...' : 'Afegir farms per estat'),
+              label: Text(
+                _isImporting ? 'Important...' : 'Afegir farms per estat',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade700,
@@ -254,7 +255,11 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ElevatedButton.icon(
               onPressed: _isImportingHarvest ? null : _importHarvest,
               icon: const Icon(Icons.cloud_download),
-              label: Text(_isImportingHarvest ? 'Important...' : '🌾 Import Harvest (Admin)'),
+              label: Text(
+                _isImportingHarvest
+                    ? 'Important...'
+                    : '🌾 Import Harvest (Admin)',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.orange.shade700,
@@ -263,9 +268,15 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
-              onPressed: (_isGeocodingHarvest || _isImportingHarvest) ? null : _geocodeHarvestPlaces,
+              onPressed: (_isGeocodingHarvest || _isImportingHarvest)
+                  ? null
+                  : _geocodeHarvestPlaces,
               icon: const Icon(Icons.explore),
-              label: Text(_isGeocodingHarvest ? 'Geocoding...' : '🧭 Geocode Harvest Places (Admin)'),
+              label: Text(
+                _isGeocodingHarvest
+                    ? 'Geocoding...'
+                    : '🧭 Geocode Harvest Places (Admin)',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.blueGrey.shade700,
@@ -285,7 +296,10 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
                 foregroundColor: Colors.white,
               ),
             ),
-            if (_isDeleting || _isImporting || _isImportingHarvest || _isGeocodingHarvest) ...[
+            if (_isDeleting ||
+                _isImporting ||
+                _isImportingHarvest ||
+                _isGeocodingHarvest) ...[
               const SizedBox(height: 16),
               const LinearProgressIndicator(),
               const SizedBox(height: 8),

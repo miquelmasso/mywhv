@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,7 +12,7 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  late Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _future;
+  late Future<List<Map<String, dynamic>>> _future;
   final Set<String> _removedIds = {};
 
   @override
@@ -52,11 +51,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _email(String mail) async => _openUrl('mailto:$mail');
   Future<void> _openDirections(String address) async {
     if (address.trim().isEmpty) return;
-    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}');
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}',
+    );
     await _openUrl(uri.toString());
   }
 
-  Widget _actionIcon(IconData icon, Color color, VoidCallback onTap, {String? tooltip}) {
+  Widget _actionIcon(
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    String? tooltip,
+  }) {
     return IconButton(
       icon: Icon(icon, color: color),
       tooltip: tooltip,
@@ -64,8 +70,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
+  Widget _buildCard(Map<String, dynamic> data) {
+    final docId = (data['docId'] ?? data['id'] ?? '').toString();
     final name = (data['name'] ?? '').toString();
     final address = (data['address'] ?? '').toString();
     final state = (data['state'] ?? '').toString();
@@ -95,7 +101,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     children: [
                       Text(
                         name.isEmpty ? 'Sense nom' : name,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -107,14 +116,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       if (category.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             category,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
@@ -123,35 +138,64 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 ),
                 IconButton(
                   onPressed: () {
-                    final removed = _removedIds.contains(doc.id);
+                    final removed = _removedIds.contains(docId);
                     if (removed) {
-                      _addFavorite(doc.id);
+                      _addFavorite(docId);
                     } else {
-                      _removeFavorite(doc.id);
+                      _removeFavorite(docId);
                     }
                   },
                   icon: Icon(
-                    _removedIds.contains(doc.id) ? Icons.favorite_border : Icons.favorite,
-                    color: _removedIds.contains(doc.id) ? Colors.grey : Colors.red,
+                    _removedIds.contains(docId)
+                        ? Icons.favorite_border
+                        : Icons.favorite,
+                    color: _removedIds.contains(docId)
+                        ? Colors.grey
+                        : Colors.red,
                   ),
-                  tooltip: _removedIds.contains(doc.id) ? 'Add to favourites' : 'Remove from favourites',
+                  tooltip: _removedIds.contains(docId)
+                      ? 'Add to favourites'
+                      : 'Remove from favourites',
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                if (phone.isNotEmpty) _actionIcon(Icons.call, Colors.green, () => _call(phone), tooltip: 'Trucar'),
+                if (phone.isNotEmpty)
+                  _actionIcon(
+                    Icons.call,
+                    Colors.green,
+                    () => _call(phone),
+                    tooltip: 'Trucar',
+                  ),
                 if (email.isNotEmpty)
-                  _actionIcon(Icons.email_outlined, Colors.redAccent, () => _email(email), tooltip: 'Email'),
+                  _actionIcon(
+                    Icons.email_outlined,
+                    Colors.redAccent,
+                    () => _email(email),
+                    tooltip: 'Email',
+                  ),
                 if (facebook.isNotEmpty)
-                  _actionIcon(Icons.facebook, Colors.blue, () => _openUrl(facebook), tooltip: 'Facebook'),
+                  _actionIcon(
+                    Icons.facebook,
+                    Colors.blue,
+                    () => _openUrl(facebook),
+                    tooltip: 'Facebook',
+                  ),
                 if (careers.isNotEmpty)
-                  _actionIcon(Icons.work_outline, Colors.green, () => _openUrl(careers),
-                      tooltip: 'Ofertes/feina'),
+                  _actionIcon(
+                    Icons.work_outline,
+                    Colors.green,
+                    () => _openUrl(careers),
+                    tooltip: 'Ofertes/feina',
+                  ),
                 if (instagram.isNotEmpty)
                   IconButton(
-                    icon: const FaIcon(FontAwesomeIcons.instagram, color: Colors.purple),
+                    icon: const FaIcon(
+                      FontAwesomeIcons.instagram,
+                      color: Colors.purple,
+                    ),
                     tooltip: 'Instagram',
                     onPressed: () => _openUrl(instagram),
                   ),
@@ -159,7 +203,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 IconButton(
                   icon: const Icon(Icons.directions, color: Colors.blueAccent),
                   tooltip: 'Com arribar',
-                  onPressed: () => _openDirections(address.isNotEmpty ? address : name),
+                  onPressed: () =>
+                      _openDirections(address.isNotEmpty ? address : name),
                 ),
               ],
             ),
@@ -173,22 +218,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Favourites')),
-      body: FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text('error loading favourites: ${snapshot.error}'),
+            return const Center(
+              child: Text(
+                'We could not load your favourites right now. Please try again in a moment.',
+              ),
             );
           }
           final docs = snapshot.data ?? [];
           if (docs.isEmpty) {
             return const Center(child: Text('No favourites yet'));
           }
-          final ordered = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(docs.reversed);
+          final ordered = List<Map<String, dynamic>>.from(docs.reversed);
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             itemCount: ordered.length,

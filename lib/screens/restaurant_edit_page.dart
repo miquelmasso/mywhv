@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_restaurant_manual_page.dart';
+import '../services/restaurant_sqlite_store.dart';
 
 class RestaurantEditPage extends StatefulWidget {
   const RestaurantEditPage({super.key, this.initialSearch});
@@ -24,6 +25,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
 
   bool _loading = false;
   bool _isBlocked = false;
+  final RestaurantSqliteStore _sqliteStore = RestaurantSqliteStore.instance;
 
   @override
   void initState() {
@@ -35,38 +37,18 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
     }
   }
 
-  Future<void> _searchRestaurants(String query, {bool autoSelect = false}) async {
+  Future<void> _searchRestaurants(
+    String query, {
+    bool autoSelect = false,
+  }) async {
     if (query.isEmpty) {
       setState(() => _results = []);
       return;
     }
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('restaurants')
-        .where('name', isGreaterThanOrEqualTo: query)
-        .where('name', isLessThanOrEqualTo: '$query\uf8ff')
-        .limit(10)
-        .get();
-
-    final results = snapshot.docs.map((doc) {
-      return {'id': doc.id, ...doc.data()};
-    }).toList();
-
-    if (results.isEmpty) {
-      // 🔎 Si no hi ha coincidències per prefix, carrega TOT i filtra per substring.
-      final allDocs =
-          await FirebaseFirestore.instance.collection('restaurants').get();
-      final filtered = allDocs.docs
-          .where((d) {
-            final name = (d['name'] ?? '').toString().toLowerCase();
-            return name.contains(query.toLowerCase());
-          })
-          .map((d) => {'id': d.id, ...d.data()})
-          .toList();
-      setState(() => _results = filtered);
-    } else {
-      setState(() => _results = results);
-    }
+    await _sqliteStore.init();
+    final results = await _sqliteStore.searchByName(query, limit: 25);
+    setState(() => _results = results);
 
     if (autoSelect && _results.isNotEmpty) {
       final lowerQuery = query.toLowerCase();
@@ -97,17 +79,24 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
     setState(() => _loading = true);
 
     try {
+      final updates = {
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'facebook_url': _facebookController.text.trim(),
+        'instagram_url': _instagramController.text.trim(),
+        'careers_page': _careersController.text.trim(),
+        'blocked': _isBlocked,
+      };
       await FirebaseFirestore.instance
           .collection('restaurants')
           .doc(_selectedRestaurant!['id'])
-          .update({
-            'phone': _phoneController.text.trim(),
-            'email': _emailController.text.trim(),
-            'facebook_url': _facebookController.text.trim(),
-            'instagram_url': _instagramController.text.trim(),
-            'careers_page': _careersController.text.trim(),
-            'blocked': _isBlocked,
-          });
+          .update(updates);
+      await _sqliteStore.init();
+      await _sqliteStore.updateRestaurantFields(
+        _selectedRestaurant!['id'].toString(),
+        updates,
+      );
+      _selectedRestaurant = {..._selectedRestaurant!, ...updates};
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,9 +104,13 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error al desar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'We could not save the restaurant changes right now. Please try again.',
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -180,166 +173,176 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
             child: Column(
               children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AddRestaurantManualPage(),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AddRestaurantManualPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Afegir restaurant manualment'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  onChanged: (value) => _searchRestaurants(value),
+                  decoration: InputDecoration(
+                    labelText: 'Cerca un restaurant',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.grey),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _results.clear();
+                                _selectedRestaurant = null;
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+                if (_results.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Afegir restaurant manualment'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _searchController,
-              onChanged: (value) => _searchRestaurants(value),
-              decoration: InputDecoration(
-                labelText: 'Cerca un restaurant',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _results.clear();
-                            _selectedRestaurant = null;
-                          });
-                        },
-                      )
-                    : null,
-              ),
-            ),
-            if (_results.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      itemCount: _results.length,
+                      itemBuilder: (context, index) {
+                        final r = _results[index];
+                        return ListTile(
+                          title: Text(r['name'] ?? 'Sense nom'),
+                          onTap: () => _selectRestaurant(r),
+                        );
+                      },
                     ),
-                  ],
-                ),
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: ListView.builder(
-                  itemCount: _results.length,
-                  itemBuilder: (context, index) {
-                    final r = _results[index];
-                    return ListTile(
-                      title: Text(r['name'] ?? 'Sense nom'),
-                      onTap: () => _selectRestaurant(r),
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 16),
-            if (_selectedRestaurant != null) ...[
-              _buildClearableField(
-                controller: _phoneController,
-                label: 'Telèfon',
-                keyboardType: TextInputType.phone,
-                focusNode: phoneFocus,
-                nextFocus: emailFocus,
-              ),
-              const SizedBox(height: 12),
-              _buildClearableField(
-                controller: _emailController,
-                label: 'Correu electrònic',
-                focusNode: emailFocus,
-                nextFocus: facebookFocus,
-              ),
-              const SizedBox(height: 12),
-              _buildClearableField(
-                controller: _facebookController,
-                label: 'Enllaç de Facebook',
-                focusNode: facebookFocus,
-                nextFocus: instagramFocus,
-              ),
-              const SizedBox(height: 12),
-              _buildClearableField(
-                controller: _instagramController,
-                label: 'Enllaç d\'Instagram',
-                focusNode: instagramFocus,
-                nextFocus: careersFocus,
-              ),
-              const SizedBox(height: 12),
-              _buildClearableField(
-                controller: _careersController,
-                label: 'Pàgina de feina (careers)',
-                focusNode: careersFocus,
-                action: TextInputAction.done,
-              ),
-              const SizedBox(height: 20),
-              SwitchListTile(
-                title: const Text(
-                  '🚫 Bloquejar restaurant',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                value: _isBlocked,
-                onChanged: (value) async {
-                  setState(() => _isBlocked = value);
+                  ),
+                const SizedBox(height: 16),
+                if (_selectedRestaurant != null) ...[
+                  _buildClearableField(
+                    controller: _phoneController,
+                    label: 'Telèfon',
+                    keyboardType: TextInputType.phone,
+                    focusNode: phoneFocus,
+                    nextFocus: emailFocus,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildClearableField(
+                    controller: _emailController,
+                    label: 'Correu electrònic',
+                    focusNode: emailFocus,
+                    nextFocus: facebookFocus,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildClearableField(
+                    controller: _facebookController,
+                    label: 'Enllaç de Facebook',
+                    focusNode: facebookFocus,
+                    nextFocus: instagramFocus,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildClearableField(
+                    controller: _instagramController,
+                    label: 'Enllaç d\'Instagram',
+                    focusNode: instagramFocus,
+                    nextFocus: careersFocus,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildClearableField(
+                    controller: _careersController,
+                    label: 'Pàgina de feina (careers)',
+                    focusNode: careersFocus,
+                    action: TextInputAction.done,
+                  ),
+                  const SizedBox(height: 20),
+                  SwitchListTile(
+                    title: const Text(
+                      '🚫 Bloquejar restaurant',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    value: _isBlocked,
+                    onChanged: (value) async {
+                      setState(() => _isBlocked = value);
 
-                  if (value == true && _selectedRestaurant != null) {
-                    // 🔹 Buida els camps i marca com bloquejat
-                    _phoneController.clear();
-                    _emailController.clear();
-                    _facebookController.clear();
-                    _instagramController.clear();
-                    _careersController.clear();
-
-                    await FirebaseFirestore.instance
-                        .collection('restaurants')
-                        .doc(_selectedRestaurant!['id'])
-                        .update({
+                      if (value == true && _selectedRestaurant != null) {
+                        final updates = {
                           'phone': '',
                           'email': '',
                           'facebook_url': '',
                           'instagram_url': '',
                           'careers_page': '',
                           'blocked': true,
-                        });
-                    if (!context.mounted) return;
+                        };
+                        // 🔹 Buida els camps i marca com bloquejat
+                        _phoneController.clear();
+                        _emailController.clear();
+                        _facebookController.clear();
+                        _instagramController.clear();
+                        _careersController.clear();
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          '🚫 Restaurant bloquejat i dades esborrades.',
-                        ),
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
-                  }
-                },
-                activeThumbColor: Colors.redAccent,
-              ),
+                        await FirebaseFirestore.instance
+                            .collection('restaurants')
+                            .doc(_selectedRestaurant!['id'])
+                            .update(updates);
+                        await _sqliteStore.init();
+                        await _sqliteStore.updateRestaurantFields(
+                          _selectedRestaurant!['id'].toString(),
+                          updates,
+                        );
+                        _selectedRestaurant = {
+                          ..._selectedRestaurant!,
+                          ...updates,
+                        };
+                        if (!context.mounted) return;
 
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _loading ? null : _saveChanges,
-                icon: const Icon(Icons.save),
-                label: _loading
-                    ? const Text('Guardant...')
-                    : const Text('Guardar canvis'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-              ),
-            ],
-          ],
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              '🚫 Restaurant bloquejat i dades esborrades.',
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    },
+                    activeThumbColor: Colors.redAccent,
+                  ),
+
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _loading ? null : _saveChanges,
+                    icon: const Icon(Icons.save),
+                    label: _loading
+                        ? const Text('Guardant...')
+                        : const Text('Guardar canvis'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

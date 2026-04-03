@@ -1,15 +1,15 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
+
+import 'harvest_places_sqlite_store.dart';
 
 class HarvestAdminImportService {
   static const _assetPath = 'assets/data/harvest_places_2025.json';
 
   Future<int> importHarvestPlacesFromAsset() async {
-    await _ensureFirebase();
-    final firestore = FirebaseFirestore.instance;
+    final store = HarvestPlacesSqliteStore.instance;
+    await store.init();
 
     final content = await rootBundle.loadString(_assetPath);
     final decoded = jsonDecode(content);
@@ -17,16 +17,7 @@ class HarvestAdminImportService {
     final year = decoded['year'] ?? 2025;
     final sourceUrl = decoded['source_url']?.toString() ?? '';
 
-    WriteBatch batch = firestore.batch();
-    int batchCount = 0;
-    int written = 0;
-
-    Future<void> commitBatch() async {
-      if (batchCount == 0) return;
-      await batch.commit();
-      batch = firestore.batch();
-      batchCount = 0;
-    }
+    final entries = <Map<String, dynamic>>[];
 
     for (final stateEntry in states) {
       if (stateEntry is! Map) continue;
@@ -43,34 +34,23 @@ class HarvestAdminImportService {
 
         final mapUrl = (place['map_url'] ?? '').toString();
         final docId = _buildId(stateCode, postcode, name);
-        final data = {
+        entries.add({
+          'id': docId,
           'name': name,
           'postcode': postcode,
           'state': stateCode,
           'year': year,
           'map_url': mapUrl,
           'source_url': sourceUrl.isEmpty ? 'asset:$_assetPath' : sourceUrl,
-          'created_at': FieldValue.serverTimestamp(),
-        };
-
-        batch.set(
-          firestore.collection('harvest_places').doc(docId),
-          data,
-          SetOptions(merge: true),
-        );
-        batchCount++;
-        written++;
-
-        if (batchCount >= 450) {
-          await commitBatch();
-        }
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        });
       }
     }
 
-    await commitBatch();
+    await store.replaceAll(entries);
     // ignore: avoid_print
-    debugPrint('Imported $written harvest places');
-    return written;
+    debugPrint('Imported ${entries.length} harvest places to SQLite');
+    return entries.length;
   }
 
   bool _isValidPostcode(String postcode) {
@@ -85,11 +65,5 @@ class HarvestAdminImportService {
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
     return '${state}_${postcode}_$slug';
-  }
-
-  Future<void> _ensureFirebase() async {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp();
-    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/google_places_service.dart';
 import '../services/restaurant_import_service.dart';
+import '../services/visa_postcodes_sqlite_store.dart';
 
 class AddRestaurantsByPostcodePage extends StatefulWidget {
   const AddRestaurantsByPostcodePage({super.key});
@@ -23,6 +24,7 @@ class _AddRestaurantsByPostcodePageState
   final _firestore = FirebaseFirestore.instance;
   final _placesService = GooglePlacesService();
   final RestaurantImportService _importService = RestaurantImportService();
+  final VisaPostcodesSqliteStore _visaStore = VisaPostcodesSqliteStore.instance;
 
   void _showSnack(String text, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -61,20 +63,21 @@ class _AddRestaurantsByPostcodePageState
     });
 
     try {
-      final snapshot = await _firestore.collection('visa_postcodes').get();
+      await _visaStore.init();
+      final entries = await _visaStore.getAll();
 
       bool found = false;
       String category = '';
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
+      for (final data in entries) {
         final List<dynamic> postcodes = data['postcodes'] ?? [];
-        final postcodesStr =
-            postcodes.map((e) => e.toString().padLeft(4, '0')).toList();
+        final postcodesStr = postcodes
+            .map((e) => e.toString().padLeft(4, '0'))
+            .toList();
 
         if (postcodesStr.contains(postcodeStr)) {
           found = true;
-          category = data['industry'] ?? doc.id;
+          category = (data['industry'] ?? data['id'] ?? '').toString();
           break;
         }
       }
@@ -110,7 +113,10 @@ class _AddRestaurantsByPostcodePageState
         }
       }
     } catch (e) {
-      setState(() => _result = '❌ Error al cercar: $e');
+      setState(
+        () => _result =
+            'We could not check this postcode right now. Please try again.',
+      );
     } finally {
       setState(() => _loading = false);
     }
@@ -153,7 +159,10 @@ class _AddRestaurantsByPostcodePageState
         );
       }
     } catch (e) {
-      _showSnack('❌ Error afegint restaurants: $e', color: Colors.red);
+      _showSnack(
+        'We could not add restaurants right now. Please try again.',
+        color: Colors.red,
+      );
     } finally {
       setState(() => _loading = false);
     }
@@ -181,7 +190,10 @@ class _AddRestaurantsByPostcodePageState
         _showSnack('🗑️ Eliminat: $name', color: Colors.redAccent);
       }
     } catch (e) {
-      _showSnack('❌ Error eliminant: $e', color: Colors.red);
+      _showSnack(
+        'We could not delete the restaurant right now. Please try again.',
+        color: Colors.red,
+      );
     } finally {
       setState(() => _loading = false);
     }
@@ -211,7 +223,10 @@ class _AddRestaurantsByPostcodePageState
       final lastName = snapshot.docs.first['name'] ?? 'Desconegut';
       _showSnack('🧹 Tots eliminats excepte: $lastName', color: Colors.purple);
     } catch (e) {
-      _showSnack('❌ Error eliminant: $e', color: Colors.red);
+      _showSnack(
+        'We could not delete the restaurants right now. Please try again.',
+        color: Colors.red,
+      );
     } finally {
       setState(() => _loading = false);
     }
@@ -238,8 +253,9 @@ class _AddRestaurantsByPostcodePageState
     setState(() => _loading = true);
 
     try {
-      final totalAdded =
-          await _importService.importAllRestaurantsForPostcode(postcodeStr);
+      final totalAdded = await _importService.importAllRestaurantsForPostcode(
+        postcodeStr,
+      );
       if (!mounted) return;
 
       if (totalAdded == 0) {
@@ -264,7 +280,11 @@ class _AddRestaurantsByPostcodePageState
       debugPrint('❌ Error en la cerca massiva: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error cercant tots els restaurants: $e')),
+        const SnackBar(
+          content: Text(
+            'We could not search all restaurants for this postcode right now.',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -277,8 +297,10 @@ class _AddRestaurantsByPostcodePageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurant management',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Restaurant management',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -298,7 +320,10 @@ class _AddRestaurantsByPostcodePageState
               const Text(
                 'Comprova si un codi postal és\nREGIONAL o REMOT',
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800, height: 1.4),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  height: 1.4,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 25),
@@ -307,8 +332,9 @@ class _AddRestaurantsByPostcodePageState
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Introdueix codi postal',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.search),
                     onPressed: _checkPostcode,
@@ -327,8 +353,8 @@ class _AddRestaurantsByPostcodePageState
                     color: _result.contains('✅')
                         ? Colors.green
                         : _result.contains('⚠️')
-                            ? Colors.orange
-                            : Colors.red,
+                        ? Colors.orange
+                        : Colors.red,
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,

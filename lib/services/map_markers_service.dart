@@ -7,19 +7,27 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'restaurant_sqlite_store.dart';
+
 class MapMarkersService {
-  static final _firestore = FirebaseFirestore.instance;
   static const _cacheKeyJson = 'restaurants_cache_json';
   static const _cacheKeySynced = 'restaurants_cache_synced';
   static const _cacheKeyAppVersion = 'restaurants_cache_app_version';
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static List<Map<String, dynamic>>? _memoryRestaurants;
-  static bool _memorySynced = false;
   static String? _memoryCacheVersion;
 
   static Future<List<Map<String, dynamic>>> loadRestaurants({
     required bool fromServer,
   }) async {
+    if (fromServer) {
+      debugPrint(
+        'ℹ️ loadRestaurants(fromServer: true) ignored: local SQLite mode',
+      );
+    }
     final prefs = await SharedPreferences.getInstance();
+    final sqliteStore = RestaurantSqliteStore.instance;
+    await sqliteStore.init();
     final cachedJson = prefs.getString(_cacheKeyJson);
     final cacheSynced = prefs.getBool(_cacheKeySynced) ?? false;
     final cachedAppVersion = prefs.getString(_cacheKeyAppVersion);
@@ -28,9 +36,7 @@ class MapMarkersService {
         currentAppVersion != null && cachedAppVersion != currentAppVersion;
 
     final canUseMemoryCache =
-        !fromServer &&
         _memoryRestaurants != null &&
-        _memorySynced &&
         _memoryCacheVersion == currentAppVersion &&
         !needsVersionRefresh;
     if (canUseMemoryCache) {
@@ -38,14 +44,38 @@ class MapMarkersService {
     }
 
     final canUsePersistentCache =
-        !fromServer &&
         cacheSynced &&
         cachedJson != null &&
         cachedJson.isNotEmpty &&
         !needsVersionRefresh;
+
+    try {
+      final sqliteRestaurants = await sqliteStore.getAll();
+      if (sqliteRestaurants.isNotEmpty) {
+        _primeMemoryCache(
+          sqliteRestaurants,
+          synced: true,
+          appVersion: currentAppVersion ?? cachedAppVersion,
+        );
+        if (!canUsePersistentCache || needsVersionRefresh) {
+          await _persistRestaurantsCache(
+            prefs,
+            sqliteRestaurants,
+            appVersion: currentAppVersion,
+          );
+        }
+        debugPrint(
+          '🗄️ SQLITE restaurants loaded: ${sqliteRestaurants.length}',
+        );
+        return sqliteRestaurants;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading restaurants from SQLite: $e');
+    }
     if (canUsePersistentCache) {
       try {
         final cachedList = _decodeCachedList(cachedJson);
+        await sqliteStore.replaceAll(cachedList);
         _primeMemoryCache(
           cachedList,
           synced: true,
@@ -58,37 +88,32 @@ class MapMarkersService {
       }
     }
 
-    try {
-      final filtered = await _fetchRestaurantsFromServer();
-      await _persistRestaurantsCache(
-        prefs,
-        filtered,
-        appVersion: currentAppVersion,
-      );
-      return filtered;
-    } catch (e) {
-      if (!fromServer && cachedJson != null && cachedJson.isNotEmpty) {
-        try {
-          final cachedList = _decodeCachedList(cachedJson);
-          _primeMemoryCache(
-            cachedList,
-            synced: cacheSynced,
-            appVersion: cachedAppVersion,
-          );
-          debugPrint(
-            '📦 Using stale restaurants cache after server error: ${cachedList.length}',
-          );
-          return cachedList;
-        } catch (cacheError) {
-          debugPrint('⚠️ Error decoding stale restaurant cache: $cacheError');
-        }
+    if (cachedJson != null && cachedJson.isNotEmpty) {
+      try {
+        final cachedList = _decodeCachedList(cachedJson);
+        _primeMemoryCache(
+          cachedList,
+          synced: cacheSynced,
+          appVersion: cachedAppVersion,
+        );
+        debugPrint(
+          '📦 Using stale restaurants cache after SQLite miss: ${cachedList.length}',
+        );
+        return cachedList;
+      } catch (cacheError) {
+        debugPrint('⚠️ Error decoding stale restaurant cache: $cacheError');
       }
-      rethrow;
     }
+
+    debugPrint('⚠️ No local restaurants found in SQLite or cache');
+    return const <Map<String, dynamic>>[];
   }
 
   static Future<void> updateWorkedHereCache(String docId, int delta) async {
     if (docId.trim().isEmpty || delta == 0) return;
+    final sqliteStore = RestaurantSqliteStore.instance;
+    await sqliteStore.init();
+    await sqliteStore.updateWorkedHereCount(docId, delta);
 
     final prefs = await SharedPreferences.getInstance();
     final cachedJson = prefs.getString(_cacheKeyJson);
@@ -121,6 +146,17 @@ class MapMarkersService {
       prefs,
       updatedList,
       appVersion: _memoryCacheVersion ?? prefs.getString(_cacheKeyAppVersion),
+    );
+  }
+
+  static Future<void> replaceLocalRestaurants(
+    List<Map<String, dynamic>> restaurants,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await _persistRestaurantsCache(
+      prefs,
+      restaurants,
+      appVersion: await _readCurrentAppVersion(),
     );
   }
 
@@ -159,14 +195,10 @@ class MapMarkersService {
     if (docId.trim().isEmpty) {
       throw ArgumentError('Document ID buit o invàlid');
     }
-
-    final docRef = _firestore.collection('restaurants').doc(docId);
-
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      final current = snapshot.data()?['worked_here_count'] ?? 0;
-      transaction.update(docRef, {'worked_here_count': current + 1});
-    });
+    await _firestore.collection('restaurants').doc(docId).set({
+      'worked_here_count': FieldValue.increment(1),
+      'worked_here_updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   // 🔹 Redueix el comptador "worked_here_count" si algú vol treure-ho
@@ -174,62 +206,12 @@ class MapMarkersService {
     if (docId.trim().isEmpty) {
       throw ArgumentError('Document ID buit o invàlid');
     }
-
-    final docRef = _firestore.collection('restaurants').doc(docId);
-
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      final current = snapshot.data()?['worked_here_count'] ?? 0;
-      final newValue = (current > 0) ? current - 1 : 0;
-      transaction.update(docRef, {'worked_here_count': newValue});
-    });
+    debugPrint('ℹ️ decrementWorkedHere skipped: local SQLite mode');
   }
 
   // 🔹 Inicialitza el camp "worked_here_count" si no existeix
   static Future<void> ensureWorkedHereField() async {
-    final snapshot = await _firestore.collection('restaurants').get();
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      if (!data.containsKey('worked_here_count')) {
-        await doc.reference.update({'worked_here_count': 0});
-        debugPrint('Inicialitzat worked_here_count per ${data['name']}');
-      }
-    }
-  }
-
-  static bool _isValidRestaurant(Map<String, dynamic> data) {
-    bool hasNonEmpty(String key) {
-      final value = data[key];
-      if (value == null) return false;
-      final str = value.toString().trim();
-      return str.isNotEmpty;
-    }
-
-    return hasNonEmpty('email') ||
-        hasNonEmpty('facebook_url') ||
-        hasNonEmpty('instagram_url') ||
-        hasNonEmpty('careers_page') ||
-        hasNonEmpty('jobPage');
-  }
-
-  static Future<List<Map<String, dynamic>>>
-  _fetchRestaurantsFromServer() async {
-    final snapshot = await _firestore
-        .collection('restaurants')
-        .get(const GetOptions(source: Source.server));
-    debugPrint('🌐 SERVER restaurants fetched: ${snapshot.size}');
-
-    final filtered = <Map<String, dynamic>>[];
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      data['docId'] = doc.id;
-      if (_isValidRestaurant(data)) {
-        filtered.add(data);
-      }
-    }
-
-    debugPrint('✅ Valid restaurants after filter: ${filtered.length}');
-    return filtered;
+    debugPrint('ℹ️ ensureWorkedHereField skipped: local SQLite mode');
   }
 
   static Future<void> _persistRestaurantsCache(
@@ -239,6 +221,9 @@ class MapMarkersService {
   }) async {
     _primeMemoryCache(restaurants, synced: true, appVersion: appVersion);
     try {
+      final sqliteStore = RestaurantSqliteStore.instance;
+      await sqliteStore.init();
+      await sqliteStore.replaceAll(restaurants);
       final sanitized = restaurants.map(_sanitizeForJson).toList();
       final jsonStr = jsonEncode(sanitized);
       await prefs.setString(_cacheKeyJson, jsonStr);
@@ -259,7 +244,6 @@ class MapMarkersService {
     _memoryRestaurants = restaurants
         .map((item) => Map<String, dynamic>.from(item))
         .toList(growable: false);
-    _memorySynced = synced;
     _memoryCacheVersion = appVersion;
   }
 

@@ -9,16 +9,16 @@ class MapDisplaySettingsService {
 
   static const String _showMaintenanceScreenKey = 'show_map_maintenance_screen';
 
-  final ValueNotifier<bool> showMaintenanceScreen = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> showMaintenanceScreen = ValueNotifier<bool>(true);
 
   bool get isMaintenanceScreenVisible => showMaintenanceScreen.value;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     final storedValue = prefs.getBool(_showMaintenanceScreenKey);
-    showMaintenanceScreen.value = storedValue ?? false;
+    showMaintenanceScreen.value = storedValue ?? true;
     if (storedValue == null) {
-      await prefs.setBool(_showMaintenanceScreenKey, false);
+      await prefs.setBool(_showMaintenanceScreenKey, true);
     }
   }
 

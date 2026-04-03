@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'farm_places_service.dart';
+import 'visa_postcodes_sqlite_store.dart';
 
 class FarmImportResult {
   final String postcode;
@@ -16,12 +16,13 @@ class FarmImportResult {
 }
 
 class FarmImportService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FarmPlacesService _placesService = FarmPlacesService();
-  QuerySnapshot<Map<String, dynamic>>? _visaPostcodesCache;
+  final VisaPostcodesSqliteStore _store = VisaPostcodesSqliteStore.instance;
+  List<Map<String, dynamic>>? _visaPostcodesCache;
 
-  Future<QuerySnapshot<Map<String, dynamic>>> _loadVisaPostcodes() async {
-    _visaPostcodesCache ??= await _firestore.collection('visa_postcodes').get();
+  Future<List<Map<String, dynamic>>> _loadVisaPostcodes() async {
+    await _store.init();
+    _visaPostcodesCache ??= await _store.getAll();
     return _visaPostcodesCache!;
   }
 
@@ -30,10 +31,9 @@ class FarmImportService {
   bool _isRegionalWithSnapshot(
     String normalized,
     int number,
-    QuerySnapshot<Map<String, dynamic>> snapshot,
+    List<Map<String, dynamic>> snapshot,
   ) {
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+    for (final data in snapshot) {
       final List<dynamic> postcodes = data['postcodes'] ?? [];
       final String industry = (data['industry'] ?? '').toString();
       final lowerIndustry = industry.toLowerCase();
@@ -48,7 +48,7 @@ class FarmImportService {
 
   Future<FarmImportResult> importFarmsForPostcode(
     String postcodeStr, {
-    QuerySnapshot<Map<String, dynamic>>? visaSnapshot,
+    List<Map<String, dynamic>>? visaSnapshot,
   }) async {
     final normalized = _normalize(postcodeStr.trim());
     final number = int.tryParse(normalized);
@@ -90,8 +90,7 @@ class FarmImportService {
     final snapshot = await _loadVisaPostcodes();
     final allowedPostcodes = <String>{};
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+    for (final data in snapshot) {
       final String industry = (data['industry'] ?? '').toString();
       if (!industry.toLowerCase().contains('regional australia')) continue;
       final List<dynamic> postcodes = data['postcodes'] ?? [];

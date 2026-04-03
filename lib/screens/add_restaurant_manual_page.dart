@@ -9,7 +9,8 @@ class AddRestaurantManualPage extends StatefulWidget {
   const AddRestaurantManualPage({super.key});
 
   @override
-  State<AddRestaurantManualPage> createState() => _AddRestaurantManualPageState();
+  State<AddRestaurantManualPage> createState() =>
+      _AddRestaurantManualPageState();
 }
 
 class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
@@ -56,10 +57,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
 
     final res = await http.get(
       uri,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'text/html',
-      },
+      headers: {'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html'},
     );
 
     if (res.statusCode != 200) {
@@ -75,10 +73,16 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
     final phoneRegex = RegExp(r'(\+?\d[\d\s().-]{7,}\d)');
 
     final emails = {
-      ...emailRegex.allMatches(html).map((m) => m.group(0) ?? '').where((e) => e.isNotEmpty),
+      ...emailRegex
+          .allMatches(html)
+          .map((m) => m.group(0) ?? '')
+          .where((e) => e.isNotEmpty),
     };
     final phones = {
-      ...phoneRegex.allMatches(html).map((m) => m.group(0) ?? '').where((p) => p.isNotEmpty),
+      ...phoneRegex
+          .allMatches(html)
+          .map((m) => m.group(0) ?? '')
+          .where((p) => p.isNotEmpty),
     };
 
     String? instagram = _extractInstagram(html);
@@ -159,7 +163,11 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error en afegir: $e')),
+        const SnackBar(
+          content: Text(
+            'We could not add the restaurant right now. Please try again.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -220,8 +228,10 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
       debugPrint('Scraping contacts from $url');
       final data = await scrapeContactsFromUrl(url);
 
-      final emails = (data['emails'] as List?)?.whereType<String>().toList() ?? [];
-      final phones = (data['phones'] as List?)?.whereType<String>().toList() ?? [];
+      final emails =
+          (data['emails'] as List?)?.whereType<String>().toList() ?? [];
+      final phones =
+          (data['phones'] as List?)?.whereType<String>().toList() ?? [];
       final instagram = data['instagram'] as String?;
       final facebook = data['facebook'] as String?;
 
@@ -231,16 +241,19 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
       if (_phoneController.text.trim().isEmpty && phones.isNotEmpty) {
         _phoneController.text = phones.first;
       }
-      if (_instagramController.text.trim().isEmpty && (instagram ?? '').isNotEmpty) {
+      if (_instagramController.text.trim().isEmpty &&
+          (instagram ?? '').isNotEmpty) {
         _instagramController.text = instagram!;
       }
-      if (_facebookController.text.trim().isEmpty && (facebook ?? '').isNotEmpty) {
+      if (_facebookController.text.trim().isEmpty &&
+          (facebook ?? '').isNotEmpty) {
         _facebookController.text = facebook!;
       }
     } catch (e, st) {
       debugPrint('scrapeContactsFromUrl error: $e\n$st');
       setState(() {
-        _extractError = 'No s\'ha pogut extreure la informació. Torna-ho a provar.';
+        _extractError =
+            'No s\'ha pogut extreure la informació. Torna-ho a provar.';
       });
     } finally {
       if (mounted) {
@@ -278,10 +291,14 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2.2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
                             )
                           : const Icon(Icons.auto_awesome),
-                      label: Text(_isExtracting ? 'Carregant...' : 'Auto-omplir dades'),
+                      label: Text(
+                        _isExtracting ? 'Carregant...' : 'Auto-omplir dades',
+                      ),
                     ),
                   ),
                 ),
@@ -296,25 +313,32 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                 _buildField(
                   controller: _nameController,
                   label: 'Nom del restaurant',
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'El nom és obligatori' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'El nom és obligatori'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _latController,
                   label: 'Latitud',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) =>
-                      (double.tryParse(v ?? '') == null) ? 'Introdueix una latitud vàlida' : null,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) => (double.tryParse(v ?? '') == null)
+                      ? 'Introdueix una latitud vàlida'
+                      : null,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _lngController,
                   label: 'Longitud',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) =>
-                      (double.tryParse(v ?? '') == null) ? 'Introdueix una longitud vàlida' : null,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) => (double.tryParse(v ?? '') == null)
+                      ? 'Introdueix una longitud vàlida'
+                      : null,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),

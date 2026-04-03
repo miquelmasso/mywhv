@@ -61,6 +61,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_native_splash: ^2.4.1
+  sqflite: ^2.4.2
 
   path: ^1.9.1
 
@@ -125,6 +126,10 @@ flutter:
     - assets/farm_placeholder_map.png
     - assets/kangaroo_manteniment.png
     - assets/source.gif
+    - export/farms.json
+    - export/harvest_places.json
+    - export/restaurants.json
+    - export/visa_postcodes.json
 
   # To add assets to your application, add an assets section, like this:
   #. assets:

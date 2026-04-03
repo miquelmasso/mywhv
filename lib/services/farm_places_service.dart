@@ -1,20 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'email_extractor.dart';
 import 'careers_extractor.dart';
 import 'facebook_extractor.dart';
-import 'farm_firestore_helper.dart';
+import 'farm_sqlite_store.dart';
 import 'http_client.dart';
+import 'postcode_state_helper.dart';
 
 class FarmPlacesService {
   static const _apiKey = 'AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI';
   final EmailExtractor _emailExtractor = EmailExtractor();
   final CareersExtractor _careersExtractor = CareersExtractor();
   final FacebookExtractor _facebookExtractor = FacebookExtractor();
-  final FarmFirestoreHelper _firestoreHelper = FarmFirestoreHelper();
+  final FarmSqliteStore _store = FarmSqliteStore.instance;
   final Set<String> _sessionPlaceIds = {};
   final Set<String> _sessionAltKeys = {};
   static const double _searchRadiusMeters = 45000; // 45 km
@@ -78,14 +78,18 @@ class FarmPlacesService {
       'market garden',
     ];
 
-    final existingKeys =
-        await _firestoreHelper.loadExistingKeysForPostcode(postcodeDisplay);
-    final seenPlaceIds = <String>{..._sessionPlaceIds, ...existingKeys.placeIds};
+    await _store.init();
+    final existingKeys = await _store.loadExistingKeysForPostcode(
+      postcodeDisplay,
+    );
+    final seenPlaceIds = <String>{
+      ..._sessionPlaceIds,
+      ...existingKeys.placeIds,
+    };
     final seenAltKeys = <String>{..._sessionAltKeys, ...existingKeys.altKeys};
 
     final saved = <Map<String, dynamic>>[];
     final triedNames = <String>{};
-    final batch = FirebaseFirestore.instance.batch();
     final hasLimit = maxToSave > 0;
     int totalFound = 0;
     int skippedByPlaceId = 0;
@@ -112,8 +116,9 @@ class FarmPlacesService {
           continue;
         }
 
-        final displayName =
-            (place['displayName']?['text'] ?? '').toString().trim();
+        final displayName = (place['displayName']?['text'] ?? '')
+            .toString()
+            .trim();
         final lat = place['location']?['latitude'];
         final lng = place['location']?['longitude'];
         final altKey = _buildAltKey(
@@ -157,17 +162,12 @@ class FarmPlacesService {
 
       for (final farm in detailsResults) {
         if (hasLimit && saved.length >= maxToSave) break;
-        _firestoreHelper.addFarmToBatch(
-          batch,
-          farm,
-          farm['name'] ?? 'farm',
-        );
         saved.add(farm);
       }
     }
 
     if (saved.isNotEmpty) {
-      await batch.commit();
+      await _store.upsertMany(saved);
       _sessionPlaceIds.addAll(saved.map((r) => r['source_place_id'] as String));
       for (final r in saved) {
         final altKey = _buildAltKey(
@@ -230,8 +230,6 @@ class FarmPlacesService {
     int skippedByPostcode = 0;
     int failedDetails = 0;
 
-    final batch = FirebaseFirestore.instance.batch();
-
     for (final pivot in pivots) {
       for (final query in queries) {
         final places = await _searchNearbyWithRetry(
@@ -246,8 +244,9 @@ class FarmPlacesService {
           if (id == null) continue;
           if (seenPlaceIds.contains(id)) continue;
 
-          final displayName =
-              (place['displayName']?['text'] ?? '').toString().trim();
+          final displayName = (place['displayName']?['text'] ?? '')
+              .toString()
+              .trim();
           final lat = place['location']?['latitude'];
           final lng = place['location']?['longitude'];
           final altKey = _buildAltKey(
@@ -268,13 +267,15 @@ class FarmPlacesService {
           }
 
           final postcodeDisplay = _extractPostcode(details['formattedAddress']);
-          if (postcodeDisplay == null || !allowedPostcodes.contains(postcodeDisplay)) {
+          if (postcodeDisplay == null ||
+              !allowedPostcodes.contains(postcodeDisplay)) {
             skippedByPostcode++;
             continue;
           }
 
-          final name =
-              (details['displayName']?['text'] ?? 'Unnamed').toString().trim();
+          final name = (details['displayName']?['text'] ?? 'Unnamed')
+              .toString()
+              .trim();
           if (name.isEmpty || triedNames.contains(name)) continue;
           triedNames.add(name);
 
@@ -313,7 +314,9 @@ class FarmPlacesService {
             address: address,
             phone: details['internationalPhoneNumber'] ?? '',
           );
-          final candidateFb = fbResult != null ? fbResult['link'] as String? : null;
+          final candidateFb = fbResult != null
+              ? fbResult['link'] as String?
+              : null;
           facebookUrl = _isValidFacebookPage(candidateFb) ? candidateFb : null;
 
           if (host.contains('instagram.com')) {
@@ -324,7 +327,7 @@ class FarmPlacesService {
           final lngD = (details['location']?['longitude'] as num?)?.toDouble();
           if (latD == null || lngD == null) continue;
 
-          final farm = _firestoreHelper.buildFarmData(
+          final farm = _buildFarmData(
             name: name,
             address: address,
             postcodeDisplay: postcodeDisplay,
@@ -342,7 +345,6 @@ class FarmPlacesService {
             category: 'farm',
           );
 
-          _firestoreHelper.addFarmToBatch(batch, farm, farm['name'] ?? 'farm');
           saved.add(farm);
           seenPlaceIds.add(id);
           if (altKey != null) seenAltKeys.add(altKey);
@@ -351,7 +353,7 @@ class FarmPlacesService {
     }
 
     if (saved.isNotEmpty) {
-      await batch.commit();
+      await _store.upsertMany(saved);
       _sessionPlaceIds.addAll(saved.map((r) => r['source_place_id'] as String));
       for (final r in saved) {
         final altKey = _buildAltKey(
@@ -376,15 +378,20 @@ class FarmPlacesService {
 
   // ---------------- Helpers ----------------
 
-  Future<Map<String, dynamic>?> _getPlaceDetailsWithRetry(String placeId) async {
+  Future<Map<String, dynamic>?> _getPlaceDetailsWithRetry(
+    String placeId,
+  ) async {
     final url = Uri.parse('https://places.googleapis.com/v1/places/$placeId');
     final resp = await _retryHttp(() {
-      return ioClient.get(url, headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': _apiKey,
-        'X-Goog-FieldMask':
-            'displayName,location,formattedAddress,internationalPhoneNumber,websiteUri,types,primaryType,shortFormattedAddress',
-      });
+      return ioClient.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _apiKey,
+          'X-Goog-FieldMask':
+              'displayName,location,formattedAddress,internationalPhoneNumber,websiteUri,types,primaryType,shortFormattedAddress',
+        },
+      );
     });
     if (resp == null || resp.statusCode != 200) return null;
     return jsonDecode(resp.body);
@@ -393,7 +400,9 @@ class FarmPlacesService {
   Future<List<Map<String, dynamic>>> _searchPlacesWithRetry({
     required String query,
   }) async {
-    final searchUrl = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+    final searchUrl = Uri.parse(
+      'https://places.googleapis.com/v1/places:searchText',
+    );
     final resp = await _retryHttp(() {
       return ioClient.post(
         searchUrl,
@@ -403,10 +412,7 @@ class FarmPlacesService {
           'X-Goog-FieldMask':
               'places.id,places.displayName,places.location,places.formattedAddress',
         },
-        body: jsonEncode({
-          'textQuery': query,
-          'maxResultCount': 10,
-        }),
+        body: jsonEncode({'textQuery': query, 'maxResultCount': 10}),
       );
     });
 
@@ -475,16 +481,21 @@ class FarmPlacesService {
       }
 
       final List raw = (data['results'] ?? []);
-      results.addAll(raw.map((r) {
-        final latR = r['geometry']?['location']?['lat'];
-        final lngR = r['geometry']?['location']?['lng'];
-        return {
-          'id': r['place_id'],
-          'displayName': {'text': r['name']},
-          'location': {'latitude': latR, 'longitude': lngR},
-          'formattedAddress': r['vicinity'] ?? r['formatted_address'] ?? '',
-        };
-      }).where((m) => m['id'] != null));
+      results.addAll(
+        raw
+            .map((r) {
+              final latR = r['geometry']?['location']?['lat'];
+              final lngR = r['geometry']?['location']?['lng'];
+              return {
+                'id': r['place_id'],
+                'displayName': {'text': r['name']},
+                'location': {'latitude': latR, 'longitude': lngR},
+                'formattedAddress':
+                    r['vicinity'] ?? r['formatted_address'] ?? '',
+              };
+            })
+            .where((m) => m['id'] != null),
+      );
 
       pageToken = data['next_page_token'];
       page++;
@@ -517,8 +528,9 @@ class FarmPlacesService {
           return null;
         }
 
-        final name =
-            (details['displayName']?['text'] ?? 'Unnamed').toString().trim();
+        final name = (details['displayName']?['text'] ?? 'Unnamed')
+            .toString()
+            .trim();
         if (name.isEmpty || triedNames.contains(name)) return null;
         triedNames.add(name);
 
@@ -531,7 +543,8 @@ class FarmPlacesService {
           return null;
         }
 
-        final address = details['formattedAddress'] ?? candidate['address'] ?? '';
+        final address =
+            details['formattedAddress'] ?? candidate['address'] ?? '';
         if (!_matchesPostcode(address, postcodeDisplay)) {
           return null;
         }
@@ -560,7 +573,9 @@ class FarmPlacesService {
           address: address,
           phone: details['internationalPhoneNumber'] ?? '',
         );
-        final candidateFb = fbResult != null ? fbResult['link'] as String? : null;
+        final candidateFb = fbResult != null
+            ? fbResult['link'] as String?
+            : null;
         facebookUrl = _isValidFacebookPage(candidateFb) ? candidateFb : null;
 
         if (host.contains('instagram.com')) {
@@ -571,7 +586,7 @@ class FarmPlacesService {
         final lng = details['location']?['longitude'];
         if (lat == null || lng == null) return null;
 
-        return _firestoreHelper.buildFarmData(
+        return _buildFarmData(
           name: name,
           address: address,
           postcodeDisplay: postcodeDisplay,
@@ -595,6 +610,53 @@ class FarmPlacesService {
     }
 
     return results;
+  }
+
+  Map<String, dynamic> _buildFarmData({
+    required String name,
+    required String address,
+    required String postcodeDisplay,
+    required int postcode,
+    required double latitude,
+    required double longitude,
+    required String? phone,
+    required String? website,
+    required String? email,
+    required String? facebookUrl,
+    required String? instagramUrl,
+    required String? careersPage,
+    required String placeId,
+    required bool isRemote462,
+    required String category,
+  }) {
+    final state = getStateFromPostcode(postcodeDisplay);
+    final id = name
+        .replaceAll(RegExp(r'[\/.#\$\[\]]'), '-')
+        .replaceAll(' ', '_')
+        .replaceAll(RegExp(r'_{2,}'), '_');
+
+    return {
+      'id': id,
+      'docId': id,
+      'name': name,
+      'address': address,
+      'state': state,
+      'postcode': postcode,
+      'postcode_display': postcodeDisplay,
+      'latitude': latitude,
+      'longitude': longitude,
+      'phone': phone ?? '',
+      'website': website ?? '',
+      'email': email ?? '',
+      'facebook_url': facebookUrl ?? '',
+      'instagram_url': instagramUrl ?? '',
+      'careers_page': careersPage ?? '',
+      'source_place_id': placeId,
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
+      'worked_here_count': 0,
+      'is_remote_462': isRemote462,
+      'category': category,
+    };
   }
 
   Future<http.Response?> _retryHttp(
@@ -657,8 +719,9 @@ class FarmPlacesService {
       'login',
       'l.php',
     };
-    final last =
-        uri.pathSegments.isNotEmpty ? uri.pathSegments.last.toLowerCase() : '';
+    final last = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last.toLowerCase()
+        : '';
     if (badLastSegments.contains(last)) return false;
 
     if (uri.path == '/profile.php') {
@@ -685,11 +748,15 @@ class FarmPlacesService {
       return false;
     }
     final host = uri.host.toLowerCase();
-    if (!(host.contains('facebook.com') || host.contains('fb.com') || host.contains('instagram.com'))) {
+    if (!(host.contains('facebook.com') ||
+        host.contains('fb.com') ||
+        host.contains('instagram.com'))) {
       return false;
     }
     final path = uri.path.toLowerCase();
-    return path.contains('/careers') || path.contains('/jobs') || path.contains('/work-with-us');
+    return path.contains('/careers') ||
+        path.contains('/jobs') ||
+        path.contains('/work-with-us');
   }
 
   String? _extractPostcode(String? address) {
@@ -733,7 +800,9 @@ class FarmPlacesService {
   }) {
     final lowerName = name.toLowerCase();
     final lowerWebsite = website.toLowerCase();
-    final types = (details['types'] as List?)?.map((e) => '$e'.toLowerCase()).toList() ?? [];
+    final types =
+        (details['types'] as List?)?.map((e) => '$e'.toLowerCase()).toList() ??
+        [];
     final primaryType = (details['primaryType'] ?? '').toString().toLowerCase();
 
     final rejectTerms = [
@@ -810,18 +879,27 @@ class FarmPlacesService {
       score += 3;
       positives++;
     }
-    if (types.any((t) => t.contains('farm') || t.contains('ranch') || t.contains('agricult'))) {
+    if (types.any(
+      (t) =>
+          t.contains('farm') || t.contains('ranch') || t.contains('agricult'),
+    )) {
       score += 2;
       positives++;
     }
     if (primaryType.contains('farm')) score += 2;
     if (categoryHint.toString().contains('farm')) score += 2;
-    if (categoryHint.toString().contains('orchard') || categoryHint.toString().contains('vineyard')) {
+    if (categoryHint.toString().contains('orchard') ||
+        categoryHint.toString().contains('vineyard')) {
       score += 2;
     }
 
     // Hard reject if any reject type in types
-    if (types.any((t) => t.contains('employment') || t.contains('agency') || t.contains('recruit'))) {
+    if (types.any(
+      (t) =>
+          t.contains('employment') ||
+          t.contains('agency') ||
+          t.contains('recruit'),
+    )) {
       return false;
     }
     if (primaryType.contains('employment') || primaryType.contains('agency')) {

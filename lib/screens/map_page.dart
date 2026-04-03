@@ -1128,9 +1128,13 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
         workedPlaces.remove(restaurantId);
         await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('❌ Error registering: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'We could not save your vote right now. Please try again.',
+            ),
+          ),
+        );
       }
     }
   }
