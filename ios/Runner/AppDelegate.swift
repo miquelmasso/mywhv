@@ -1,10 +1,11 @@
 import UIKit
 import Flutter
-import GoogleMaps
 import FirebaseCore
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private let runtimeDeviceChannelName = "workyday/runtime_device"
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -12,11 +13,26 @@ import FirebaseCore
     // Inicialitza Firebase
     FirebaseApp.configure()
 
-    // Inicialitza Google Maps
-    GMSServices.provideAPIKey("AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI") // Substitueix amb la teva clau d'API
-
     // Registra tots els plugins (important!)
     GeneratedPluginRegistrant.register(with: self)
+    if let runtimeRegistrar = registrar(forPlugin: runtimeDeviceChannelName) {
+      let runtimeChannel = FlutterMethodChannel(
+        name: runtimeDeviceChannelName,
+        binaryMessenger: runtimeRegistrar.messenger()
+      )
+      runtimeChannel.setMethodCallHandler { call, result in
+        switch call.method {
+        case "isIosSimulator":
+          #if targetEnvironment(simulator)
+          result(true)
+          #else
+          result(false)
+          #endif
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

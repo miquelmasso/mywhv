@@ -16,14 +16,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../config/maptiler_config.dart';
+import '../config/osm_vector_map_config.dart';
 import '../widgets/map_place_popup.dart';
 import '../services/harvest_places_service.dart';
+import '../services/local_vector_style_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/review_service.dart';
+import '../utils/australia_map_viewport.dart';
 import '../services/email_sender_service.dart';
+import '../widgets/location_fab_icon.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
 import 'report_message_page.dart';
@@ -31,14 +34,21 @@ import 'admin_page.dart';
 import '../config/admin_config.dart';
 import 'package:mywhv/screens/_pin_tail_painter.dart';
 
-enum MapStyleChoice { streets, minimal }
-
 enum Category { hospitality, farm }
 
 enum _RestaurantMarkerKind { standard, night, cafe }
 
 class MapOSMVectorPage extends StatefulWidget {
-  const MapOSMVectorPage({super.key});
+  const MapOSMVectorPage({
+    super.key,
+    this.initialCenter = const LatLng(-25.0, 133.0),
+    this.initialZoom = 3.8,
+    this.styleAssetPath = osmVectorStyleAssetPath,
+  });
+
+  final LatLng initialCenter;
+  final double initialZoom;
+  final String styleAssetPath;
 
   @override
   State<MapOSMVectorPage> createState() => MapOSMVectorPageState();
@@ -49,19 +59,31 @@ final Map<String, TileProviders> _tileProvidersCache = {};
 
 class MapOSMVectorPageState extends State<MapOSMVectorPage>
     with TickerProviderStateMixin {
+  static const Color _mapOceanBackgroundColor = Color(0xFFCFE1EC);
   static const bool _showZoomOutButton = false;
   static const double _locationFabBottom = 144;
   static const double _initialKangarooBottomOffset = 212;
+  static const double _zoomOutStep = 1.2;
+  static const double _clusterZoomStep = 2.2;
+  static const String _styleAssetCacheKey = 'osm_vector_self_hosted';
+  static const String _dismissedLocationFabBadgeKey =
+      'dismissed_map_location_fab_badge';
+  static final LatLngBounds _australiaViewportBounds = LatLngBounds(
+    const LatLng(
+      AustraliaMapViewport.viewportSouth,
+      AustraliaMapViewport.viewportWest,
+    ),
+    const LatLng(
+      AustraliaMapViewport.viewportNorth,
+      AustraliaMapViewport.viewportEast,
+    ),
+  );
 
   final MapController _mapController = MapController();
-  static const LatLng _defaultCenter = LatLng(-25.0, 133.0);
-  static const double _defaultZoom = 4.5;
-  LatLng _initialCenter = _defaultCenter;
-  double _initialZoom = _defaultZoom;
+  late LatLng _initialCenter;
+  late double _initialZoom;
   final bool _showAllRestaurants = false;
   bool _farmMapEnabled = false;
-  late final String streetsStyleUrl;
-  late final String minimalStyleUrl;
 
   List<Map<String, Object?>> _restaurantLocations = [];
   List<Map<String, Object?>> _visibleRestaurantLocations = [];
@@ -72,14 +94,19 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   bool _isTileLoading = true;
   Timer? _tileLoadingTimeout;
   DateTime? _tileLoadingStartedAt;
-  LatLng _currentCenter = _defaultCenter;
-  double _currentZoom = _defaultZoom;
+  late LatLng _currentCenter;
+  late double _currentZoom;
   bool _mapReady = false;
   LatLng? _pendingCenter;
   double? _pendingZoom;
   Set<String> _favoritePlaces = {};
+  final ValueNotifier<Set<String>> _favoritePlacesNotifier =
+      ValueNotifier<Set<String>>(<String>{});
+  final ValueNotifier<String?> _selectedRestaurantIdNotifier =
+      ValueNotifier<String?>(null);
   StreamSubscription<Set<String>>? _favoritesSub;
   bool _isLocating = false;
+  bool _showLocationFabBadge = true;
   bool _showInitialKangarooHint = false;
   Timer? _zoomPrefetchDebounce;
   Timer? _initialKangarooTimer;
@@ -120,15 +147,18 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
   Future<Style>? _styleFuture;
-  final MapStyleChoice _styleChoice = MapStyleChoice.streets;
-  String get _selectedStyleUrl => _styleChoice == MapStyleChoice.streets
-      ? streetsStyleUrl
-      : minimalStyleUrl;
   bool _didKickstartRender = false;
   bool _didCheckInitialKangarooHint = false;
   Future<Directory>? _vectorCacheFolderFuture;
   static const int _maxPrefetchTilesPerZoom = 28;
   static const int _maxPrefetchedTileKeys = 2400;
+  late final Listenable _markerVisualStateListenable = Listenable.merge([
+    _favoritePlacesNotifier,
+    _selectedRestaurantIdNotifier,
+  ]);
+
+  String get _styleCacheKey =>
+      '$_styleAssetCacheKey|${widget.styleAssetPath}|$osmVectorTilesUrlTemplateOrEmpty';
 
   bool _isOfflineError(Object? error) {
     final msg = error.toString().toLowerCase();
@@ -148,7 +178,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   TileProviders _optimizedTileProviders(Style style) {
-    final styleKey = _selectedStyleUrl;
+    final styleKey = _styleCacheKey;
     return _tileProvidersCache.putIfAbsent(styleKey, () {
       final bySource = <String, VectorTileProvider>{};
       style.providers.tileProviderBySource.forEach((source, provider) {
@@ -253,7 +283,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
               if (provider.type != TileProviderType.vector) continue;
 
               final key =
-                  '$_selectedStyleUrl|${entry.key}|$zoom|${tile.x}|${tile.y}';
+                  '$_styleCacheKey|${entry.key}|$zoom|${tile.x}|${tile.y}';
               if (_prefetchedTileKeysSet.contains(key)) continue;
 
               _rememberPrefetchedTileKey(key);
@@ -273,10 +303,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   @override
   void initState() {
     super.initState();
-    streetsStyleUrl =
-        'https://api.maptiler.com/maps/base-v4/style.json?key=$mapTilerKey';
-    minimalStyleUrl =
-        'https://api.maptiler.com/maps/bright/style.json?key=$mapTilerKey';
+    _initialCenter = widget.initialCenter;
+    _initialZoom = widget.initialZoom;
+    _currentCenter = widget.initialCenter;
+    _currentZoom = widget.initialZoom;
     _kangarooController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -351,10 +381,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     };
     _styleFuture = _loadStyle();
     _loadFavorites();
+    _loadLocationFabBadgeState();
     _favoritesSub = FavoritesService.changes.listen((ids) {
       if (_setEquals(_favoritePlaces, ids)) return;
-      _favoritePlaces = ids;
-      _updateMarkers();
+      _setFavoritePlaces(ids);
     });
     _loadLastMapPosition();
     _loadInitialData();
@@ -371,6 +401,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _zoomPrefetchDebounce?.cancel();
     _initialKangarooTimer?.cancel();
     _favoritesSub?.cancel();
+    _favoritePlacesNotifier.dispose();
+    _selectedRestaurantIdNotifier.dispose();
     _closeFilterOverlay();
     FlutterError.onError = _originalOnError;
     super.dispose();
@@ -391,19 +423,22 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   Future<Style> _loadStyle() async {
-    if (!hasMapTilerKey) {
-      throw Exception(
-        'Missing MAPTILER_KEY. Run: flutter run --dart-define=MAPTILER_KEY=xxxx',
-      );
-    }
-    final styleUrl = _selectedStyleUrl;
-    if (_styleCache.containsKey(styleUrl)) return _styleCache[styleUrl]!;
+    final styleKey = _styleCacheKey;
+    if (_styleCache.containsKey(styleKey)) return _styleCache[styleKey]!;
     try {
-      final style = await StyleReader(uri: styleUrl).read();
-      _styleCache[styleUrl] = style;
+      final style = await LocalVectorStyleService.instance.loadFromAsset(
+        assetPath: widget.styleAssetPath,
+        replacements: hasOsmVectorTilesUrlTemplate
+            ? <String, String>{
+                '{{OSM_VECTOR_TILES_URL_TEMPLATE}}':
+                    osmVectorTilesUrlTemplateOrEmpty,
+              }
+            : const <String, String>{},
+      );
+      _styleCache[styleKey] = style;
       return style;
     } catch (e) {
-      throw Exception('Could not load the MapTiler style: $e');
+      throw StateError('Could not load the self-hosted OSM vector style.');
     }
   }
 
@@ -419,6 +454,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _reloadStyle() {
+    _styleCache.remove(_styleCacheKey);
+    _tileProvidersCache.remove(_styleCacheKey);
     setState(() {
       _styleFuture = _loadStyle();
     });
@@ -440,8 +477,19 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     final list = prefs.getStringList('favorite_places') ?? [];
     final next = list.toSet();
     if (_setEquals(_favoritePlaces, next)) return;
+    _setFavoritePlaces(next);
+  }
+
+  void _setFavoritePlaces(Set<String> favorites) {
+    if (_setEquals(_favoritePlaces, favorites)) return;
+    final next = Set<String>.from(favorites);
     _favoritePlaces = next;
-    _updateMarkers();
+    _favoritePlacesNotifier.value = next;
+  }
+
+  void _setSelectedRestaurantId(String? restaurantId) {
+    if (_selectedRestaurantIdNotifier.value == restaurantId) return;
+    _selectedRestaurantIdNotifier.value = restaurantId;
   }
 
   Future<void> _loadLastMapPosition() async {
@@ -452,7 +500,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
     if (lat != null && lng != null && zoom != null) {
       final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
-      final center = LatLng(lat, lng);
+      final center = _clampToAustraliaBounds(LatLng(lat, lng));
       setState(() {
         _initialCenter = center;
         _initialZoom = clampedZoom;
@@ -469,12 +517,46 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     }
   }
 
+  Future<void> _loadLocationFabBadgeState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool(_dismissedLocationFabBadgeKey) ?? false;
+    if (!mounted || dismissed == !_showLocationFabBadge) return;
+    setState(() {
+      _showLocationFabBadge = !dismissed;
+    });
+  }
+
+  Future<void> _dismissLocationFabBadge() async {
+    if (!_showLocationFabBadge) return;
+    if (mounted) {
+      setState(() => _showLocationFabBadge = false);
+    } else {
+      _showLocationFabBadge = false;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_dismissedLocationFabBadgeKey, true);
+  }
+
   Future<void> _saveLastMapPosition(LatLng center, double zoom) async {
     final prefs = await SharedPreferences.getInstance();
     final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
-    await prefs.setDouble('map_last_lat', center.latitude);
-    await prefs.setDouble('map_last_lng', center.longitude);
+    final clampedCenter = _clampToAustraliaBounds(center);
+    await prefs.setDouble('map_last_lat', clampedCenter.latitude);
+    await prefs.setDouble('map_last_lng', clampedCenter.longitude);
     await prefs.setDouble('map_last_zoom', clampedZoom);
+  }
+
+  LatLng _clampToAustraliaBounds(LatLng center) {
+    return LatLng(
+      AustraliaMapViewport.clampViewportLatitude(center.latitude),
+      AustraliaMapViewport.clampViewportLongitude(center.longitude),
+    );
+  }
+
+  double _minimumVisibleAustraliaZoom(Size viewportSize) {
+    return AustraliaMapViewport.minimumViewportZoom(
+      viewportSize,
+    ).clamp(AustraliaMapViewport.fallbackMinZoom, 18.2).toDouble();
   }
 
   Future<void> _maybeShowInitialKangarooHint() async {
@@ -501,6 +583,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     try {
       final restaurantDocs = await MapMarkersService.loadRestaurants(
         fromServer: fromServer,
+        lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
@@ -624,9 +707,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   void _clearTemporarySelection() {
     if (_selectedRestaurant == null && _selectedHarvest == null) return;
-    _selectedRestaurant = null;
-    _selectedHarvest = null;
-    _updateMarkers();
+    setState(() {
+      _selectedRestaurant = null;
+      _selectedHarvest = null;
+    });
+    _setSelectedRestaurantId(null);
   }
 
   void _zoomToCluster(MarkerClusterNode cluster) {
@@ -637,7 +722,13 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       if (onlyChild is! MarkerClusterNode) break;
       splitNode = onlyChild;
     }
-    final targetZoom = (splitNode.zoom + 1.05).clamp(3.0, 18.2).toDouble();
+    final targetZoom = math
+        .max(
+          _currentZoom + (_clusterZoomStep - 0.3),
+          splitNode.zoom + _clusterZoomStep,
+        )
+        .clamp(3.0, 18.2)
+        .toDouble();
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: splitNode.bounds,
@@ -655,6 +746,30 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     if (!hasTransientSelection) return false;
     _clearTemporarySelection();
     return true;
+  }
+
+  void activateMapView() {
+    if (!_isHospitality || !mounted) return;
+
+    final targetCenter = _pendingCenter ?? _currentCenter;
+    final targetZoom = _pendingZoom ?? _currentZoom;
+    _pendingCenter = targetCenter;
+    _pendingZoom = targetZoom;
+
+    void triggerMove() {
+      if (!mounted || !_mapReady) return;
+      try {
+        _mapController.move(targetCenter, targetZoom);
+      } catch (_) {
+        // The map can still be laying out inside the IndexedStack.
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      triggerMove();
+      Future<void>.delayed(const Duration(milliseconds: 80), triggerMove);
+      Future<void>.delayed(const Duration(milliseconds: 220), triggerMove);
+    });
   }
 
   Rect? _globalRectForKey(GlobalKey key) {
@@ -682,23 +797,27 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _selectRestaurantMarker(Map<String, Object?> marker) {
-    _selectedHarvest = null;
-    _selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
-    _updateMarkers();
+    final selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
+    final restaurantId = (selectedRestaurant['docId'] ?? '').toString();
+    setState(() {
+      _selectedHarvest = null;
+      _selectedRestaurant = selectedRestaurant;
+    });
+    _setSelectedRestaurantId(restaurantId.isEmpty ? null : restaurantId);
     unawaited(
       _handlePositiveReviewAction(ReviewService.actionWorkplaceDetailOpened),
     );
   }
 
   void _selectHarvestMarker(Map<String, Object?> marker) {
-    _selectedRestaurant = null;
-    _selectedHarvest = marker['data'] as HarvestPlace;
-    _updateMarkers();
+    setState(() {
+      _selectedRestaurant = null;
+      _selectedHarvest = marker['data'] as HarvestPlace;
+    });
+    _setSelectedRestaurantId(null);
   }
 
   void _updateMarkers() {
-    final selectedRestaurantId = (_selectedRestaurant?['docId'] ?? '')
-        .toString();
     final source = _isHospitality
         ? _visibleRestaurantLocations
         : _harvestLocations;
@@ -721,13 +840,22 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                 }
               },
               child: _isHospitality
-                  ? _restaurantMarkerIcon(
-                      (r['marker_kind'] as _RestaurantMarkerKind?) ??
-                          _RestaurantMarkerKind.standard,
-                      isFavorite: _favoritePlaces.contains(markerId),
-                      isSelected:
-                          markerId.isNotEmpty &&
-                          markerId == selectedRestaurantId,
+                  ? AnimatedBuilder(
+                      animation: _markerVisualStateListenable,
+                      builder: (context, child) {
+                        final selectedRestaurantId =
+                            _selectedRestaurantIdNotifier.value;
+                        return _restaurantMarkerIcon(
+                          (r['marker_kind'] as _RestaurantMarkerKind?) ??
+                              _RestaurantMarkerKind.standard,
+                          isFavorite: _favoritePlacesNotifier.value.contains(
+                            markerId,
+                          ),
+                          isSelected:
+                              markerId.isNotEmpty &&
+                              markerId == selectedRestaurantId,
+                        );
+                      },
                     )
                   : _markerHarvestIcon,
             ),
@@ -812,9 +940,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   void _toggleCategory(bool hospitality) {
     if (_isHospitality == hospitality) return;
     _zoomPrefetchDebounce?.cancel();
-    _isHospitality = hospitality;
-    _selectedRestaurant = null;
-    _selectedHarvest = null;
+    setState(() {
+      _isHospitality = hospitality;
+      _selectedRestaurant = null;
+      _selectedHarvest = null;
+    });
+    _setSelectedRestaurantId(null);
     _closeFilterOverlay();
     _updateMarkers();
   }
@@ -1017,8 +1148,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     }
 
     await prefs.setStringList('favorite_places', current.toList());
-    _favoritePlaces = current;
-    _updateMarkers();
+    _setFavoritePlaces(current);
     FavoritesService.broadcast(_favoritePlaces);
     if (current.contains(restaurantId)) {
       unawaited(_handlePositiveReviewAction(ReviewService.actionFavoriteSaved));
@@ -1043,6 +1173,22 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
           : int.tryParse(raw.toString()) ?? 0;
       _selectedRestaurant!['worked_here_count'] = math.max(0, current + delta);
     }
+  }
+
+  int _currentWorkedHereCount(String restaurantId) {
+    if (_selectedRestaurant != null &&
+        _selectedRestaurant?['docId'] == restaurantId) {
+      final raw = _selectedRestaurant?['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    for (final loc in _restaurantLocations) {
+      if (loc['id'] != restaurantId) continue;
+      final raw = loc['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    return 0;
   }
 
   Future<void> _showWorkedDialog(
@@ -1077,20 +1223,23 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
     if (result == true) {
       workedPlaces.add(restaurantId);
+      final nextWorkedHereCount = _currentWorkedHereCount(restaurantId) + 1;
       try {
         await prefs.setStringList('worked_places', workedPlaces.toList());
-        await MapMarkersService.incrementWorkedHere(restaurantId);
-        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+        await MapMarkersService.rememberLocalWorkedHereCount(
+          restaurantId,
+          nextWorkedHereCount,
+        );
         _updateLocalWorkedHere(restaurantId, 1);
         if (mounted) setState(() {});
+        await MapMarkersService.incrementWorkedHere(restaurantId);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
       } catch (e) {
-        workedPlaces.remove(restaurantId);
-        await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'We could not save your vote right now. Please try again.',
+              'Saved on this device. Sync with the server can happen later.',
             ),
           ),
         );
@@ -1361,7 +1510,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _zoomOut() {
-    final newZoom = (_currentZoom - 1).clamp(3.0, 18.0);
+    final newZoom = (_currentZoom - _zoomOutStep).clamp(3.0, 18.0);
     _mapController.move(_currentCenter, newZoom);
   }
 
@@ -1371,16 +1520,17 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _isLocating = false);
+        _showLocationServicesMessage();
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        setState(() => _isLocating = false);
+        await _handleDeniedLocationPermission(permission);
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -1388,9 +1538,75 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       );
       final target = LatLng(pos.latitude, pos.longitude);
       _mapController.move(target, 15);
+    } catch (_) {
+      _showLocationGenericError();
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
+  }
+
+  void _handleLocationFabPressed() {
+    unawaited(_dismissLocationFabBadge());
+    unawaited(_goToUserLocation());
+  }
+
+  Future<void> _handleDeniedLocationPermission(
+    LocationPermission permission,
+  ) async {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    if (permission == LocationPermission.deniedForever) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Location access is blocked. Open settings to enable it.',
+          ),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: () {
+              unawaited(Geolocator.openAppSettings());
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Location access denied. Tap again to allow it.'),
+      ),
+    );
+  }
+
+  void _showLocationServicesMessage() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Location services are turned off.'),
+        action: SnackBarAction(
+          label: 'Settings',
+          onPressed: () {
+            unawaited(Geolocator.openLocationSettings());
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showLocationGenericError() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('We could not get your location right now.'),
+      ),
+    );
   }
 
   void _setTileLoading(bool value) {
@@ -1428,18 +1644,24 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     if (_selectedRestaurant == null) return const SizedBox.shrink();
     final r = _selectedRestaurant!;
     final docId = r['docId'] ?? '';
-    return MapRestaurantPopup(
-      data: r,
-      workedCount: (r['worked_here_count'] ?? 0) as int,
-      isFavorite: _favoritePlaces.contains(docId),
-      onClose: _clearTemporarySelection,
-      onWorkedHere: () => _showWorkedDialog(docId, r['name'] ?? 'this place'),
-      onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
-      onEmail: () => _showEmailOptions(r['email']),
-      onFacebook: () => _openUrl(r['facebook_url']),
-      onCareers: () => _openUrl(r['careers_page']),
-      onInstagram: () => _openUrl(r['instagram_url']),
-      onFavorite: () => _toggleFavorite(docId),
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: _favoritePlacesNotifier,
+      builder: (context, favoritePlaces, child) {
+        return MapRestaurantPopup(
+          data: r,
+          workedCount: (r['worked_here_count'] ?? 0) as int,
+          isFavorite: favoritePlaces.contains(docId),
+          onClose: _clearTemporarySelection,
+          onWorkedHere: () =>
+              _showWorkedDialog(docId, r['name'] ?? 'this place'),
+          onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
+          onEmail: () => _showEmailOptions(r['email']),
+          onFacebook: () => _openUrl(r['facebook_url']),
+          onCareers: () => _openUrl(r['careers_page']),
+          onInstagram: () => _openUrl(r['instagram_url']),
+          onFavorite: () => _toggleFavorite(docId),
+        );
+      },
     );
   }
 
@@ -1451,7 +1673,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       postcode: data.postcode,
       state: data.state,
       description: data.description,
-      onClose: () => setState(() => _selectedHarvest = null),
+      onClose: () {
+        setState(() => _selectedHarvest = null);
+        _setSelectedRestaurantId(null);
+      },
     );
   }
 
@@ -1469,6 +1694,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       if (_selectedSources.isEmpty) _selectedSources.clear();
     }
     _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
     _recomputeVisibleRestaurants();
     _updateMarkers();
   }
@@ -1660,21 +1886,6 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   @override
   Widget build(BuildContext context) {
-    if (!hasMapTilerKey) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Map OSM')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Missing MAPTILER_KEY. Run: flutter run --dart-define=MAPTILER_KEY=xxxx',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
     _styleFuture ??= _loadStyle();
 
     return FutureBuilder<Style>(
@@ -1736,265 +1947,290 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         final style = snapshot.data!;
         final tileProviders = _optimizedTileProviders(style);
 
-        if (!_didKickstartRender) {
-          _didKickstartRender = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            // Força petició inicial de tiles al centre d'Austràlia
-            _mapController.move(_initialCenter, _initialZoom);
-            unawaited(_maybeShowInitialKangarooHint());
-          });
-        }
-
-        // Mantenim el centre inicial d'Austràlia; no auto-fit a marcadors
-
         if (!_isHospitality) {
-          // restore Farm map view when ready; placeholder for now.
           return const Scaffold(appBar: null, body: FarmPlaceholderView());
         }
 
-        return Scaffold(
-          appBar: null,
-          body: Stack(
-            children: [
-              SizedBox.expand(
-                key: _mapAreaKey,
-                child: FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _initialCenter,
-                    initialZoom: _initialZoom,
-                    minZoom: 3.0,
-                    maxZoom: 18.2,
-                    onMapReady: () {
-                      _mapReady = true;
-                      if (_pendingCenter != null && _pendingZoom != null) {
-                        _mapController.move(_pendingCenter!, _pendingZoom!);
-                        _pendingCenter = null;
-                        _pendingZoom = null;
-                      }
-                      _scheduleAdjacentZoomPrefetch(tileProviders);
-                    },
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                    ),
-                    onTap: (tapPosition, point) {
-                      _clearTemporarySelection();
-                    },
-                    onPositionChanged: (position, _) {
-                      final rotation = position.rotation;
-                      if (rotation.abs() > 0.0001) _mapController.rotate(0);
-                      _currentCenter = position.center;
-                      final newZoom = position.zoom;
-                      if ((newZoom - _currentZoom).abs() > 0.02) {
-                        _setTileLoading(true);
-                      }
-                      _currentZoom = newZoom;
-                      _pendingCenter = _currentCenter;
-                      _pendingZoom = _currentZoom;
-                      _persistDebounce?.cancel();
-                      _persistDebounce = Timer(
-                        const Duration(milliseconds: 500),
-                        () {
-                          _saveLastMapPosition(_currentCenter, _currentZoom);
-                        },
-                      );
-                      _scheduleAdjacentZoomPrefetch(tileProviders);
-                    },
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final minimumVisibleZoom = _minimumVisibleAustraliaZoom(
+              Size(constraints.maxWidth, constraints.maxHeight),
+            );
+            final effectiveInitialCenter = _clampToAustraliaBounds(
+              _initialCenter,
+            );
+            final effectiveInitialZoom = math.max(
+              _initialZoom,
+              minimumVisibleZoom,
+            );
+
+            if (!_didKickstartRender) {
+              _didKickstartRender = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                _mapController.move(
+                  effectiveInitialCenter,
+                  effectiveInitialZoom,
+                );
+                unawaited(_maybeShowInitialKangarooHint());
+              });
+            }
+
+            return Scaffold(
+              backgroundColor: _mapOceanBackgroundColor,
+              appBar: null,
+              body: Stack(
+                children: [
+                  const Positioned.fill(
+                    child: ColoredBox(color: _mapOceanBackgroundColor),
                   ),
-                  children: [
-                    VectorTileLayer(
-                      theme: style.theme,
-                      sprites: style.sprites,
-                      tileProviders: tileProviders,
-                      cacheFolder: _resolveVectorCacheFolder,
-                      fileCacheTtl: const Duration(days: 45),
-                      fileCacheMaximumSizeInBytes: 160 * 1024 * 1024,
-                      memoryTileCacheMaxSize: 24 * 1024 * 1024,
-                      memoryTileDataCacheMaxSize: 80,
-                      textCacheMaxSize: 180,
-                      maximumTileSubstitutionDifference: 3,
-                      concurrency: 6,
-                      tileOffset: TileOffset.mapbox,
-                    ),
-                    MarkerClusterLayerWidget(
-                      options: MarkerClusterLayerOptions(
-                        markers: _markers,
-                        zoomToBoundsOnClick: false,
-                        centerMarkerOnClick: false,
-                        spiderfyCluster: false,
-                        onClusterTap: _zoomToCluster,
-                        maxClusterRadius:
-                            28, // clusters a bit tighter for faster zoom redraws
-                        size: const Size(30, 30),
-                        padding: const EdgeInsets.all(20),
-                        disableClusteringAtZoom:
-                            17, // avoid heavy re-clustering when zoomed in
-                        showPolygon:
-                            false, // evita dibuixar el polígon verd del clúster
-                        builder: (context, cluster) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111827),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              cluster.length.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                            ),
+                  SizedBox.expand(
+                    key: _mapAreaKey,
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: effectiveInitialCenter,
+                        initialZoom: effectiveInitialZoom,
+                        minZoom: minimumVisibleZoom,
+                        maxZoom: 18.2,
+                        cameraConstraint: CameraConstraint.contain(
+                          bounds: _australiaViewportBounds,
+                        ),
+                        onMapReady: () {
+                          _mapReady = true;
+                          if (_pendingCenter != null && _pendingZoom != null) {
+                            _mapController.move(_pendingCenter!, _pendingZoom!);
+                            _pendingCenter = null;
+                            _pendingZoom = null;
+                          }
+                          _scheduleAdjacentZoomPrefetch(tileProviders);
+                        },
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                        ),
+                        onTap: (tapPosition, point) {
+                          _clearTemporarySelection();
+                        },
+                        onPositionChanged: (position, _) {
+                          final rotation = position.rotation;
+                          if (rotation.abs() > 0.0001) _mapController.rotate(0);
+                          _currentCenter = position.center;
+                          final newZoom = position.zoom;
+                          if ((newZoom - _currentZoom).abs() > 0.02) {
+                            _setTileLoading(true);
+                          }
+                          _currentZoom = newZoom;
+                          _pendingCenter = _currentCenter;
+                          _pendingZoom = _currentZoom;
+                          _persistDebounce?.cancel();
+                          _persistDebounce = Timer(
+                            const Duration(milliseconds: 500),
+                            () {
+                              _saveLastMapPosition(
+                                _currentCenter,
+                                _currentZoom,
+                              );
+                            },
                           );
+                          _scheduleAdjacentZoomPrefetch(tileProviders);
                         },
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 16,
-                left: 12,
-                right: 12,
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      Material(
-                        elevation: 4,
-                        shape: const CircleBorder(),
-                        color: Colors.white,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: _showProfilePopup,
-                          child: SizedBox(
-                            key: _profileButtonKey,
-                            height: 48,
-                            width: 48,
-                            child: const Icon(
-                              Icons.person_outline,
-                              color: Colors.black87,
-                            ),
+                      children: [
+                        VectorTileLayer(
+                          theme: style.theme,
+                          sprites: style.sprites,
+                          tileProviders: tileProviders,
+                          cacheFolder: _resolveVectorCacheFolder,
+                          fileCacheTtl: const Duration(days: 45),
+                          fileCacheMaximumSizeInBytes: 160 * 1024 * 1024,
+                          memoryTileCacheMaxSize: 24 * 1024 * 1024,
+                          memoryTileDataCacheMaxSize: 80,
+                          textCacheMaxSize: 180,
+                          maximumTileSubstitutionDifference: 3,
+                          concurrency: 6,
+                          tileOffset: TileOffset.mapbox,
+                        ),
+                        MarkerClusterLayerWidget(
+                          options: MarkerClusterLayerOptions(
+                            markers: _markers,
+                            zoomToBoundsOnClick: false,
+                            centerMarkerOnClick: false,
+                            spiderfyCluster: false,
+                            onClusterTap: _zoomToCluster,
+                            maxClusterRadius:
+                                28, // clusters a bit tighter for faster zoom redraws
+                            size: const Size(30, 30),
+                            padding: const EdgeInsets.all(20),
+                            disableClusteringAtZoom:
+                                17, // avoid heavy re-clustering when zoomed in
+                            showPolygon:
+                                false, // evita dibuixar el polígon verd del clúster
+                            builder: (context, cluster) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF111827),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  cluster.length.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 12,
+                    right: 12,
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Material(
+                            elevation: 4,
+                            shape: const CircleBorder(),
+                            color: Colors.white,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: _showProfilePopup,
+                              child: SizedBox(
+                                key: _profileButtonKey,
+                                height: 48,
+                                width: 48,
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: CompactCategorySwitch(
+                              key: _categorySwitchKey,
+                              selected: _isHospitality
+                                  ? Category.hospitality
+                                  : Category.farm,
+                              onChanged: (cat) =>
+                                  _toggleCategory(cat == Category.hospitality),
+                              farmEnabled: _farmMapEnabled,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          CompositedTransformTarget(
+                            link: _filterLink,
+                            child: Material(
+                              elevation: 4,
+                              shape: const CircleBorder(),
+                              color: Colors.white,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: _toggleFilterOverlay,
+                                child: const SizedBox(
+                                  height: 48,
+                                  width: 48,
+                                  child: Icon(
+                                    Icons.filter_list,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: CompactCategorySwitch(
-                          key: _categorySwitchKey,
-                          selected: _isHospitality
-                              ? Category.hospitality
-                              : Category.farm,
-                          onChanged: (cat) =>
-                              _toggleCategory(cat == Category.hospitality),
-                          farmEnabled: _farmMapEnabled,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      CompositedTransformTarget(
-                        link: _filterLink,
-                        child: Material(
-                          elevation: 4,
-                          shape: const CircleBorder(),
-                          color: Colors.white,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: _toggleFilterOverlay,
-                            child: const SizedBox(
-                              height: 48,
-                              width: 48,
-                              child: Icon(
-                                Icons.filter_list,
-                                color: Colors.black87,
+                    ),
+                  ),
+                  if (_showOnboardingEmailPreview)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: 16,
+                            top: 70,
+                            right: 16,
+                          ),
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: IgnorePointer(
+                              child: _ProfilePopupMenu(
+                                onMail: () {},
+                                onReports: () {},
+                                onFavorites: () {},
+                                onAdmin: () {},
+                                showAdmin: false,
+                                automaticEmailTileKey: _automaticEmailTileKey,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_showOnboardingEmailPreview)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        top: 70,
-                        right: 16,
+                    ),
+                  if (_isLoadingData)
+                    const Center(child: CircularProgressIndicator()),
+                  _buildRestaurantPopup(),
+                  _buildHarvestPopup(),
+                  if (_isHospitality && _showInitialKangarooHint)
+                    Positioned(
+                      bottom: _initialKangarooBottomOffset,
+                      right: 18,
+                      child: IgnorePointer(
+                        child: _kangarooLoader(size: 56, animate: true),
                       ),
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: IgnorePointer(
-                          child: _ProfilePopupMenu(
-                            onMail: () {},
-                            onReports: () {},
-                            onFavorites: () {},
-                            onAdmin: () {},
-                            showAdmin: false,
-                            automaticEmailTileKey: _automaticEmailTileKey,
-                          ),
+                    ),
+                  if (_isHospitality)
+                    Positioned(
+                      bottom: _locationFabBottom,
+                      right: 16,
+                      child: FloatingActionButton(
+                        onPressed: _isLocating
+                            ? null
+                            : _handleLocationFabPressed,
+                        heroTag: 'fab_location',
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.blueGrey.shade700,
+                        child: LocationFabIcon(
+                          showBadge: _showLocationFabBadge,
+                          isLoading: _isLocating,
                         ),
                       ),
                     ),
-                  ),
-                ),
-              if (_isLoadingData)
-                const Center(child: CircularProgressIndicator()),
-              _buildRestaurantPopup(),
-              _buildHarvestPopup(),
-              if (_isHospitality && _showInitialKangarooHint)
-                Positioned(
-                  bottom: _initialKangarooBottomOffset,
-                  right: 18,
-                  child: IgnorePointer(
-                    child: _kangarooLoader(size: 56, animate: true),
-                  ),
-                ),
-              if (_isHospitality)
-                Positioned(
-                  bottom: _locationFabBottom,
-                  right: 16,
-                  child: FloatingActionButton(
-                    onPressed: _isLocating ? null : _goToUserLocation,
-                    heroTag: 'fab_location',
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blueGrey.shade700,
-                    child: _isLocating
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
-                          )
-                        : const Icon(Icons.my_location),
-                  ),
-                ),
-              if (_isHospitality && _showZoomOutButton)
-                Positioned(
-                  bottom: 180,
-                  right: 16,
-                  child: FloatingActionButton(
-                    heroTag: 'fab_zoom_out',
-                    onPressed: _zoomOut,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blueGrey.shade700,
-                    child: const Icon(Icons.zoom_out),
-                  ),
-                ),
-            ],
-          ),
+                  if (_isHospitality && _showZoomOutButton)
+                    Positioned(
+                      bottom: 180,
+                      right: 16,
+                      child: FloatingActionButton(
+                        heroTag: 'fab_zoom_out',
+                        onPressed: _zoomOut,
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.blueGrey.shade700,
+                        child: const Icon(Icons.zoom_out),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

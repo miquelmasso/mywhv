@@ -680,6 +680,29 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.6.2"
+  maplibre_gl:
+    dependency: "direct main"
+    description:
+      path: "third_party/maplibre_gl"
+      relative: true
+    source: path
+    version: "0.25.0"
+  maplibre_gl_platform_interface:
+    dependency: transitive
+    description:
+      name: maplibre_gl_platform_interface
+      sha256: bd7de401dea24dd7e8a6f2fa736ddee7dbbee3e24a9027f0afdd619994702047
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.25.0"
+  maplibre_gl_web:
+    dependency: transitive
+    description:
+      name: maplibre_gl_web
+      sha256: af0e48bf96e8dd99f8b958a1953126971eb8a0527b9735441d4f24df3913f5a2
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.25.0"
   matcher:
     dependency: transitive
     description:
@@ -888,6 +911,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  pmtiles:
+    dependency: transitive
+    description:
+      name: pmtiles
+      sha256: "9acb9e330e029c2c4eb6faafd53fc1f439dd9c61a0e080778026b2d2d5975944"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   polylabel:
     dependency: transitive
     description:
@@ -896,6 +927,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  pool:
+    dependency: transitive
+    description:
+      name: pool
+      sha256: "978783255c543aa3586a1b3c21f6e9d720eb315376a915872c61ef8b5c20177d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.2"
   posix:
     dependency: transitive
     description:
@@ -1229,6 +1268,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "8.0.0"
+  vector_map_tiles_pmtiles:
+    dependency: "direct main"
+    description:
+      name: vector_map_tiles_pmtiles
+      sha256: ae3d2087eedabd36e67ecd958ec138145f26e1aa7ee718463cdc2dc66706c56d
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.0"
   vector_math:
     dependency: transitive
     description:
@@ -1246,7 +1293,7 @@ packages:
     source: hosted
     version: "2.0.1"
   vector_tile_renderer:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: vector_tile_renderer
       sha256: "89746f1108eccbc0b6f33fbbef3fcf394cda3733fc0d5064ea03d53a459b56d3"

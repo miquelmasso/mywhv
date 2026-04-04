@@ -42,6 +42,8 @@ dependencies:
   flutter_map_marker_cluster: ^1.2.0
   flutter_map_tile_caching: ^10.0.0
   vector_map_tiles: ^8.0.0
+  vector_map_tiles_pmtiles: ^1.5.0
+  vector_tile_renderer: ^5.2.1
   flutter_cache_manager: ^3.3.2
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.0
@@ -64,10 +66,13 @@ dependencies:
   sqflite: ^2.4.2
 
   path: ^1.9.1
+  maplibre_gl: ^0.25.0
 
 dependency_overrides:
   # Work around App Store validation failure caused by objective_c.framework
   # being bundled as an iOS simulator binary via path_provider_foundation 2.6.x.
+  maplibre_gl:
+    path: third_party/maplibre_gl
   path_provider_foundation: 2.5.1
 
 dev_dependencies:
@@ -110,11 +115,13 @@ flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/map/style.json
     - assets/map_style_dark.json
     - assets/map_style_australia.json
     - assets/map_style_australia_only.json
     - assets/map_style_clean.json
     - assets/harvest/harvest_2025.json
+    - assets/osm_vector_style.json
     - assets/data/harvest_places_2025.json
     - assets/data/guide_manual.structure.json
     - assets/data/guide_manual.strings.en.json

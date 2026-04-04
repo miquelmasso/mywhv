@@ -4,21 +4,25 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+import 'package:latlong2/latlong.dart';
 import 'firebase_options.dart';
 import 'features/onboarding/onboarding_controller.dart';
 import 'features/onboarding/onboarding_overlay.dart';
 import 'features/onboarding/onboarding_steps.dart';
 import 'navigation/route_observer.dart';
 import 'screens/map_maintenance_page.dart';
-import 'screens/map_osm_clone_page.dart';
+import 'screens/map_screen.dart';
 import 'screens/screens.dart';
 import 'screens/admin_gate_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
 import 'services/map_display_settings_service.dart';
+import 'services/map_markers_service.dart';
 import 'services/offline_state.dart';
+import 'services/runtime_device_service.dart';
 import 'services/review_service.dart';
+import 'services/tile_cache_service.dart';
 
 // 👇 Fitxers per actualitzar codis postals
 // ignore: unused_import
@@ -40,6 +44,7 @@ Future<void> main() async {
 
   await OfflineBootstrapService.instance.init();
   await MapDisplaySettingsService.instance.init();
+  await RuntimeDeviceService.instance.init();
   debugPrint('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
   await ReviewService.instance.registerAppOpen();
 
@@ -67,7 +72,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       navigatorObservers: [routeObserver],
-      home: const MyHomePage(),
+      home: const MyHomePage(initialIndex: 0),
     );
   }
 }
@@ -83,14 +88,17 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   static const bool _enableOnboarding = true;
+  static const LatLng _backgroundWarmupCenter = LatLng(-25.0, 133.0);
+  static const int _backgroundWarmupZoom = 5;
 
   late int _selectedIndex;
   int _adminTapCount = 0;
   DateTime? _adminFirstTap;
   int _onboardingSyncToken = 0;
+  late final Set<int> _loadedTabIndices;
 
-  final GlobalKey<MapOSMClonePageState> _primaryOsmMapPageKey =
-      GlobalKey<MapOSMClonePageState>();
+  final GlobalKey<MapScreenState> _primaryOsmMapPageKey =
+      GlobalKey<MapScreenState>();
   final GlobalKey _guideTabIconKey = GlobalKey();
   OnboardingController? _onboardingController;
   late bool _isMaintenanceScreenVisible;
@@ -99,22 +107,69 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    _loadedTabIndices = <int>{widget.initialIndex};
     _isMaintenanceScreenVisible =
         MapDisplaySettingsService.instance.isMaintenanceScreenVisible;
     MapDisplaySettingsService.instance.showMaintenanceScreen.addListener(
       _handleMapDisplaySettingsChanged,
     );
+    unawaited(_warmUpMapInBackground());
     unawaited(_initOnboarding());
   }
 
-  List<Widget> get _pages => <Widget>[
-    _isMaintenanceScreenVisible
-        ? const MapMaintenancePage()
-        : MapOSMClonePage(key: _primaryOsmMapPageKey),
-    GuideScreen(onNavigateToTab: _onItemTapped),
-    const TipsRandomPage(),
-    const ForumPage(),
-  ];
+  Future<void> _warmUpMapInBackground() async {
+    if (_isMaintenanceScreenVisible) {
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted || _isMaintenanceScreenVisible) {
+      return;
+    }
+
+    try {
+      unawaited(
+        MapMarkersService.loadRestaurants(fromServer: false, lightweight: true),
+      );
+
+      final cache = await TileCacheService.instance.init();
+      if (!mounted || _isMaintenanceScreenVisible) {
+        return;
+      }
+      if (cache == TileCacheService.instance.cache) {
+        unawaited(
+          TileCacheService.instance.prefetchArea(
+            _backgroundWarmupCenter,
+            _backgroundWarmupZoom,
+            spanDeg: 6.0,
+            maxTiles: 320,
+          ),
+        );
+      }
+    } catch (_) {
+      // Ignore warm-up failures; the map will load on demand.
+    }
+  }
+
+  Widget _buildPage(int index) {
+    return switch (index) {
+      0 =>
+        _isMaintenanceScreenVisible
+            ? const MapMaintenancePage()
+            : MapScreen(key: _primaryOsmMapPageKey),
+      1 => GuideScreen(onNavigateToTab: _onItemTapped),
+      2 => const TipsRandomPage(),
+      3 => const ForumPage(),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  List<Widget> get _pages => List<Widget>.generate(4, (index) {
+    if (!_loadedTabIndices.contains(index)) {
+      return const SizedBox.shrink();
+    }
+    return _buildPage(index);
+  });
 
   Future<void> _initOnboarding() async {
     if (!_enableOnboarding) {
@@ -166,6 +221,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _showProfileTooltipForTab(int index) {
     if (index == 0 && !_isMaintenanceScreenVisible) {
+      _primaryOsmMapPageKey.currentState?.activateMapView();
       _primaryOsmMapPageKey.currentState?.showProfileTooltipIfNeeded();
     }
   }
@@ -207,8 +263,16 @@ class _MyHomePageState extends State<MyHomePage> {
       _resetAdminTapState();
     }
 
-    if (_selectedIndex != index) {
-      setState(() => _selectedIndex = index);
+    if (_selectedIndex != index || !_loadedTabIndices.contains(index)) {
+      setState(() {
+        _selectedIndex = index;
+        _loadedTabIndices.add(index);
+      });
+    }
+    if (_isMapTab(index) && !_isMaintenanceScreenVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _primaryOsmMapPageKey.currentState?.activateMapView();
+      });
     }
     if (showMapTooltip && _isMapTab(index)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

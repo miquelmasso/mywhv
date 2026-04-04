@@ -1,0 +1,18 @@
+{
+  "version": 8,
+  "sources": {
+    "australia": {
+      "type": "vector",
+      "url": "pmtiles://https://maps.workyday.com/australia.pmtiles"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#cfe1ec"
+      }
+    }
+  ]
+}

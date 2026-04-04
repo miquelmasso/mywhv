@@ -1,0 +1,604 @@
+{
+  "version": 8,
+  "name": "WorkyDay Minimal Australia",
+  "metadata": {
+    "workyday:source": "pmtiles://https://maps.workyday.com/australia.pmtiles",
+    "workyday:design_intent": "Google Maps-inspired minimal basemap with low visual noise so custom WorkyDay markers remain the primary focus.",
+    "workyday:validated_source_layers": [
+      "boundaries",
+      "earth",
+      "landcover",
+      "landuse",
+      "places",
+      "pois",
+      "roads",
+      "water"
+    ],
+    "workyday:needs_validation": [
+      "places.kind values assumed: country, region, locality",
+      "roads.kind values assumed: highway, major_road, minor_road, rail",
+      "landuse.kind values assumed: park, national_park, forest, wood, grassland, grass, playground, village_green, protected_area, nature_reserve",
+      "water.kind values assumed: water, lake, river, stream",
+      "boundaries.kind_detail assumed numeric ranking where lower values are stronger administrative boundaries"
+    ],
+    "workyday:glyphs_note": "Text layers assume the current MapLibre runtime can resolve glyphs for the declared font stack. If labels do not render, the minimal follow-up is to add a local or remote glyphs endpoint."
+  },
+  "center": [133.0, -25.0],
+  "zoom": 3.8,
+  "sources": {
+    "australia": {
+      "type": "vector",
+      "url": "pmtiles://https://maps.workyday.com/australia.pmtiles"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#cfe1ec"
+      }
+    },
+    {
+      "id": "earth",
+      "type": "fill",
+      "source": "australia",
+      "source-layer": "earth",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "paint": {
+        "fill-color": "#f1ede4"
+      }
+    },
+    {
+      "id": "landuse-park",
+      "type": "fill",
+      "source": "australia",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "park",
+        "national_park",
+        "protected_area",
+        "nature_reserve",
+        "cemetery",
+        "golf_course"
+      ],
+      "paint": {
+        "fill-color": "#dbe6d5",
+        "fill-opacity": 0.62
+      }
+    },
+    {
+      "id": "landuse-green",
+      "type": "fill",
+      "source": "australia",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "forest",
+        "wood",
+        "grassland",
+        "grass",
+        "playground",
+        "village_green",
+        "allotments"
+      ],
+      "paint": {
+        "fill-color": "#e3ebdc",
+        "fill-opacity": 0.54
+      }
+    },
+    {
+      "id": "landcover-green",
+      "type": "fill",
+      "source": "australia",
+      "source-layer": "landcover",
+      "filter": [
+        "in",
+        "kind",
+        "forest",
+        "wood",
+        "grass",
+        "scrub",
+        "park"
+      ],
+      "paint": {
+        "fill-color": "#e7eee2",
+        "fill-opacity": 0.42
+      }
+    },
+    {
+      "id": "water-fill",
+      "type": "fill",
+      "source": "australia",
+      "source-layer": "water",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "paint": {
+        "fill-color": "#cfe1ec",
+        "fill-opacity": 0.92
+      }
+    },
+    {
+      "id": "water-line",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "water",
+      "filter": [
+        "==",
+        "$type",
+        "LineString"
+      ],
+      "paint": {
+        "line-color": "#c4d9e6",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0.4,
+          8,
+          0.8,
+          12,
+          1.4,
+          16,
+          2.2
+        ],
+        "line-opacity": 0.72
+      }
+    },
+    {
+      "id": "boundaries-country",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "boundaries",
+      "filter": [
+        "<=",
+        "kind_detail",
+        2
+      ],
+      "paint": {
+        "line-color": "#c7bfb2",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0.4,
+          6,
+          0.7,
+          10,
+          1.0
+        ],
+        "line-opacity": 0.34,
+        "line-dasharray": [
+          3,
+          2
+        ]
+      }
+    },
+    {
+      "id": "boundaries-admin",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "boundaries",
+      "filter": [
+        ">",
+        "kind_detail",
+        2
+      ],
+      "paint": {
+        "line-color": "#d6cec2",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0.2,
+          8,
+          0.45,
+          12,
+          0.7
+        ],
+        "line-opacity": 0.22,
+        "line-dasharray": [
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "id": "roads-minor",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ],
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f7f4ee",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0.25,
+          12,
+          0.7,
+          15,
+          1.4,
+          18,
+          4.5
+        ],
+        "line-opacity": 0.84
+      }
+    },
+    {
+      "id": "roads-major",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "==",
+          "kind",
+          "major_road"
+        ],
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ]
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.5
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.3,
+          8,
+          0.9,
+          12,
+          1.8,
+          15,
+          3.8,
+          18,
+          10
+        ],
+        "line-opacity": 0.96
+      }
+    },
+    {
+      "id": "roads-highway",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f4ecdc",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0.5,
+          7,
+          1.3,
+          11,
+          2.4,
+          14,
+          5.2,
+          18,
+          13
+        ],
+        "line-opacity": 0.98
+      }
+    },
+    {
+      "id": "roads-rail",
+      "type": "line",
+      "source": "australia",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind",
+        "rail"
+      ],
+      "paint": {
+        "line-color": "#cfc8bd",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.2,
+          9,
+          0.5,
+          14,
+          1.0
+        ],
+        "line-dasharray": [
+          0.4,
+          0.8
+        ],
+        "line-opacity": 0.38
+      }
+    },
+    {
+      "id": "place-labels-country",
+      "type": "symbol",
+      "source": "australia",
+      "source-layer": "places",
+      "filter": [
+        "==",
+        "kind",
+        "country"
+      ],
+      "layout": {
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Medium"
+        ],
+        "text-transform": "uppercase",
+        "text-letter-spacing": 0.08,
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          2,
+          10,
+          5,
+          12
+        ]
+      },
+      "paint": {
+        "text-color": "#938a7e",
+        "text-halo-color": "#f5f1ea",
+        "text-halo-width": 1.2,
+        "text-halo-blur": 0.8
+      }
+    },
+    {
+      "id": "place-labels-region",
+      "type": "symbol",
+      "source": "australia",
+      "source-layer": "places",
+      "minzoom": 4,
+      "filter": [
+        "==",
+        "kind",
+        "region"
+      ],
+      "layout": {
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:short"
+          ],
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Medium"
+        ],
+        "text-transform": "uppercase",
+        "text-letter-spacing": 0.06,
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          9,
+          7,
+          11,
+          10,
+          12
+        ]
+      },
+      "paint": {
+        "text-color": "#a2998d",
+        "text-halo-color": "#f5f1ea",
+        "text-halo-width": 1.0,
+        "text-halo-blur": 0.8
+      }
+    },
+    {
+      "id": "place-labels-locality",
+      "type": "symbol",
+      "source": "australia",
+      "source-layer": "places",
+      "minzoom": 5,
+      "filter": [
+        "all",
+        [
+          "==",
+          "kind",
+          "locality"
+        ],
+        [
+          "<=",
+          "population_rank",
+          10
+        ]
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "population_rank"
+        ],
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          [
+            "case",
+            [
+              "<=",
+              [
+                "get",
+                "population_rank"
+              ],
+              4
+            ],
+            12,
+            10
+          ],
+          8,
+          [
+            "case",
+            [
+              "<=",
+              [
+                "get",
+                "population_rank"
+              ],
+              4
+            ],
+            14,
+            11
+          ],
+          11,
+          [
+            "case",
+            [
+              "<=",
+              [
+                "get",
+                "population_rank"
+              ],
+              4
+            ],
+            16,
+            12
+          ]
+        ],
+        "text-max-width": 8,
+        "text-letter-spacing": 0.01
+      },
+      "paint": {
+        "text-color": "#5f5a53",
+        "text-halo-color": "#f5f1ea",
+        "text-halo-width": 1.3,
+        "text-halo-blur": 0.8
+      }
+    }
+  ]
+}

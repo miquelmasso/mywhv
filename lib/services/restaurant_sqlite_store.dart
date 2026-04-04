@@ -129,6 +129,65 @@ class RestaurantSqliteStore {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, dynamic>>> getAllForMap() async {
+    final db = await _database;
+    final rows = await db.query(
+      _tableName,
+      columns: [
+        'id',
+        'name',
+        'address',
+        'postcode',
+        'postcode_display',
+        'state',
+        'latitude',
+        'longitude',
+        'phone',
+        'email',
+        'facebook_url',
+        'instagram_url',
+        'careers_page',
+        'website',
+        'blocked',
+        'worked_here_count',
+        'timestamp',
+      ],
+    );
+    return rows
+        .map((row) {
+          final id = row['id']?.toString() ?? '';
+          if (id.trim().isEmpty) {
+            return <String, dynamic>{};
+          }
+          final latitude = _asDouble(row['latitude']);
+          final longitude = _asDouble(row['longitude']);
+          return <String, dynamic>{
+            'id': id,
+            'docId': id,
+            'name': row['name']?.toString() ?? '',
+            'address': row['address']?.toString() ?? '',
+            'postcode': row['postcode']?.toString() ?? '',
+            'postcode_display': row['postcode_display']?.toString() ?? '',
+            'state': row['state']?.toString() ?? '',
+            'latitude': latitude,
+            'longitude': longitude,
+            'lat': latitude,
+            'lng': longitude,
+            'phone': row['phone']?.toString() ?? '',
+            'email': row['email']?.toString() ?? '',
+            'facebook_url': row['facebook_url']?.toString() ?? '',
+            'instagram_url': row['instagram_url']?.toString() ?? '',
+            'careers_page': row['careers_page']?.toString() ?? '',
+            'website': row['website']?.toString() ?? '',
+            'blocked': _asBool(row['blocked']),
+            'worked_here_count': _asInt(row['worked_here_count']),
+            'timestamp': row['timestamp']?.toString() ?? '',
+          };
+        })
+        .where((row) => row.isNotEmpty)
+        .toList(growable: false);
+  }
+
   Future<List<Map<String, dynamic>>> searchByName(
     String query, {
     int limit = 25,
@@ -302,6 +361,11 @@ class RestaurantSqliteStore {
   int _asBoolInt(dynamic value) {
     if (value is bool) return value ? 1 : 0;
     return _asInt(value) > 0 ? 1 : 0;
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    return _asInt(value) > 0;
   }
 
   double? _asDouble(dynamic value) {

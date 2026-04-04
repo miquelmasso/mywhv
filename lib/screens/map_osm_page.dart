@@ -137,6 +137,7 @@ class _MapPageOSMState extends State<MapPageOSM>
     try {
       final restaurantDocs = await MapMarkersService.loadRestaurants(
         fromServer: fromServer,
+        lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);

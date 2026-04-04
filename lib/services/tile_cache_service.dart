@@ -25,7 +25,8 @@ class TileCacheService {
     final config = Config(
       _cacheKey,
       stalePeriod: const Duration(days: 30),
-      maxNrOfCacheObjects: 12000, // more tiles cached for faster high-zoom near cities
+      maxNrOfCacheObjects:
+          12000, // more tiles cached for faster high-zoom near cities
       repo: JsonCacheInfoRepository(databaseName: '$_cacheKey.db'),
       fileService: HttpFileService(),
     );
@@ -46,17 +47,25 @@ class TileCacheService {
     const east = 154.0;
     const north = -10.0;
     const minZoom = 4;
-    const maxZoom = 12; // include closer city-level zooms for faster initial loads
+    const maxZoom =
+        12; // include closer city-level zooms for faster initial loads
     final futures = <Future<void>>[];
 
     for (int z = minZoom; z <= maxZoom; z++) {
-      final topLeft = _latLngToTile(south, west, z);
-      final bottomRight = _latLngToTile(north, east, z);
-      for (int x = topLeft.x; x <= bottomRight.x; x++) {
-        for (int y = topLeft.y; y <= bottomRight.y; y++) {
+      final range = _tileRangeForBounds(
+        south: south,
+        west: west,
+        north: north,
+        east: east,
+        zoom: z,
+      );
+      for (int x = range.minX; x <= range.maxX; x++) {
+        for (int y = range.minY; y <= range.maxY; y++) {
           final url = 'https://tile.openstreetmap.org/$z/$x/$y.png';
           futures.add(
-            _cache!.downloadFile(url, key: url, force: false).then((_) {}, onError: (_) {}),
+            _cache!
+                .downloadFile(url, key: url, force: false)
+                .then((_) {}, onError: (_) {}),
           );
         }
       }
@@ -70,16 +79,30 @@ class TileCacheService {
     final latRad = lat * pi / 180;
     final n = pow(2.0, zoom);
     final x = ((lon + 180.0) / 360.0 * n).floor();
-    final y = ((1.0 - log(tan(latRad) + 1 / cos(latRad)) / pi) / 2.0 * n).floor();
+    final y = ((1.0 - log(tan(latRad) + 1 / cos(latRad)) / pi) / 2.0 * n)
+        .floor();
     return _TileXY(x, y);
   }
 
-  Future<void> prefetchArea(LatLng center, int zoom, {double spanDeg = 2.0, int maxTiles = 200}) async {
+  String _tileUrlFromTemplate(String template, int z, int x, int y) {
+    return template
+        .replaceAll('{z}', '$z')
+        .replaceAll('{x}', '$x')
+        .replaceAll('{y}', '$y');
+  }
+
+  Future<void> prefetchArea(
+    LatLng center,
+    int zoom, {
+    String urlTemplate = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    double spanDeg = 2.0,
+    int maxTiles = 200,
+  }) async {
     if (_cache == null) return;
     // Quantize key to avoid spamming same area
     final qLat = (center.latitude / 0.5).round() * 0.5;
     final qLon = (center.longitude / 0.5).round() * 0.5;
-    final key = '${zoom}_${qLat}_$qLon';
+    final key = '${urlTemplate.hashCode}_${zoom}_${qLat}_$qLon';
     if (_areaPrefetched.contains(key)) return;
     _areaPrefetched.add(key);
 
@@ -88,18 +111,44 @@ class TileCacheService {
     final west = center.longitude - spanDeg;
     final east = center.longitude + spanDeg;
 
-    final topLeft = _latLngToTile(south, west, zoom);
-    final bottomRight = _latLngToTile(north, east, zoom);
+    final range = _tileRangeForBounds(
+      south: south,
+      west: west,
+      north: north,
+      east: east,
+      zoom: zoom,
+    );
 
     int count = 0;
-    for (int x = topLeft.x; x <= bottomRight.x; x++) {
-      for (int y = topLeft.y; y <= bottomRight.y; y++) {
+    for (int x = range.minX; x <= range.maxX; x++) {
+      for (int y = range.minY; y <= range.maxY; y++) {
         if (count >= maxTiles) return;
-        final url = 'https://tile.openstreetmap.org/$zoom/$x/$y.png';
-        unawaited(_cache!.downloadFile(url, key: url, force: false).then((_) {}, onError: (_) {}));
+        final url = _tileUrlFromTemplate(urlTemplate, zoom, x, y);
+        unawaited(
+          _cache!
+              .downloadFile(url, key: url, force: false)
+              .then((_) {}, onError: (_) {}),
+        );
         count++;
       }
     }
+  }
+
+  ({int minX, int maxX, int minY, int maxY}) _tileRangeForBounds({
+    required double south,
+    required double west,
+    required double north,
+    required double east,
+    required int zoom,
+  }) {
+    final southWest = _latLngToTile(south, west, zoom);
+    final northEast = _latLngToTile(north, east, zoom);
+    return (
+      minX: min(southWest.x, northEast.x),
+      maxX: max(southWest.x, northEast.x),
+      minY: min(southWest.y, northEast.y),
+      maxY: max(southWest.y, northEast.y),
+    );
   }
 }
 

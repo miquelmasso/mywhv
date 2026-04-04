@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -21,8 +20,6 @@ import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/review_service.dart';
 import '../services/email_sender_service.dart';
-import '../services/offline_state.dart';
-import '../services/offline_tile_provider.dart';
 import '../services/tile_cache_service.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -44,35 +41,15 @@ class MapOSMClonePage extends StatefulWidget {
 
 class MapOSMClonePageState extends State<MapOSMClonePage>
     with TickerProviderStateMixin {
-  static const bool _showZoomOutButton = true;
   static const double _locationFabBottom = 144;
   static const double _initialKangarooBottomOffset = 212;
-  static const String _osmTileUrlTemplate =
-      'https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
+  static const double _clusterZoomStep = 2.2;
+  static const double _maxMapZoom = 19.0;
+  static const double _maxPersistedZoom = 19.0;
+  static const int _maxNativeTileZoom = 19;
+  static const String _defaultTileUrlTemplate =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String _userAgentPackageName = 'com.workyday.mywhv';
-  static const List<double> _minimalTileColorMatrix = <double>[
-    0.88,
-    0.06,
-    0.06,
-    0,
-    14,
-    0.06,
-    0.88,
-    0.06,
-    0,
-    14,
-    0.06,
-    0.06,
-    0.88,
-    0,
-    14,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ];
-
   final MapController _mapController = MapController();
   static const LatLng _defaultCenter = LatLng(-25.0, 133.0);
   static const double _defaultZoom = 4.5;
@@ -97,6 +74,10 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   double? _pendingZoom;
   BaseCacheManager? _tileCache;
   Set<String> _favoritePlaces = {};
+  final ValueNotifier<Set<String>> _favoritePlacesNotifier =
+      ValueNotifier<Set<String>>(<String>{});
+  final ValueNotifier<String?> _selectedRestaurantIdNotifier =
+      ValueNotifier<String?>(null);
   StreamSubscription<Set<String>>? _favoritesSub;
   bool _isLocating = false;
   bool _showInitialKangarooHint = false;
@@ -132,11 +113,18 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   final GlobalKey _categorySwitchKey = GlobalKey();
   final GlobalKey _automaticEmailTileKey = GlobalKey();
   bool _showOnboardingEmailPreview = false;
+  bool _showMapUpdateBanner = false;
 
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
   bool _didKickstartRender = false;
   bool _didCheckInitialKangarooHint = false;
+  late final Listenable _markerVisualStateListenable = Listenable.merge([
+    _favoritePlacesNotifier,
+    _selectedRestaurantIdNotifier,
+  ]);
+
+  String get _activeTileUrlTemplate => _defaultTileUrlTemplate;
 
   bool _setEquals(Set<String> a, Set<String> b) {
     if (identical(a, b)) return true;
@@ -152,12 +140,15 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     _zoomPrefetchDebounce?.cancel();
     _zoomPrefetchDebounce = Timer(const Duration(milliseconds: 320), () {
       if (!mounted || _tileCache == null) return;
-      final baseZoom = _currentZoom.clamp(3.0, 18.0).round();
+      final baseZoom = _currentZoom
+          .clamp(3.0, _maxNativeTileZoom.toDouble())
+          .round();
       final center = _currentCenter;
       unawaited(
         TileCacheService.instance.prefetchArea(
           center,
           baseZoom,
+          urlTemplate: _activeTileUrlTemplate,
           spanDeg: 1.8,
           maxTiles: 220,
         ),
@@ -167,6 +158,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           TileCacheService.instance.prefetchArea(
             center,
             baseZoom + 1,
+            urlTemplate: _activeTileUrlTemplate,
             spanDeg: 1.2,
             maxTiles: 140,
           ),
@@ -177,6 +169,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           TileCacheService.instance.prefetchArea(
             center,
             baseZoom - 1,
+            urlTemplate: _activeTileUrlTemplate,
             spanDeg: 2.2,
             maxTiles: 140,
           ),
@@ -270,6 +263,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
         TileCacheService.instance.prefetchArea(
           _initialCenter,
           _initialZoom.round(),
+          urlTemplate: _activeTileUrlTemplate,
           spanDeg: 3.0,
           maxTiles: 260,
         ),
@@ -278,10 +272,11 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     _loadFavorites();
     _favoritesSub = FavoritesService.changes.listen((ids) {
       if (_setEquals(_favoritePlaces, ids)) return;
-      _favoritePlaces = ids;
-      _updateMarkers();
+      _setFavoritePlaces(ids);
     });
-    _loadLastMapPosition();
+    // Temporary fallback mode: start from the default Australia viewport so
+    // the map is immediately understandable while the primary basemap path is
+    // under repair.
     _loadInitialData();
   }
 
@@ -290,12 +285,14 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     _kangarooController.dispose();
     _tooltipController.dispose();
     _pulseController.dispose();
-    _removeProfileTooltip();
+    _removeProfileTooltip(showFollowUpBanner: false);
     _persistDebounce?.cancel();
     _tileLoadingTimeout?.cancel();
     _zoomPrefetchDebounce?.cancel();
     _initialKangarooTimer?.cancel();
     _favoritesSub?.cancel();
+    _favoritePlacesNotifier.dispose();
+    _selectedRestaurantIdNotifier.dispose();
     _closeFilterOverlay();
     FlutterError.onError = _originalOnError;
     super.dispose();
@@ -331,10 +328,22 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     final list = prefs.getStringList('favorite_places') ?? [];
     final next = list.toSet();
     if (_setEquals(_favoritePlaces, next)) return;
-    _favoritePlaces = next;
-    _updateMarkers();
+    _setFavoritePlaces(next);
   }
 
+  void _setFavoritePlaces(Set<String> favorites) {
+    if (_setEquals(_favoritePlaces, favorites)) return;
+    final next = Set<String>.from(favorites);
+    _favoritePlaces = next;
+    _favoritePlacesNotifier.value = next;
+  }
+
+  void _setSelectedRestaurantId(String? restaurantId) {
+    if (_selectedRestaurantIdNotifier.value == restaurantId) return;
+    _selectedRestaurantIdNotifier.value = restaurantId;
+  }
+
+  // ignore: unused_element
   Future<void> _loadLastMapPosition() async {
     final prefs = await SharedPreferences.getInstance();
     final lat = prefs.getDouble('map_last_lat');
@@ -342,7 +351,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     final zoom = prefs.getDouble('map_last_zoom');
 
     if (lat != null && lng != null && zoom != null) {
-      final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
+      final clampedZoom = zoom.clamp(6.0, _maxPersistedZoom).toDouble();
       final center = LatLng(lat, lng);
       setState(() {
         _initialCenter = center;
@@ -362,7 +371,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
 
   Future<void> _saveLastMapPosition(LatLng center, double zoom) async {
     final prefs = await SharedPreferences.getInstance();
-    final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
+    final clampedZoom = zoom.clamp(6.0, _maxPersistedZoom).toDouble();
     await prefs.setDouble('map_last_lat', center.latitude);
     await prefs.setDouble('map_last_lng', center.longitude);
     await prefs.setDouble('map_last_zoom', clampedZoom);
@@ -392,6 +401,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     try {
       final restaurantDocs = await MapMarkersService.loadRestaurants(
         fromServer: fromServer,
+        lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
@@ -515,9 +525,11 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
 
   void _clearTemporarySelection() {
     if (_selectedRestaurant == null && _selectedHarvest == null) return;
-    _selectedRestaurant = null;
-    _selectedHarvest = null;
-    _updateMarkers();
+    setState(() {
+      _selectedRestaurant = null;
+      _selectedHarvest = null;
+    });
+    _setSelectedRestaurantId(null);
   }
 
   void _zoomToCluster(MarkerClusterNode cluster) {
@@ -528,7 +540,13 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       if (onlyChild is! MarkerClusterNode) break;
       splitNode = onlyChild;
     }
-    final targetZoom = (splitNode.zoom + 1.05).clamp(3.0, 18.2).toDouble();
+    final targetZoom = math
+        .max(
+          _currentZoom + (_clusterZoomStep - 0.3),
+          splitNode.zoom + _clusterZoomStep,
+        )
+        .clamp(3.0, _maxMapZoom)
+        .toDouble();
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: splitNode.bounds,
@@ -546,6 +564,28 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     if (!hasTransientSelection) return false;
     _clearTemporarySelection();
     return true;
+  }
+
+  void activateMapView() {
+    if (!_isHospitality || !mounted) return;
+    _setTileLoading(true);
+    final targetCenter = _pendingCenter ?? _currentCenter;
+    final targetZoom = _pendingZoom ?? _currentZoom;
+
+    void triggerMove() {
+      if (!mounted) return;
+      try {
+        _mapController.move(targetCenter, targetZoom);
+      } catch (_) {
+        // The map can still be laying out inside the IndexedStack.
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      triggerMove();
+      Future<void>.delayed(const Duration(milliseconds: 80), triggerMove);
+      Future<void>.delayed(const Duration(milliseconds: 220), triggerMove);
+    });
   }
 
   Rect? _globalRectForKey(GlobalKey key) {
@@ -573,23 +613,27 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   }
 
   void _selectRestaurantMarker(Map<String, Object?> marker) {
-    _selectedHarvest = null;
-    _selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
-    _updateMarkers();
+    final selectedRestaurant = Map<String, dynamic>.from(marker['data'] as Map);
+    final restaurantId = (selectedRestaurant['docId'] ?? '').toString();
+    setState(() {
+      _selectedHarvest = null;
+      _selectedRestaurant = selectedRestaurant;
+    });
+    _setSelectedRestaurantId(restaurantId.isEmpty ? null : restaurantId);
     unawaited(
       _handlePositiveReviewAction(ReviewService.actionWorkplaceDetailOpened),
     );
   }
 
   void _selectHarvestMarker(Map<String, Object?> marker) {
-    _selectedRestaurant = null;
-    _selectedHarvest = marker['data'] as HarvestPlace;
-    _updateMarkers();
+    setState(() {
+      _selectedRestaurant = null;
+      _selectedHarvest = marker['data'] as HarvestPlace;
+    });
+    _setSelectedRestaurantId(null);
   }
 
   void _updateMarkers() {
-    final selectedRestaurantId = (_selectedRestaurant?['docId'] ?? '')
-        .toString();
     final source = _isHospitality
         ? _visibleRestaurantLocations
         : _harvestLocations;
@@ -612,13 +656,22 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                 }
               },
               child: _isHospitality
-                  ? _restaurantMarkerIcon(
-                      (r['marker_kind'] as _RestaurantMarkerKind?) ??
-                          _RestaurantMarkerKind.standard,
-                      isFavorite: _favoritePlaces.contains(markerId),
-                      isSelected:
-                          markerId.isNotEmpty &&
-                          markerId == selectedRestaurantId,
+                  ? AnimatedBuilder(
+                      animation: _markerVisualStateListenable,
+                      builder: (context, child) {
+                        final selectedRestaurantId =
+                            _selectedRestaurantIdNotifier.value;
+                        return _restaurantMarkerIcon(
+                          (r['marker_kind'] as _RestaurantMarkerKind?) ??
+                              _RestaurantMarkerKind.standard,
+                          isFavorite: _favoritePlacesNotifier.value.contains(
+                            markerId,
+                          ),
+                          isSelected:
+                              markerId.isNotEmpty &&
+                              markerId == selectedRestaurantId,
+                        );
+                      },
                     )
                   : _markerHarvestIcon,
             ),
@@ -703,9 +756,12 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   void _toggleCategory(bool hospitality) {
     if (_isHospitality == hospitality) return;
     _zoomPrefetchDebounce?.cancel();
-    _isHospitality = hospitality;
-    _selectedRestaurant = null;
-    _selectedHarvest = null;
+    setState(() {
+      _isHospitality = hospitality;
+      _selectedRestaurant = null;
+      _selectedHarvest = null;
+    });
+    _setSelectedRestaurantId(null);
     _closeFilterOverlay();
     _updateMarkers();
   }
@@ -772,7 +828,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   }
 
   void _showProfileTooltip() {
-    _removeProfileTooltip();
+    _removeProfileTooltip(showFollowUpBanner: false);
     final overlay = Overlay.of(context);
 
     final profileRenderBox =
@@ -816,12 +872,36 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     _tooltipTimer = Timer(const Duration(seconds: 3), _removeProfileTooltip);
   }
 
-  void _removeProfileTooltip() {
+  void _removeProfileTooltip({bool showFollowUpBanner = true}) {
+    final hadTooltip = _profileTooltip != null;
     _tooltipTimer?.cancel();
     _tooltipTimer = null;
     _profileTooltip?.remove();
     _profileTooltip = null;
     _pulseController.stop();
+    if (hadTooltip && showFollowUpBanner) {
+      unawaited(_showMapUpdateBannerIfNeeded());
+    }
+  }
+
+  Future<void> _showMapUpdateBannerIfNeeded() async {
+    if (!mounted || _showMapUpdateBanner) return;
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'seen_map_update_banner';
+    final seen = prefs.getBool(key) ?? false;
+    if (seen || !mounted) return;
+    await prefs.setBool(key, true);
+    if (!mounted) return;
+    setState(() {
+      _showMapUpdateBanner = true;
+    });
+  }
+
+  void _dismissMapUpdateBanner() {
+    if (!_showMapUpdateBanner || !mounted) return;
+    setState(() {
+      _showMapUpdateBanner = false;
+    });
   }
 
   void _showProfilePopup() {
@@ -908,8 +988,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     }
 
     await prefs.setStringList('favorite_places', current.toList());
-    _favoritePlaces = current;
-    _updateMarkers();
+    _setFavoritePlaces(current);
     FavoritesService.broadcast(_favoritePlaces);
     if (current.contains(restaurantId)) {
       unawaited(_handlePositiveReviewAction(ReviewService.actionFavoriteSaved));
@@ -934,6 +1013,22 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           : int.tryParse(raw.toString()) ?? 0;
       _selectedRestaurant!['worked_here_count'] = math.max(0, current + delta);
     }
+  }
+
+  int _currentWorkedHereCount(String restaurantId) {
+    if (_selectedRestaurant != null &&
+        _selectedRestaurant?['docId'] == restaurantId) {
+      final raw = _selectedRestaurant?['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    for (final loc in _restaurantLocations) {
+      if (loc['id'] != restaurantId) continue;
+      final raw = loc['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    return 0;
   }
 
   Future<void> _showWorkedDialog(
@@ -968,20 +1063,23 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
 
     if (result == true) {
       workedPlaces.add(restaurantId);
+      final nextWorkedHereCount = _currentWorkedHereCount(restaurantId) + 1;
       try {
         await prefs.setStringList('worked_places', workedPlaces.toList());
-        await MapMarkersService.incrementWorkedHere(restaurantId);
-        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+        await MapMarkersService.rememberLocalWorkedHereCount(
+          restaurantId,
+          nextWorkedHereCount,
+        );
         _updateLocalWorkedHere(restaurantId, 1);
         if (mounted) setState(() {});
+        await MapMarkersService.incrementWorkedHere(restaurantId);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
       } catch (e) {
-        workedPlaces.remove(restaurantId);
-        await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'We could not save your vote right now. Please try again.',
+              'Saved on this device. Sync with the server can happen later.',
             ),
           ),
         );
@@ -1251,32 +1349,23 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     overlay.insert(entry);
   }
 
-  void _zoomOut() {
-    final newZoom = (_currentZoom - 1).clamp(3.0, 18.0);
-    _mapController.move(_currentCenter, newZoom);
-  }
-
-  void _zoomIn() {
-    final newZoom = (_currentZoom + 1).clamp(3.0, 18.2);
-    _mapController.move(_currentCenter, newZoom);
-  }
-
   Future<void> _goToUserLocation() async {
     if (_isLocating) return;
     setState(() => _isLocating = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _isLocating = false);
+        _showLocationServicesMessage();
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        setState(() => _isLocating = false);
+        await _handleDeniedLocationPermission(permission);
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -1284,9 +1373,70 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       );
       final target = LatLng(pos.latitude, pos.longitude);
       _mapController.move(target, 15);
+    } catch (_) {
+      _showLocationGenericError();
     } finally {
       if (mounted) setState(() => _isLocating = false);
     }
+  }
+
+  Future<void> _handleDeniedLocationPermission(
+    LocationPermission permission,
+  ) async {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    if (permission == LocationPermission.deniedForever) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Location access is blocked. Open settings to enable it.',
+          ),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: () {
+              unawaited(Geolocator.openAppSettings());
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Location access denied. Tap again to allow it.'),
+      ),
+    );
+  }
+
+  void _showLocationServicesMessage() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Location services are turned off.'),
+        action: SnackBarAction(
+          label: 'Settings',
+          onPressed: () {
+            unawaited(Geolocator.openLocationSettings());
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showLocationGenericError() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('We could not get your location right now.'),
+      ),
+    );
   }
 
   void _setTileLoading(bool value) {
@@ -1324,18 +1474,24 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     if (_selectedRestaurant == null) return const SizedBox.shrink();
     final r = _selectedRestaurant!;
     final docId = r['docId'] ?? '';
-    return MapRestaurantPopup(
-      data: r,
-      workedCount: (r['worked_here_count'] ?? 0) as int,
-      isFavorite: _favoritePlaces.contains(docId),
-      onClose: _clearTemporarySelection,
-      onWorkedHere: () => _showWorkedDialog(docId, r['name'] ?? 'this place'),
-      onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
-      onEmail: () => _showEmailOptions(r['email']),
-      onFacebook: () => _openUrl(r['facebook_url']),
-      onCareers: () => _openUrl(r['careers_page']),
-      onInstagram: () => _openUrl(r['instagram_url']),
-      onFavorite: () => _toggleFavorite(docId),
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: _favoritePlacesNotifier,
+      builder: (context, favoritePlaces, child) {
+        return MapRestaurantPopup(
+          data: r,
+          workedCount: (r['worked_here_count'] ?? 0) as int,
+          isFavorite: favoritePlaces.contains(docId),
+          onClose: _clearTemporarySelection,
+          onWorkedHere: () =>
+              _showWorkedDialog(docId, r['name'] ?? 'this place'),
+          onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
+          onEmail: () => _showEmailOptions(r['email']),
+          onFacebook: () => _openUrl(r['facebook_url']),
+          onCareers: () => _openUrl(r['careers_page']),
+          onInstagram: () => _openUrl(r['instagram_url']),
+          onFavorite: () => _toggleFavorite(docId),
+        );
+      },
     );
   }
 
@@ -1347,7 +1503,10 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       postcode: data.postcode,
       state: data.state,
       description: data.description,
-      onClose: () => setState(() => _selectedHarvest = null),
+      onClose: () {
+        setState(() => _selectedHarvest = null);
+        _setSelectedRestaurantId(null);
+      },
     );
   }
 
@@ -1365,6 +1524,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       if (_selectedSources.isEmpty) _selectedSources.clear();
     }
     _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
     _recomputeVisibleRestaurants();
     _updateMarkers();
   }
@@ -1581,7 +1741,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                 initialCenter: _initialCenter,
                 initialZoom: _initialZoom,
                 minZoom: 3.0,
-                maxZoom: 18.2,
+                maxZoom: _maxMapZoom,
                 onMapReady: () {
                   _mapReady = true;
                   if (_pendingCenter != null && _pendingZoom != null) {
@@ -1619,26 +1779,15 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                 },
               ),
               children: [
-                ColorFiltered(
-                  colorFilter: const ColorFilter.matrix(
-                    _minimalTileColorMatrix,
-                  ),
-                  child: TileLayer(
-                    urlTemplate: _osmTileUrlTemplate,
-                    userAgentPackageName: _userAgentPackageName,
-                    maxZoom: 18.2,
-                    minZoom: 3.0,
-                    retinaMode: false,
-                    maxNativeZoom: 19,
-                    keepBuffer: 10,
-                    panBuffer: 3,
-                    tileProvider: OfflineTileProvider(
-                      OfflineState.instance.tileCachePath != null
-                          ? Directory(OfflineState.instance.tileCachePath!)
-                          : Directory.systemTemp,
-                      cacheManager: _tileCache,
-                    ),
-                  ),
+                TileLayer(
+                  urlTemplate: _activeTileUrlTemplate,
+                  userAgentPackageName: _userAgentPackageName,
+                  maxZoom: _maxMapZoom,
+                  minZoom: 3.0,
+                  retinaMode: false,
+                  maxNativeZoom: _maxNativeTileZoom,
+                  keepBuffer: 10,
+                  panBuffer: 3,
                 ),
                 MarkerClusterLayerWidget(
                   options: MarkerClusterLayerOptions(
@@ -1796,29 +1945,79 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                     : const Icon(Icons.my_location),
               ),
             ),
-          if (_isHospitality && _showZoomOutButton)
+          if (_isHospitality && _showMapUpdateBanner)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _dismissMapUpdateBanner,
+                child: const SizedBox.expand(),
+              ),
+            ),
+          if (_isHospitality && _showMapUpdateBanner)
             Positioned(
-              bottom: 180,
-              right: 16,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FloatingActionButton(
-                    heroTag: 'fab_zoom_in',
-                    onPressed: _zoomIn,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blueGrey.shade700,
-                    child: const Icon(Icons.zoom_in),
+              left: 14,
+              right: 14,
+              bottom: 10,
+              child: SafeArea(
+                top: false,
+                child: Material(
+                  color: Colors.transparent,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _dismissMapUpdateBanner,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.97),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: const Color(0xFFF2DFD4),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/kangaroo_manteniment.png',
+                              width: 46,
+                              height: 46,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'We are working on a nicer map, updates soon',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1F2937),
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _dismissMapUpdateBanner,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  FloatingActionButton(
-                    heroTag: 'fab_zoom_out',
-                    onPressed: _zoomOut,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blueGrey.shade700,
-                    child: const Icon(Icons.zoom_out),
-                  ),
-                ],
+                ),
               ),
             ),
         ],

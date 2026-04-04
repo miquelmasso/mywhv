@@ -194,6 +194,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       if (fromServer) statusLog = '🌐 Restaurants des del servidor...';
       final restaurantDocs = await MapMarkersService.loadRestaurants(
         fromServer: fromServer,
+        lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
         _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
@@ -1114,24 +1115,28 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
     if (result == true) {
       workedPlaces.add(restaurantId);
+      final nextWorkedHereCount = _currentWorkedHereCount(restaurantId) + 1;
       try {
         await prefs.setStringList('worked_places', workedPlaces.toList());
-        await MapMarkersService.incrementWorkedHere(restaurantId);
-        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+        await MapMarkersService.rememberLocalWorkedHereCount(
+          restaurantId,
+          nextWorkedHereCount,
+        );
         _updateLocalWorkedHere(restaurantId, 1);
         _updateMarkers(_currentZoom);
+        if (!mounted) return;
+        await MapMarkersService.incrementWorkedHere(restaurantId);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('✅ Thanks! $restaurantName added')),
         );
       } catch (e) {
-        workedPlaces.remove(restaurantId);
-        await prefs.setStringList('worked_places', workedPlaces.toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'We could not save your vote right now. Please try again.',
+              'Saved on this device. Sync with the server can happen later.',
             ),
           ),
         );
@@ -1159,6 +1164,22 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       final next = current + delta;
       _selectedRestaurant!['worked_here_count'] = next < 0 ? 0 : next;
     }
+  }
+
+  int _currentWorkedHereCount(String restaurantId) {
+    if (_selectedRestaurant != null &&
+        _selectedRestaurant?['docId'] == restaurantId) {
+      final raw = _selectedRestaurant?['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    for (final loc in _restaurantLocations) {
+      if ((loc['id'] ?? '').toString() != restaurantId) continue;
+      final raw = loc['worked_here_count'] ?? 0;
+      return raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    }
+
+    return 0;
   }
 
   @override

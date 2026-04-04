@@ -4,64 +4,10 @@ import 'gestio_restaurants.dart';
 import 'manage_farms_page.dart';
 import 'restaurant_edit_page.dart';
 import 'data_lists_page.dart';
-import 'map_page.dart';
 import 'map_management_page.dart';
-import 'map_osm_vector_page.dart';
 
 class AdminPage extends StatelessWidget {
   const AdminPage({super.key});
-
-  void _showMapChooser(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'Mostrar mapa',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: const Icon(Icons.map_outlined),
-                title: const Text('Google Maps'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MapPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.map),
-                title: const Text('Map OSM (Vector)'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MapOSMVectorPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('Cap'),
-                onTap: () => Navigator.pop(context),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +62,9 @@ class AdminPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => _showMapChooser(context),
+                onPressed: null,
                 icon: const Icon(Icons.map),
-                label: const Text('Mostrar mapa'),
+                label: const Text('Altres mapes desactivats'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo,
                   foregroundColor: Colors.white,
@@ -127,6 +73,12 @@ class AdminPage extends StatelessWidget {
                     vertical: 12,
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Només queda actiu el mapa principal de l’app.',
+                style: TextStyle(color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
