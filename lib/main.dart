@@ -1,36 +1,36 @@
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
-import 'package:latlong2/latlong.dart';
 import 'firebase_options.dart';
 import 'features/onboarding/onboarding_controller.dart';
 import 'features/onboarding/onboarding_overlay.dart';
 import 'features/onboarding/onboarding_steps.dart';
 import 'navigation/route_observer.dart';
+import 'screens/forum_page.dart';
+import 'screens/guide_screen.dart';
 import 'screens/map_maintenance_page.dart';
 import 'screens/map_screen.dart';
-import 'screens/screens.dart';
 import 'screens/admin_gate_page.dart';
+import 'screens/tips_random_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
 import 'services/map_display_settings_service.dart';
 import 'services/map_markers_service.dart';
-import 'services/offline_state.dart';
+import 'services/remote_config_service.dart';
 import 'services/runtime_device_service.dart';
 import 'services/review_service.dart';
-import 'services/tile_cache_service.dart';
-
-// 👇 Fitxers per actualitzar codis postals
-// ignore: unused_import
-import 'models/visa_postcodes_uploader.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   await dotenv.load(fileName: ".env");
 
@@ -39,28 +39,37 @@ Future<void> main() async {
   //await FirebaseFirestore.instance.disableNetwork();
   debugPrint('✅ Firebase initialized correctly');
 
-  await FMTCObjectBoxBackend().initialise();
-  await FMTCStore('basemap').manage.create();
-
-  await OfflineBootstrapService.instance.init();
   await MapDisplaySettingsService.instance.init();
   await RuntimeDeviceService.instance.init();
-  debugPrint('🔌 Offline mode: ${OfflineState.instance.isOfflineMode}');
-  await ReviewService.instance.registerAppOpen();
+  final shouldShowOnboarding =
+      await OnboardingController.peekShouldShowOnLaunch();
+  final initialHomeIndex =
+      shouldShowOnboarding &&
+          !MapDisplaySettingsService.instance.isMaintenanceScreenVisible
+      ? 1
+      : 0;
 
+  runApp(MyApp(initialHomeIndex: initialHomeIndex));
   FlutterNativeSplash.remove();
+  unawaited(_bootstrapDeferredAppServices());
+}
 
-  // 🔽 Descomenta aquestes línies si vols actualitzar els codis postals al Firestore:
-  //
-  //await VisaPostcodesUploader.uploadVisaPostcodes();
-  //
-  // Quan s’executin, pujaran tots els codis nous al Firebase i eliminaran els anteriors.
-
-  runApp(const MyApp());
+Future<void> _bootstrapDeferredAppServices() async {
+  try {
+    await Future.wait<void>([
+      OfflineBootstrapService.instance.init(),
+      RemoteConfigService.instance.init(),
+      ReviewService.instance.registerAppOpen(),
+    ]);
+  } catch (error) {
+    debugPrint('⚠️ Deferred app bootstrap failed: $error');
+  }
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.initialHomeIndex});
+
+  final int initialHomeIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +81,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       navigatorObservers: [routeObserver],
-      home: const MyHomePage(initialIndex: 0),
+      home: MyHomePage(initialIndex: initialHomeIndex),
     );
   }
 }
@@ -88,8 +97,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   static const bool _enableOnboarding = true;
-  static const LatLng _backgroundWarmupCenter = LatLng(-25.0, 133.0);
-  static const int _backgroundWarmupZoom = 5;
+  static const int _mapTabIndex = 0;
+  static const int _guideTabIndex = 1;
 
   late int _selectedIndex;
   int _adminTapCount = 0;
@@ -99,6 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final GlobalKey<MapScreenState> _primaryOsmMapPageKey =
       GlobalKey<MapScreenState>();
+  final GlobalKey _mapTabIconKey = GlobalKey();
   final GlobalKey _guideTabIconKey = GlobalKey();
   OnboardingController? _onboardingController;
   late bool _isMaintenanceScreenVisible;
@@ -113,6 +123,10 @@ class _MyHomePageState extends State<MyHomePage> {
     MapDisplaySettingsService.instance.showMaintenanceScreen.addListener(
       _handleMapDisplaySettingsChanged,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(RemoteConfigService.instance.maybeShowUpdateDialog(context));
+    });
     unawaited(_warmUpMapInBackground());
     unawaited(_initOnboarding());
   }
@@ -128,26 +142,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     try {
-      unawaited(
-        MapMarkersService.loadRestaurants(fromServer: false, lightweight: true),
-      );
-
-      final cache = await TileCacheService.instance.init();
+      await OfflineBootstrapService.instance.init();
       if (!mounted || _isMaintenanceScreenVisible) {
         return;
       }
-      if (cache == TileCacheService.instance.cache) {
-        unawaited(
-          TileCacheService.instance.prefetchArea(
-            _backgroundWarmupCenter,
-            _backgroundWarmupZoom,
-            spanDeg: 6.0,
-            maxTiles: 320,
-          ),
-        );
-      }
+      unawaited(
+        MapMarkersService.loadRestaurants(fromServer: false, lightweight: true),
+      );
     } catch (_) {
-      // Ignore warm-up failures; the map will load on demand.
+      // Ignore warm-up failures; the map data will load on demand.
     }
   }
 
@@ -188,12 +191,12 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
     if (controller.shouldShowOnLaunch) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _onboardingController != controller) {
-          return;
-        }
-        controller.showWelcome();
-      });
+      _selectTab(_guideTabIndex, trackAdmin: false, showMapTooltip: false);
+      await _waitForNextFrame();
+      if (!mounted || _onboardingController != controller) {
+        return;
+      }
+      controller.showWelcome();
     }
   }
 
@@ -207,6 +210,20 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool _isMapTab(int index) => index == 0;
+
+  int? _onboardingTargetTabIndex(OnboardingStepData step) {
+    if (step.isWelcome) {
+      return _guideTabIndex;
+    }
+
+    return switch (step.target) {
+      OnboardingTarget.mapArea ||
+      OnboardingTarget.mapTab ||
+      OnboardingTarget.automaticEmail => _mapTabIndex,
+      OnboardingTarget.guideTab => _guideTabIndex,
+      OnboardingTarget.none => null,
+    };
+  }
 
   void _handleMapDisplaySettingsChanged() {
     final nextValue =
@@ -298,12 +315,9 @@ class _MyHomePageState extends State<MyHomePage> {
     final target = controller.isVisible
         ? controller.currentStep.target
         : OnboardingTarget.none;
-
-    final targetTabIndex = switch (target) {
-      OnboardingTarget.mapArea || OnboardingTarget.automaticEmail => 0,
-      OnboardingTarget.guideTab => 1,
-      OnboardingTarget.none => null,
-    };
+    final targetTabIndex = controller.isVisible
+        ? _onboardingTargetTabIndex(controller.currentStep)
+        : null;
 
     if (targetTabIndex != null) {
       _selectTab(targetTabIndex, trackAdmin: false, showMapTooltip: false);
@@ -326,6 +340,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (shouldShowEmailPreview) {
       await _waitForNextFrame();
+      if (!mounted || _onboardingSyncToken != syncToken) {
+        return;
+      }
+    }
+
+    if (controller.isVisible) {
+      await _waitForOnboardingTarget(syncToken);
       if (!mounted || _onboardingSyncToken != syncToken) {
         return;
       }
@@ -367,6 +388,33 @@ class _MyHomePageState extends State<MyHomePage> {
     await controller.complete();
   }
 
+  Future<void> _waitForOnboardingTarget(int syncToken) async {
+    final controller = _onboardingController;
+    if (!mounted || controller == null || !controller.isVisible) {
+      return;
+    }
+
+    if (controller.currentStep.isWelcome ||
+        controller.currentStep.target == OnboardingTarget.none) {
+      await _waitForNextFrame();
+      return;
+    }
+
+    for (var attempt = 0; attempt < 12; attempt++) {
+      if (!mounted || _onboardingSyncToken != syncToken) {
+        return;
+      }
+
+      final rect = _currentOnboardingHighlightRect();
+      if (rect != null && rect.width > 0 && rect.height > 0) {
+        return;
+      }
+
+      await _waitForNextFrame();
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+    }
+  }
+
   Rect? _rectForKey(GlobalKey key) {
     final renderObject = key.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) {
@@ -391,6 +439,8 @@ class _MyHomePageState extends State<MyHomePage> {
           return null;
         }
         return primaryOsmMapState?.onboardingMapAreaRect;
+      case OnboardingTarget.mapTab:
+        return _rectForKey(_mapTabIconKey);
       case OnboardingTarget.automaticEmail:
         if (_isMaintenanceScreenVisible) {
           return null;
@@ -488,7 +538,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 selectedItemColor: Theme.of(context).colorScheme.primary,
                 onTap: _onItemTapped,
                 items: <BottomNavigationBarItem>[
-                  _buildNavItem(Icons.map_outlined, 0),
+                  _buildNavItem(Icons.map_outlined, 0, iconKey: _mapTabIconKey),
                   _buildNavItem(
                     Icons.lightbulb_outline,
                     1,

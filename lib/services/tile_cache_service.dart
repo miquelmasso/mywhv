@@ -3,14 +3,12 @@ import 'dart:math';
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class TileCacheService {
   TileCacheService._();
   static final TileCacheService instance = TileCacheService._();
 
   static const _cacheKey = 'osmTileCache';
-  static const _prefetchDoneKey = 'osm_prefetch_done';
 
   BaseCacheManager? _cache;
   Future<BaseCacheManager>? _initFuture;
@@ -31,49 +29,10 @@ class TileCacheService {
       fileService: HttpFileService(),
     );
     _cache = CacheManager(config);
-    unawaited(_prefetchAustraliaIfNeeded());
     return _cache!;
   }
 
   BaseCacheManager? get cache => _cache;
-
-  Future<void> _prefetchAustraliaIfNeeded() async {
-    final prefs = await SharedPreferences.getInstance();
-    final done = prefs.getBool(_prefetchDoneKey) ?? false;
-    if (done) return;
-
-    const west = 112.0;
-    const south = -44.0;
-    const east = 154.0;
-    const north = -10.0;
-    const minZoom = 4;
-    const maxZoom =
-        12; // include closer city-level zooms for faster initial loads
-    final futures = <Future<void>>[];
-
-    for (int z = minZoom; z <= maxZoom; z++) {
-      final range = _tileRangeForBounds(
-        south: south,
-        west: west,
-        north: north,
-        east: east,
-        zoom: z,
-      );
-      for (int x = range.minX; x <= range.maxX; x++) {
-        for (int y = range.minY; y <= range.maxY; y++) {
-          final url = 'https://tile.openstreetmap.org/$z/$x/$y.png';
-          futures.add(
-            _cache!
-                .downloadFile(url, key: url, force: false)
-                .then((_) {}, onError: (_) {}),
-          );
-        }
-      }
-    }
-
-    await Future.wait(futures, eagerError: false);
-    await prefs.setBool(_prefetchDoneKey, true);
-  }
 
   _TileXY _latLngToTile(double lat, double lon, int zoom) {
     final latRad = lat * pi / 180;

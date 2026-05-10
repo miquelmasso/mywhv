@@ -16,13 +16,17 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/admin_config.dart';
 import '../services/email_sender_service.dart';
 import '../services/favorites_service.dart';
+import '../services/location_settings_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
+import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../services/runtime_device_service.dart';
 import '../utils/australia_map_viewport.dart';
 import '../widgets/location_fab_icon.dart';
+import '../widgets/map_notice_card.dart';
 import '../widgets/map_place_popup.dart';
+import '../widgets/profile_button_icon.dart';
 import 'admin_page.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -120,7 +124,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       GlobalKey<MapOSMVectorPageState>();
   final LayerLink _filterLink = LayerLink();
 
-  late final Future<String> _styleFuture = _loadStyleString();
+  late Future<String> _styleFuture = _loadStyleString();
   late final AnimationController _kangarooController;
   late final AnimationController _tooltipController;
   late final AnimationController _pulseController;
@@ -139,6 +143,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   StreamSubscription<Set<String>>? _favoritesSub;
   OverlayEntry? _profileTooltip;
   OverlayEntry? _filterOverlay;
+  OverlayEntry? _locationPermissionNotice;
   Timer? _tooltipTimer;
   Timer? _persistDebounce;
   Timer? _initialKangarooTimer;
@@ -226,6 +231,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _initialKangarooTimer?.cancel();
     _removeProfileTooltip();
     _closeFilterOverlay();
+    _removeLocationPermissionNotice();
     _favoritePlacesNotifier.dispose();
     _selectedRestaurantIdNotifier.dispose();
     _kangarooController.dispose();
@@ -245,6 +251,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     if (_useVectorPmtilesFallback) {
       final fallbackPlatform = RuntimeDeviceService.instance.isIosSimulator
           ? 'iOS Simulator'
+          : defaultTargetPlatform == TargetPlatform.iOS
+          ? 'iOS'
           : defaultTargetPlatform == TargetPlatform.android
           ? 'Android'
           : 'this platform';
@@ -437,11 +445,25 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     await prefs.setDouble('map_last_zoom', clampedZoom);
   }
 
+  LatLng _clampToAustraliaCoreBounds(LatLng center) {
+    return LatLng(
+      AustraliaMapViewport.clampLatitude(center.latitude),
+      AustraliaMapViewport.clampLongitude(center.longitude),
+    );
+  }
+
   LatLng _clampToAustraliaBounds(LatLng center) {
     return LatLng(
       AustraliaMapViewport.clampViewportLatitude(center.latitude),
       AustraliaMapViewport.clampViewportLongitude(center.longitude),
     );
+  }
+
+  bool _isInsideAustraliaCoreBounds(LatLng point) {
+    return point.latitude >= AustraliaMapViewport.south &&
+        point.latitude <= AustraliaMapViewport.north &&
+        point.longitude >= AustraliaMapViewport.west &&
+        point.longitude <= AustraliaMapViewport.east;
   }
 
   double _minimumVisibleAustraliaZoom(Size viewportSize) {
@@ -1977,11 +1999,23 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       );
       final controller = _mapController;
       if (controller == null) return;
+      final userTarget = LatLng(position.latitude, position.longitude);
+      if (!_isInsideAustraliaCoreBounds(userTarget)) {
+        if (!mounted) return;
+        final fallbackCenter = _clampToAustraliaCoreBounds(_currentCenter);
+        final minimumVisibleZoom = _minimumVisibleAustraliaZoom(
+          MediaQuery.sizeOf(context),
+        );
+        final fallbackZoom = _currentZoom
+            .clamp(minimumVisibleZoom, _maxMapZoom)
+            .toDouble();
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(fallbackCenter, fallbackZoom),
+        );
+        return;
+      }
       await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(position.latitude, position.longitude),
-          15,
-        ),
+        CameraUpdate.newLatLngZoom(userTarget, 15),
       );
     } catch (_) {
       _showLocationGenericError();
@@ -1993,6 +2027,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _handleLocationFabPressed() {
+    _removeLocationPermissionNotice();
     unawaited(_dismissLocationFabBadge());
     unawaited(_goToUserLocation());
   }
@@ -2005,22 +2040,11 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     messenger.hideCurrentSnackBar();
 
     if (permission == LocationPermission.deniedForever) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Location access is blocked. Open settings to enable it.',
-          ),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: () {
-              unawaited(Geolocator.openAppSettings());
-            },
-          ),
-        ),
-      );
+      _showLocationPermissionNotice();
       return;
     }
 
+    _removeLocationPermissionNotice();
     messenger.showSnackBar(
       const SnackBar(
         content: Text('Location access denied. Tap again to allow it.'),
@@ -2030,6 +2054,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _showLocationServicesMessage() {
     if (!mounted) return;
+    _removeLocationPermissionNotice();
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
@@ -2047,12 +2072,73 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _showLocationGenericError() {
     if (!mounted) return;
+    _removeLocationPermissionNotice();
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       const SnackBar(
         content: Text('We could not get your location right now.'),
       ),
+    );
+  }
+
+  void _showLocationPermissionNotice() {
+    if (!mounted) return;
+    _removeLocationPermissionNotice();
+
+    final overlay = Overlay.of(context);
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) {
+        return Stack(
+          children: [
+            const Positioned.fill(
+              child: IgnorePointer(child: SizedBox.expand()),
+            ),
+            Positioned.fill(
+              child: SafeArea(
+                child: Align(
+                  alignment: const Alignment(0, -0.1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: MapNoticeCard(
+                      message:
+                          'Location access is blocked. Open settings, then go to Permissions > Location.',
+                      actionLabel: 'Settings',
+                      onAction: () {
+                        _removeLocationPermissionNotice();
+                        unawaited(_openLocationPermissionSettings());
+                      },
+                      onClose: _removeLocationPermissionNotice,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    _locationPermissionNotice = entry;
+    overlay.insert(entry);
+  }
+
+  void _removeLocationPermissionNotice() {
+    _locationPermissionNotice?.remove();
+    _locationPermissionNotice = null;
+  }
+
+  Future<void> _openLocationPermissionSettings() async {
+    final opened =
+        await LocationSettingsService.openLocationPermissionSettings();
+    if (opened || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Could not open location settings.')),
     );
   }
 
@@ -2127,9 +2213,25 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Could not load the local MapLibre style.\n${snapshot.error ?? ''}',
-                  textAlign: TextAlign.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'You are offline mate 🦘',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _styleFuture = _loadStyleString();
+                          _isStyleLoaded = false;
+                        });
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('try again'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -2204,14 +2306,20 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         child: InkWell(
                           customBorder: const CircleBorder(),
                           onTap: _showProfilePopup,
-                          child: SizedBox(
-                            key: _profileButtonKey,
-                            height: 48,
-                            width: 48,
-                            child: const Icon(
-                              Icons.person_outline,
-                              color: Colors.black87,
-                            ),
+                          child: ValueListenableBuilder<AppUpdateNotice?>(
+                            valueListenable: RemoteConfigService
+                                .instance
+                                .softUpdateNoticeListenable,
+                            builder: (context, notice, _) {
+                              return SizedBox(
+                                key: _profileButtonKey,
+                                height: 48,
+                                width: 48,
+                                child: ProfileButtonIcon(
+                                  showBadge: notice != null,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -2713,60 +2821,117 @@ class _ProfilePopupMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: Container(
-        width: 260,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 18,
-              spreadRadius: 1,
-              offset: const Offset(0, 8),
+      child: ValueListenableBuilder<AppUpdateNotice?>(
+        valueListenable:
+            RemoteConfigService.instance.softUpdateNoticeListenable,
+        builder: (context, notice, _) {
+          final showSoftUpdateMessage = notice != null;
+          return Container(
+            width: 260,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ProfileTile(
-              icon: Icons.email_outlined,
-              iconColor: Colors.redAccent,
-              iconBg: Colors.redAccent.withValues(alpha: 0.12),
-              text: 'Automatic email editing',
-              onTap: onMail,
-              tileKey: automaticEmailTileKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ProfileTile(
+                  icon: Icons.email_outlined,
+                  iconColor: Colors.redAccent,
+                  iconBg: Colors.redAccent.withValues(alpha: 0.12),
+                  text: 'Automatic email editing',
+                  onTap: onMail,
+                  tileKey: automaticEmailTileKey,
+                ),
+                const SizedBox(height: 14),
+                _ProfileTile(
+                  icon: Icons.favorite_outline,
+                  iconColor: Colors.pinkAccent,
+                  iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
+                  text: 'Favourites',
+                  onTap: onFavorites,
+                ),
+                const SizedBox(height: 14),
+                _ProfileTile(
+                  icon: Icons.flag_outlined,
+                  iconColor: const Color(0xFFB45309),
+                  iconBg: const Color(0xFFFDEBD3),
+                  text: 'Send report',
+                  onTap: onReports,
+                ),
+                if (showSoftUpdateMessage) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF2F0),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: _ProfileUpdateDot(),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'New version available',
+                            style: TextStyle(
+                              color: Color(0xFFCC6F6A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (showAdmin) ...[
+                  const SizedBox(height: 14),
+                  _ProfileTile(
+                    icon: Icons.admin_panel_settings,
+                    iconColor: Colors.black87,
+                    iconBg: Colors.black12,
+                    text: 'Admin',
+                    onTap: onAdmin,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
-            _ProfileTile(
-              icon: Icons.favorite_outline,
-              iconColor: Colors.pinkAccent,
-              iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
-              text: 'Favourites',
-              onTap: onFavorites,
-            ),
-            const SizedBox(height: 14),
-            _ProfileTile(
-              icon: Icons.flag_outlined,
-              iconColor: const Color(0xFFB45309),
-              iconBg: const Color(0xFFFDEBD3),
-              text: 'Send report',
-              onTap: onReports,
-            ),
-            if (showAdmin) ...[
-              const SizedBox(height: 14),
-              _ProfileTile(
-                icon: Icons.admin_panel_settings,
-                iconColor: Colors.black87,
-                iconBg: Colors.black12,
-                text: 'Admin',
-                onTap: onAdmin,
-              ),
-            ],
-          ],
-        ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProfileUpdateDot extends StatelessWidget {
+  const _ProfileUpdateDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: const BoxDecoration(
+        color: Color(0xFFE53935),
+        shape: BoxShape.circle,
       ),
     );
   }

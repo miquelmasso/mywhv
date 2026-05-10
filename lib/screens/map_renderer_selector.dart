@@ -1,14 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../services/runtime_device_service.dart';
-
 enum MapRendererKind { mapLibre, vectorPmtilesFallback }
 
 MapRendererKind resolveMapRendererKind() {
-  final isIosSimulator = RuntimeDeviceService.instance.isIosSimulator;
   final useFallback =
-      isIosSimulator || defaultTargetPlatform == TargetPlatform.android;
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   return useFallback
       ? MapRendererKind.vectorPmtilesFallback

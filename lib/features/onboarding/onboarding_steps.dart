@@ -1,4 +1,4 @@
-enum OnboardingTarget { none, mapArea, automaticEmail, guideTab }
+enum OnboardingTarget { none, mapArea, mapTab, automaticEmail, guideTab }
 
 class OnboardingStepData {
   const OnboardingStepData({
@@ -35,7 +35,7 @@ const List<OnboardingStepData> onboardingSteps = <OnboardingStepData>[
     title: 'Find workplaces around you',
     description: 'Tap a place to view details and contact employers.',
     primaryLabel: 'Next',
-    target: OnboardingTarget.mapArea,
+    target: OnboardingTarget.mapTab,
   ),
   OnboardingStepData(
     id: 'automatic_email',

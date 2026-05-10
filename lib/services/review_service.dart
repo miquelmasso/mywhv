@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_store_links.dart';
+
 class ReviewService {
   ReviewService._();
 
   static final ReviewService instance = ReviewService._();
 
-  static const String _appStoreId = '6759898869';
   static const int _minimumAppOpens = 4;
   static const Duration _promptCooldown = Duration(days: 30);
   static const Duration _dismissalCooldown = Duration(days: 14);
@@ -23,6 +24,10 @@ class ReviewService {
       'review_last_positive_action_type';
   static const String _lastPromptAtKey = 'review_last_prompt_at_ms';
   static const String _lastDismissedAtKey = 'review_last_dismissed_at_ms';
+  static const Set<String> _reviewEligibleActions = <String>{
+    actionWorkplaceDetailOpened,
+    actionFavoriteSaved,
+  };
 
   final InAppReview _inAppReview = InAppReview.instance;
   bool _promptInFlight = false;
@@ -45,8 +50,10 @@ class ReviewService {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getInt(_positiveActionCountKey) ?? 0;
-    await prefs.setInt(_positiveActionCountKey, current + 1);
+    if (_reviewEligibleActions.contains(trimmedActionType)) {
+      final current = prefs.getInt(_positiveActionCountKey) ?? 0;
+      await prefs.setInt(_positiveActionCountKey, current + 1);
+    }
     await prefs.setString(_lastPositiveActionTypeKey, trimmedActionType);
   }
 
@@ -102,7 +109,9 @@ class ReviewService {
   /// Opens the public store listing as a manual fallback.
   Future<void> openStoreListing() async {
     try {
-      await _inAppReview.openStoreListing(appStoreId: _appStoreId);
+      await _inAppReview.openStoreListing(
+        appStoreId: AppStoreLinks.iosAppStoreId,
+      );
     } catch (error) {
       debugPrint('ReviewService openStoreListing failed: $error');
     }
@@ -116,6 +125,12 @@ class ReviewService {
 
     final positiveActionCount = prefs.getInt(_positiveActionCountKey) ?? 0;
     if (positiveActionCount < 1) {
+      return false;
+    }
+
+    final lastPositiveActionType =
+        prefs.getString(_lastPositiveActionTypeKey)?.trim() ?? '';
+    if (!_reviewEligibleActions.contains(lastPositiveActionType)) {
       return false;
     }
 

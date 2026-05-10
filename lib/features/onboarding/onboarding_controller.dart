@@ -19,6 +19,11 @@ class OnboardingController extends ChangeNotifier {
     return OnboardingController._(prefs, hasSeen);
   }
 
+  static Future<bool> peekShouldShowOnLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return !(prefs.getBool(hasSeenOnboardingKey) ?? false);
+  }
+
   bool get shouldShowOnLaunch => !_hasSeenOnboarding;
   bool get isVisible => _isVisible;
   int get currentStepIndex => _currentStepIndex;

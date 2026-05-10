@@ -208,56 +208,10 @@ class OverlayHelper {
     return BitmapDescriptor.bytes(data!.buffer.asUint8List());
   }
 
-// ---------- 🔹 Pin icona exactament com el de Google Maps ----------
-static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
-  return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-
-
-
-
-
-
-// -  - - - cercle amb worked_here_count -  - - -
-
-  // // --- Cercle blanc centrat a la part superior rodona ---
-  // final double circleCenterY = size * 0.385; // més baix per centrar perfectament
-  // final double circleRadius = size * 0.24;
-
-  // final Paint innerCircle = Paint()
-  //   ..color = Colors.white
-  //   ..style = PaintingStyle.fill;
-  // canvas.drawCircle(Offset(size / 2, circleCenterY), circleRadius, innerCircle);
-
-  // // // --- Text (número) centrat dins del cercle ---
-  // final textPainter = TextPainter(
-  //   text: TextSpan(
-  //     text: count.toString(),
-  //     style: const TextStyle(
-  //       color: Colors.black,
-  //       fontSize: 38,
-  //       fontWeight: FontWeight.bold,
-  //     ),
-  //   ),
-  //   textDirection: TextDirection.ltr,
-  //   textAlign: TextAlign.center,
-  // )..layout();
-
-  // textPainter.paint(
-  //   canvas,
-  //   Offset(
-  //     (size - textPainter.width) / 2,
-  //     (circleCenterY - textPainter.height / 2),
-  //   ),
-  // );
-
-}
-
-
-  
-
-
-
-
+  // ---------- 🔹 Marcador de comptador temporal ----------
+  static Future<BitmapDescriptor> createWorkCountMarker(int count) async {
+    return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+  }
 
   // ---------- 🔹 Funcions internes ----------
   static double _distanceKm(

@@ -49,6 +49,10 @@ class OnboardingOverlay extends StatelessWidget {
 }
 
 class _OnboardingScene extends StatelessWidget {
+  static const double _defaultBottomInset = 96;
+  static const double _mapStepBottomInset = 56;
+  static const double _mapTabBottomInset = 76;
+
   const _OnboardingScene({
     super.key,
     required this.step,
@@ -87,9 +91,11 @@ class _OnboardingScene extends StatelessWidget {
             size: size,
             painter: _SpotlightPainter(
               highlightRect: highlightRect,
-              overlayOpacity: step.target == OnboardingTarget.mapArea
-                  ? 0.86
-                  : 0.78,
+              overlayOpacity: switch (step.target) {
+                OnboardingTarget.mapTab => 0.72,
+                OnboardingTarget.mapArea => 0.82,
+                _ => 0.78,
+              },
             ),
           ),
           if (step.isWelcome)
@@ -135,7 +141,20 @@ class _OnboardingScene extends StatelessWidget {
     );
   }
 
+  bool get _useLowerBottomPlacement =>
+      step.target == OnboardingTarget.mapArea ||
+      step.target == OnboardingTarget.automaticEmail;
+
+  bool get _useBottomNavigationPlacement =>
+      step.target == OnboardingTarget.mapTab;
+
   Alignment _cardAlignment(Size size) {
+    if (_useBottomNavigationPlacement) {
+      return Alignment.bottomCenter;
+    }
+    if (_useLowerBottomPlacement) {
+      return Alignment.bottomCenter;
+    }
     final rect = highlightRect;
     if (rect == null) {
       return Alignment.bottomCenter;
@@ -146,6 +165,12 @@ class _OnboardingScene extends StatelessWidget {
   }
 
   double? _cardTop(EdgeInsets safePadding, Size size) {
+    if (_useBottomNavigationPlacement) {
+      return null;
+    }
+    if (_useLowerBottomPlacement) {
+      return null;
+    }
     final rect = highlightRect;
     if (rect == null || rect.center.dy < size.height * 0.48) {
       return null;
@@ -154,11 +179,17 @@ class _OnboardingScene extends StatelessWidget {
   }
 
   double? _cardBottom(EdgeInsets safePadding, Size size) {
+    if (_useBottomNavigationPlacement) {
+      return safePadding.bottom + _mapTabBottomInset;
+    }
+    if (_useLowerBottomPlacement) {
+      return safePadding.bottom + _mapStepBottomInset;
+    }
     final rect = highlightRect;
     if (rect == null || rect.center.dy >= size.height * 0.48) {
       return null;
     }
-    return safePadding.bottom + 96;
+    return safePadding.bottom + _defaultBottomInset;
   }
 }
 

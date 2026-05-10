@@ -8,6 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'restaurant_sqlite_store.dart';
+import 'offline_bootstrap_service.dart';
+import 'offline_state.dart';
 
 class MapMarkersService {
   static const _cacheKeyJson = 'restaurants_cache_json';
@@ -101,6 +103,48 @@ class MapMarkersService {
           '🗄️ SQLITE restaurants loaded${lightweight ? ' (lightweight)' : ''}: ${sqliteRestaurants.length}',
         );
         return sqliteRestaurants;
+      }
+
+      if (!OfflineState.instance.isFirstLaunchDone) {
+        await OfflineBootstrapService.instance.init();
+        final bootstrapRestaurants = lightweight
+            ? await sqliteStore.getAllForMap()
+            : await sqliteStore.getAll();
+        if (bootstrapRestaurants.isNotEmpty) {
+          if (lightweight) {
+            _primeMapMemoryCache(
+              _applyLocalWorkedHereMinCounts(
+                bootstrapRestaurants,
+                localWorkedHereMinCounts,
+              ),
+              appVersion: currentAppVersion ?? cachedAppVersion,
+            );
+          } else {
+            _primeMemoryCache(
+              bootstrapRestaurants,
+              synced: true,
+              appVersion: currentAppVersion ?? cachedAppVersion,
+            );
+            _primeMapMemoryCache(
+              _applyLocalWorkedHereMinCounts(
+                _toMapRestaurantList(bootstrapRestaurants),
+                localWorkedHereMinCounts,
+              ),
+              appVersion: currentAppVersion ?? cachedAppVersion,
+            );
+            if (!canUsePersistentCache || needsVersionRefresh) {
+              await _persistRestaurantsCache(
+                prefs,
+                bootstrapRestaurants,
+                appVersion: currentAppVersion,
+              );
+            }
+          }
+          debugPrint(
+            '🗄️ SQLITE restaurants loaded after bootstrap${lightweight ? ' (lightweight)' : ''}: ${bootstrapRestaurants.length}',
+          );
+          return bootstrapRestaurants;
+        }
       }
     } catch (e) {
       debugPrint('⚠️ Error loading restaurants from SQLite: $e');
