@@ -7,7 +7,7 @@ class Restaurant {
   Restaurant({
     required this.name,
     required this.city,
-    required this.latitude,
+    required this.latitude, 
     required this.longitude,
   });
 
