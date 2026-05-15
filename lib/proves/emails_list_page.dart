@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../screens/restaurant_edit_page.dart';
+import '../services/map_markers_service.dart';
 import 'csv_export_helper.dart';
 
 class EmailsListPage extends StatefulWidget {
@@ -13,54 +14,73 @@ class EmailsListPage extends StatefulWidget {
 }
 
 class _EmailsListPageState extends State<EmailsListPage> {
-  bool _loading = true;
+  bool _loading = false;
   bool _exporting = false;
+  bool _hasLoaded = false;
   List<Map<String, dynamic>> _restaurants = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadEmails();
-  }
-
   Future<void> _loadEmails() async {
+    setState(() => _loading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .get();
+      var list = _sortByName(
+        (await MapMarkersService.loadRestaurants(
+              fromServer: false,
+              lightweight: true,
+            ))
+            .map(_fromRestaurant)
+            .where((r) => (r['email'] as String).isNotEmpty)
+            .toList(growable: true),
+      );
 
-      final list =
+      if (list.isEmpty) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('restaurants')
+            .get();
+        list = _sortByName(
           snapshot.docs
-              .map((doc) {
-                final data = doc.data();
-                return {
-                  'docId': doc.id,
-                  'name': (data['name'] ?? 'Sense nom').toString(),
-                  'email': _extractEmail(data),
-                };
-              })
+              .map((doc) => _fromRestaurant(doc.data(), docId: doc.id))
               .where((r) => (r['email'] as String).isNotEmpty)
-              .toList(growable: true)
-            ..sort((a, b) {
-              final nameA = (a['name'] ?? '').toString().trim().toLowerCase();
-              final nameB = (b['name'] ?? '').toString().trim().toLowerCase();
-              final byName = nameA.compareTo(nameB);
-              if (byName != 0) return byName;
-              final idA = (a['docId'] ?? '').toString();
-              final idB = (b['docId'] ?? '').toString();
-              return idA.compareTo(idB);
-            });
+              .toList(growable: true),
+        );
+      }
 
       if (!mounted) return;
       setState(() {
         _restaurants = list;
         _loading = false;
+        _hasLoaded = true;
       });
     } catch (e) {
       debugPrint('Error carregant correus: $e');
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _hasLoaded = true;
+      });
     }
+  }
+
+  Map<String, dynamic> _fromRestaurant(
+    Map<String, dynamic> data, {
+    String? docId,
+  }) {
+    return {
+      'docId': (docId ?? data['docId'] ?? data['id'] ?? '').toString(),
+      'name': (data['name'] ?? 'Sense nom').toString(),
+      'email': _extractEmail(data),
+    };
+  }
+
+  List<Map<String, dynamic>> _sortByName(List<Map<String, dynamic>> rows) {
+    return rows..sort((a, b) {
+      final nameA = (a['name'] ?? '').toString().trim().toLowerCase();
+      final nameB = (b['name'] ?? '').toString().trim().toLowerCase();
+      final byName = nameA.compareTo(nameB);
+      if (byName != 0) return byName;
+      final idA = (a['docId'] ?? '').toString();
+      final idB = (b['docId'] ?? '').toString();
+      return idA.compareTo(idB);
+    });
   }
 
   String _extractEmail(Map<String, dynamic> data) {
@@ -154,6 +174,10 @@ class _EmailsListPageState extends State<EmailsListPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : !_hasLoaded
+          ? const Center(
+              child: Text('Prem actualitzar per carregar les dades.'),
+            )
           : _restaurants.isEmpty
           ? const Center(child: Text('No hi ha correus disponibles.'))
           : Column(

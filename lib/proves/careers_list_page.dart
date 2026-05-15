@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/restaurant_edit_page.dart';
+import '../services/map_markers_service.dart';
 import 'csv_export_helper.dart';
 
 class CareersListPage extends StatefulWidget {
@@ -14,45 +15,73 @@ class CareersListPage extends StatefulWidget {
 }
 
 class _CareersListPageState extends State<CareersListPage> {
-  bool _loading = true;
+  bool _loading = false;
   bool _exporting = false;
+  bool _hasLoaded = false;
   List<Map<String, dynamic>> _restaurants = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCareers();
-  }
-
   Future<void> _loadCareers() async {
+    setState(() => _loading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('restaurants')
-          .orderBy('name')
-          .get();
+      var list = _sortByName(
+        (await MapMarkersService.loadRestaurants(
+              fromServer: false,
+              lightweight: true,
+            ))
+            .map(_fromRestaurant)
+            .where((r) => (r['careers_page'] as String).isNotEmpty)
+            .toList(growable: true),
+      );
 
-      final list = snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            return {
-              'docId': doc.id,
-              'name': (data['name'] ?? 'Sense nom').toString(),
-              'careers_page': (data['careers_page'] ?? '').toString().trim(),
-            };
-          })
-          .where((r) => (r['careers_page'] as String).isNotEmpty)
-          .toList(growable: false);
+      if (list.isEmpty) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('restaurants')
+            .get();
+        list = _sortByName(
+          snapshot.docs
+              .map((doc) => _fromRestaurant(doc.data(), docId: doc.id))
+              .where((r) => (r['careers_page'] as String).isNotEmpty)
+              .toList(growable: true),
+        );
+      }
 
       if (!mounted) return;
       setState(() {
         _restaurants = list;
         _loading = false;
+        _hasLoaded = true;
       });
     } catch (e) {
       debugPrint('❌ Error carregant pàgines de feina: $e');
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _hasLoaded = true;
+      });
     }
+  }
+
+  Map<String, dynamic> _fromRestaurant(
+    Map<String, dynamic> data, {
+    String? docId,
+  }) {
+    return {
+      'docId': (docId ?? data['docId'] ?? data['id'] ?? '').toString(),
+      'name': (data['name'] ?? 'Sense nom').toString(),
+      'careers_page': (data['careers_page'] ?? '').toString().trim(),
+    };
+  }
+
+  List<Map<String, dynamic>> _sortByName(List<Map<String, dynamic>> rows) {
+    return rows..sort((a, b) {
+      final nameA = (a['name'] ?? '').toString().trim().toLowerCase();
+      final nameB = (b['name'] ?? '').toString().trim().toLowerCase();
+      final byName = nameA.compareTo(nameB);
+      if (byName != 0) return byName;
+      final idA = (a['docId'] ?? '').toString();
+      final idB = (b['docId'] ?? '').toString();
+      return idA.compareTo(idB);
+    });
   }
 
   Future<void> _exportCsv() async {
@@ -138,6 +167,10 @@ class _CareersListPageState extends State<CareersListPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : !_hasLoaded
+          ? const Center(
+              child: Text('Prem actualitzar per carregar les dades.'),
+            )
           : _restaurants.isEmpty
           ? const Center(child: Text('⚠️ No hi ha dades.'))
           : Column(
