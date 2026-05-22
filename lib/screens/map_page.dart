@@ -1391,6 +1391,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       data: r,
       workedCount: (r['worked_here_count'] ?? 0) as int,
       isFavorite: _favoritePlaces.contains(docId),
+      bottomOffset: kMapRestaurantPopupBottomOffset,
       onClose: () => setState(() => _selectedRestaurant = null),
       onWorkedHere: () => _showWorkedDialog(docId, r['name'] ?? 'aquest lloc'),
       onCopyPhone: () => _copyToClipboard(r['phone'], 'Phone copied'),
@@ -1410,6 +1411,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
       postcode: harvest.postcode,
       state: harvest.state,
       description: harvest.description,
+      bottomOffset: kMapPopupDockOffset,
       onClose: () => setState(() => _selectedHarvest = null),
     );
   }

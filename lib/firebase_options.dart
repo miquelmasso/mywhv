@@ -65,7 +65,7 @@ class DefaultFirebaseOptions
     messagingSenderId: '576629838865',
     projectId: 'mywhvaus',
     storageBucket: 'mywhvaus.firebasestorage.app',
-    iosBundleId: 'com.example.mywhv',
+    iosBundleId: 'com.workyday.mywhv',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -74,7 +74,7 @@ class DefaultFirebaseOptions
     messagingSenderId: '576629838865',
     projectId: 'mywhvaus',
     storageBucket: 'mywhvaus.firebasestorage.app',
-    iosBundleId: 'com.example.mywhv',
+    iosBundleId: 'com.workyday.mywhv',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

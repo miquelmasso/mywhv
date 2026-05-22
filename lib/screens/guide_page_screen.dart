@@ -741,8 +741,11 @@ class _CvTab extends StatelessWidget {
         const SizedBox(height: 12),
         _InfoCard(
           title: t('ui.tip'),
-          color: Colors.green.shade50,
-          leading: const Icon(Icons.lightbulb_outline, color: Colors.green),
+          color: Colors.orange.shade50,
+          leading: Icon(
+            Icons.lightbulb_outline,
+            color: Colors.orange.shade700,
+          ),
           child: Text(t('ui.cv.tip')),
         ),
       ],
@@ -1304,7 +1307,7 @@ Widget _buildBlockWidget(
       if (block.variant == 'warning') {
         cardColor = Colors.orange.shade50;
       } else if (block.variant == 'success') {
-        cardColor = Colors.green.shade50;
+        cardColor = Colors.orange.shade50;
       } else if (block.variant == 'info') {
         cardColor = Colors.blue.shade50;
       } else if (block.variant == 'milestone') {
@@ -1457,8 +1460,8 @@ Widget _buildBlockWidget(
         iconColor = Colors.orange.shade700;
         icon = Icons.warning_amber_rounded;
       } else if (block.variant == 'success') {
-        bg = Colors.green.shade50;
-        iconColor = Colors.green.shade700;
+        bg = Colors.orange.shade50;
+        iconColor = Colors.orange.shade700;
         icon = Icons.lightbulb_outline;
       }
       final hasItems = block.items.isNotEmpty;
@@ -1475,7 +1478,7 @@ Widget _buildBlockWidget(
           return Icon(
             Icons.check_circle_outline,
             size: 18,
-            color: Colors.green.shade700,
+            color: Colors.orange.shade700,
           );
         }
         return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
@@ -1678,10 +1681,10 @@ Widget _buildBlockWidget(
               : null,
           child: _InfoCard(
             title: block.title ?? (isWarning ? 'Atenció' : 'Tip'),
-            color: isWarning ? Colors.orange.shade50 : Colors.green.shade50,
+            color: Colors.orange.shade50,
             leading: Icon(
               isWarning ? Icons.warning_amber : Icons.lightbulb_outline,
-              color: isWarning ? Colors.orange : Colors.green,
+              color: Colors.orange.shade700,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

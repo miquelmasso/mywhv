@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+const double kMapPopupDockOffset = 104;
+const double kMapRestaurantPopupBottomOffset = kMapPopupDockOffset + 18;
+
 String smartTruncate(String text, int maxChars) {
   if (text.length <= maxChars) return text;
   String truncated = text.substring(0, maxChars);
@@ -29,6 +32,7 @@ class MapRestaurantPopup extends StatelessWidget {
     required this.onCareers,
     required this.onInstagram,
     required this.onFavorite,
+    this.bottomOffset = 0,
   });
 
   final Map<String, dynamic> data;
@@ -42,29 +46,34 @@ class MapRestaurantPopup extends StatelessWidget {
   final VoidCallback onCareers;
   final VoidCallback onInstagram;
   final VoidCallback onFavorite;
+  final double bottomOffset;
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
+      left: 14,
+      right: 14,
+      bottom: bottomOffset,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFFFF8EF),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 24,
+              spreadRadius: -4,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 8,
+              spreadRadius: -2,
               offset: const Offset(0, -2),
             ),
           ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+          borderRadius: BorderRadius.circular(26),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +87,7 @@ class MapRestaurantPopup extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Color(0xFF2E2E2E),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -175,6 +184,7 @@ class MapHarvestPopup extends StatelessWidget {
     required this.state,
     this.description,
     required this.onClose,
+    this.bottomOffset = 0,
   });
 
   final String name;
@@ -182,13 +192,14 @@ class MapHarvestPopup extends StatelessWidget {
   final String state;
   final String? description;
   final VoidCallback onClose;
+  final double bottomOffset;
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
       left: 0,
       right: 0,
-      bottom: 0,
+      bottom: bottomOffset,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),

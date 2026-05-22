@@ -41,8 +41,20 @@ class MapOSMClonePage extends StatefulWidget {
 
 class MapOSMClonePageState extends State<MapOSMClonePage>
     with TickerProviderStateMixin {
-  static const double _locationFabBottom = 144;
+  static const Color _restaurantMarkerColor = Color(0xFFE58C7C);
+  static const Color _cafeMarkerColor = Color(0xFFD9B45F);
+  static const Color _barMarkerColor = Color(0xFFB8A7E8);
+  static const Color _clusterMarkerColor = Color(0xFF6FA8A3);
+  static const Color _selectedMarkerOutlineColor = Color(0xFFD97A6C);
+  static const Color _restaurantIconColor = Color(0xFFFFFFFF);
+  static const Color _cafeIconColor = Color(0xFFFFFFFF);
+  static const Color _barIconColor = Color(0xFFFFFFFF);
+  static const Color _clusterTextColor = Color(0xFFFFFFFF);
+
+  static const bool _showDebugZoomControls = true;
+  static const double _locationFabBottom = kMapPopupDockOffset + 172;
   static const double _initialKangarooBottomOffset = 212;
+  static const double _debugZoomStep = 1.2;
   static const double _clusterZoomStep = 2.2;
   static const double _maxMapZoom = 19.0;
   static const double _maxPersistedZoom = 19.0;
@@ -206,40 +218,46 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       fill: Colors.pinkAccent,
       icon: Icons.favorite,
       iconSize: 15,
-      outlineColor: const Color(0xFFE53935),
+      outlineColor: _selectedMarkerOutlineColor,
     );
     _markerNightIcon = _pinMarker(
-      fill: const Color(0xFF6D28D9),
+      fill: _barMarkerColor,
       icon: Icons.local_bar,
       iconSize: 16,
+      iconColor: _barIconColor,
     );
     _markerNightSelectedIcon = _pinMarker(
-      fill: const Color(0xFF6D28D9),
+      fill: _barMarkerColor,
       icon: Icons.local_bar,
       iconSize: 16,
-      outlineColor: const Color(0xFFE53935),
+      iconColor: _barIconColor,
+      outlineColor: _selectedMarkerOutlineColor,
     );
     _markerCafeIcon = _pinMarker(
-      fill: const Color(0xFF111827),
+      fill: _cafeMarkerColor,
       icon: Icons.local_cafe,
       iconSize: 16,
+      iconColor: _cafeIconColor,
     );
     _markerCafeSelectedIcon = _pinMarker(
-      fill: const Color(0xFF111827),
+      fill: _cafeMarkerColor,
       icon: Icons.local_cafe,
       iconSize: 16,
-      outlineColor: const Color(0xFFE53935),
+      iconColor: _cafeIconColor,
+      outlineColor: _selectedMarkerOutlineColor,
     );
     _markerStandardIcon = _pinMarker(
-      fill: const Color(0xFFFF8A00),
+      fill: _restaurantMarkerColor,
       icon: Icons.restaurant,
       iconSize: 16,
+      iconColor: _restaurantIconColor,
     );
     _markerStandardSelectedIcon = _pinMarker(
-      fill: const Color(0xFFFF8A00),
+      fill: _restaurantMarkerColor,
       icon: Icons.restaurant,
       iconSize: 16,
-      outlineColor: const Color(0xFFE53935),
+      iconColor: _restaurantIconColor,
+      outlineColor: _selectedMarkerOutlineColor,
     );
     _markerHarvestIcon = Icon(
       Icons.location_on,
@@ -692,6 +710,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     required Color fill,
     required IconData icon,
     double iconSize = 16,
+    Color iconColor = Colors.white,
     Color? outlineColor,
   }) {
     const double circleSize = 20;
@@ -718,10 +737,10 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                     : null,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 7,
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 9,
                     spreadRadius: 0,
-                    offset: const Offset(0, 2),
+                    offset: const Offset(0, 3),
                   ),
                   if (hasOutline)
                     BoxShadow(
@@ -733,7 +752,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                 ],
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: iconSize, color: Colors.white),
+              child: Icon(icon, size: iconSize, color: iconColor),
             ),
           ),
           Positioned(
@@ -1380,6 +1399,51 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     }
   }
 
+  void _zoomOut() {
+    final newZoom = (_currentZoom - _debugZoomStep).clamp(3.0, _maxMapZoom);
+    _mapController.move(_currentCenter, newZoom);
+  }
+
+  void _zoomIn() {
+    final newZoom = (_currentZoom + _debugZoomStep).clamp(3.0, _maxMapZoom);
+    _mapController.move(_currentCenter, newZoom);
+  }
+
+  Widget _buildDebugZoomControls() {
+    Widget button({required IconData icon, required VoidCallback onPressed}) {
+      return SizedBox(
+        width: 42,
+        height: 42,
+        child: IconButton(
+          tooltip: icon == Icons.add ? 'Zoom in' : 'Zoom out',
+          onPressed: onPressed,
+          icon: Icon(icon, size: 22),
+          color: Colors.black87,
+          padding: EdgeInsets.zero,
+        ),
+      );
+    }
+
+    // Temporary testing aid: remove this helper and _showDebugZoomControls later.
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      elevation: 4,
+      borderRadius: BorderRadius.circular(22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(icon: Icons.add, onPressed: _zoomIn),
+          Container(
+            width: 24,
+            height: 1,
+            color: Colors.black.withValues(alpha: 0.10),
+          ),
+          button(icon: Icons.remove, onPressed: _zoomOut),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleDeniedLocationPermission(
     LocationPermission permission,
   ) async {
@@ -1481,6 +1545,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           data: r,
           workedCount: (r['worked_here_count'] ?? 0) as int,
           isFavorite: favoritePlaces.contains(docId),
+          bottomOffset: kMapRestaurantPopupBottomOffset,
           onClose: _clearTemporarySelection,
           onWorkedHere: () =>
               _showWorkedDialog(docId, r['name'] ?? 'this place'),
@@ -1503,6 +1568,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       postcode: data.postcode,
       state: data.state,
       description: data.description,
+      bottomOffset: kMapPopupDockOffset,
       onClose: () {
         setState(() => _selectedHarvest = null);
         _setSelectedRestaurantId(null);
@@ -1807,13 +1873,13 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                     builder: (context, cluster) {
                       return Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF111827),
+                          color: _clusterMarkerColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
+                              color: Colors.black.withValues(alpha: 0.22),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -1821,7 +1887,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                         child: Text(
                           cluster.length.toString(),
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: _clusterTextColor,
                             fontWeight: FontWeight.w800,
                             fontSize: 13,
                           ),
@@ -1853,7 +1919,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                         width: 48,
                         child: const Icon(
                           Icons.person_outline,
-                          color: Colors.black87,
+                          color: Colors.black,
                         ),
                       ),
                     ),
@@ -1934,6 +2000,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
               child: FloatingActionButton(
                 onPressed: _isLocating ? null : _goToUserLocation,
                 heroTag: 'fab_location',
+                shape: const CircleBorder(),
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.blueGrey.shade700,
                 child: _isLocating
@@ -1944,6 +2011,12 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                       )
                     : const Icon(Icons.my_location),
               ),
+            ),
+          if (_isHospitality && _showDebugZoomControls)
+            Positioned(
+              top: 86,
+              left: 16,
+              child: SafeArea(child: _buildDebugZoomControls()),
             ),
           if (_isHospitality && _showMapUpdateBanner)
             Positioned.fill(
@@ -2037,6 +2110,7 @@ class CompactCategorySwitch extends StatelessWidget {
   final Category selected;
   final ValueChanged<Category> onChanged;
   final bool farmEnabled;
+  static const Color _hospitalityAccentColor = Color(0xFF9CAF9F);
 
   @override
   Widget build(BuildContext context) {
@@ -2063,7 +2137,11 @@ class CompactCategorySwitch extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 2),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.blueAccent : Colors.transparent,
+                color: isSelected
+                    ? category == Category.hospitality
+                          ? _hospitalityAccentColor
+                          : Colors.blueAccent
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: InkWell(

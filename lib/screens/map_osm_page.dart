@@ -27,6 +27,15 @@ class MapPageOSM extends StatefulWidget {
 
 class _MapPageOSMState extends State<MapPageOSM>
     with SingleTickerProviderStateMixin {
+  static const Color _restaurantMarkerColor = Color(0xFFE58C7C);
+  static const Color _cafeMarkerColor = Color(0xFFD9B45F);
+  static const Color _barMarkerColor = Color(0xFFB8A7E8);
+  static const Color _clusterMarkerColor = Color(0xFF6FA8A3);
+  static const Color _restaurantIconColor = Color(0xFFFFFFFF);
+  static const Color _cafeIconColor = Color(0xFFFFFFFF);
+  static const Color _barIconColor = Color(0xFFFFFFFF);
+  static const Color _clusterTextColor = Color(0xFFFFFFFF);
+
   final MapController _mapController = MapController();
   static const LatLng _initialCenter = LatLng(-25.0, 133.0);
   static const double _initialZoom = 4.5;
@@ -60,16 +69,19 @@ class _MapPageOSMState extends State<MapPageOSM>
       upperBound: 1.05,
     )..repeat(reverse: true);
     _markerNightIcon = _pinMarker(
-      fill: const Color(0xFF6D28D9),
+      fill: _barMarkerColor,
       icon: Icons.local_bar,
+      iconColor: _barIconColor,
     );
     _markerCafeIcon = _pinMarker(
-      fill: const Color(0xFF111827),
+      fill: _cafeMarkerColor,
       icon: Icons.local_cafe,
+      iconColor: _cafeIconColor,
     );
     _markerStandardIcon = _pinMarker(
-      fill: const Color(0xFFFF8A00),
+      fill: _restaurantMarkerColor,
       icon: Icons.restaurant,
+      iconColor: _restaurantIconColor,
     );
     _markerHarvestIcon = Icon(
       Icons.location_on,
@@ -287,7 +299,11 @@ class _MapPageOSMState extends State<MapPageOSM>
     }
   }
 
-  Widget _pinMarker({required Color fill, required IconData icon}) {
+  Widget _pinMarker({
+    required Color fill,
+    required IconData icon,
+    Color iconColor = Colors.white,
+  }) {
     const double circleSize = 20;
     const double tailHeight = 6;
     return SizedBox(
@@ -308,14 +324,14 @@ class _MapPageOSMState extends State<MapPageOSM>
                 border: Border.all(color: Colors.white, width: 1.6),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.28),
-                    blurRadius: 9,
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
               alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: Colors.white),
+              child: Icon(icon, size: 16, color: iconColor),
             ),
           ),
           Positioned(
@@ -511,13 +527,13 @@ class _MapPageOSMState extends State<MapPageOSM>
                   builder: (context, markers) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF111827),
+                        color: _clusterMarkerColor,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -525,7 +541,7 @@ class _MapPageOSMState extends State<MapPageOSM>
                       child: Text(
                         markers.length.toString(),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: _clusterTextColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -635,6 +651,7 @@ class _CategoryPill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  static const Color _hospitalityAccentColor = Color(0xFF9CAF9F);
 
   @override
   Widget build(BuildContext context) {
@@ -644,7 +661,7 @@ class _CategoryPill extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.black87 : Colors.white,
+          color: selected ? _hospitalityAccentColor : Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.black12),
           boxShadow: [

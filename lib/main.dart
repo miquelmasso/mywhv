@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -468,33 +469,121 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  BottomNavigationBarItem _buildNavItem(
+  static const List<Color> _dockItemColors = <Color>[
+    Color(0xFFBFDDF5),
+    Color(0xFFD8C9F2),
+    Color(0xFFF2C6DA),
+    Color(0xFFF4E7C7),
+  ];
+
+  static const List<Color> _dockIconColors = <Color>[
+    Color(0xFF21465F),
+    Color(0xFF5D4B77),
+    Color(0xFF7A4B61),
+    Color(0xFF75623C),
+  ];
+
+  Widget _buildDockNavItem(
     IconData iconData,
     int index, {
     GlobalKey? iconKey,
   }) {
     final isSelected = _selectedIndex == index;
-    return BottomNavigationBarItem(
-      icon: _buildNavIcon(iconData, false, key: isSelected ? null : iconKey),
-      activeIcon: _buildNavIcon(
-        iconData,
-        true,
-        key: isSelected ? iconKey : null,
+    final itemColor = _dockItemColors[index];
+    final iconColor = _dockIconColors[index];
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _onItemTapped(index),
+          child: Center(
+            child: AnimatedScale(
+              scale: isSelected ? 1.06 : 1,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: AnimatedContainer(
+                key: isSelected ? iconKey : null,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                width: isSelected ? 54 : 48,
+                height: isSelected ? 54 : 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: itemColor.withValues(alpha: isSelected ? 0.96 : 0.68),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.68),
+                    width: 1.1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isSelected ? 0.14 : 0.08,
+                      ),
+                      blurRadius: isSelected ? 14 : 9,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  iconData,
+                  color: iconColor,
+                  size: isSelected ? 25 : 23,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      label: '',
     );
   }
 
-  Widget _buildNavIcon(IconData iconData, bool selected, {Key? key}) {
-    return AnimatedContainer(
-      key: key,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: Icon(
-        iconData,
-        color: selected ? Colors.black87 : Colors.grey.shade600,
-        size: 24,
+  Widget _buildAppleDockNavigationBar() {
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            height: 76,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(34),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.72),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: <Widget>[
+                _buildDockNavItem(
+                  Icons.map_outlined,
+                  0,
+                  iconKey: _mapTabIconKey,
+                ),
+                _buildDockNavItem(
+                  Icons.lightbulb_outline,
+                  1,
+                  iconKey: _guideTabIconKey,
+                ),
+                _buildDockNavItem(Icons.auto_awesome, 2),
+                _buildDockNavItem(Icons.forum_outlined, 3),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -523,32 +612,9 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Stack(
         children: [
           Scaffold(
+            extendBody: true,
             body: IndexedStack(index: _selectedIndex, children: _pages),
-            bottomNavigationBar: Theme(
-              data: Theme.of(context).copyWith(
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                hoverColor: Colors.transparent,
-              ),
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                showSelectedLabels: false,
-                showUnselectedLabels: false,
-                currentIndex: _selectedIndex,
-                selectedItemColor: Theme.of(context).colorScheme.primary,
-                onTap: _onItemTapped,
-                items: <BottomNavigationBarItem>[
-                  _buildNavItem(Icons.map_outlined, 0, iconKey: _mapTabIconKey),
-                  _buildNavItem(
-                    Icons.lightbulb_outline,
-                    1,
-                    iconKey: _guideTabIconKey,
-                  ),
-                  _buildNavItem(Icons.auto_awesome, 2),
-                  _buildNavItem(Icons.forum_outlined, 3),
-                ],
-              ),
-            ),
+            bottomNavigationBar: _buildAppleDockNavigationBar(),
           ),
           if (onboardingController?.isVisible ?? false)
             OnboardingOverlay(

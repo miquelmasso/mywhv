@@ -63,6 +63,15 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const String _defaultStyleAssetPath = 'assets/map/style.json';
   static const bool _enablePmtilesDiagnostics = false;
   static const Color _mapOceanBackgroundColor = Color(0xFFCFE1EC);
+  static const Color _restaurantMarkerColor = Color(0xFFE58C7C);
+  static const Color _cafeMarkerColor = Color(0xFFD9B45F);
+  static const Color _barMarkerColor = Color(0xFFB8A7E8);
+  static const Color _clusterMarkerColor = Color(0xFF6FA8A3);
+  static const Color _selectedMarkerOutlineColor = Color(0xFFD97A6C);
+  static const Color _restaurantIconColor = Color(0xFFFFFFFF);
+  static const Color _cafeIconColor = Color(0xFFFFFFFF);
+  static const Color _barIconColor = Color(0xFFFFFFFF);
+  static const Color _clusterTextColor = Color(0xFFFFFFFF);
   static const String _vectorSourceId = 'australia';
   static const List<String> _diagnosticSourceLayers = <String>[
     'earth',
@@ -73,21 +82,22 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const double _defaultZoom = 3.8;
   static const double _maxMapZoom = 18.2;
   static const bool _showZoomOutButton = false;
-  static const double _locationFabBottom = 144;
+  static const bool _showDebugZoomControls = true;
+  static const double _locationFabBottom = kMapPopupDockOffset + 172;
   static const double _initialKangarooBottomOffset = 212;
   static const double _zoomOutStep = 1.2;
   static const String _favoriteMarkerImageName = 'workyday-marker-favorite';
   static const String _favoriteSelectedMarkerImageName =
       'workyday-marker-favorite-selected';
-  static const String _nightMarkerImageName = 'workyday-marker-night';
+  static const String _nightMarkerImageName = 'workyday-marker-night-pastel';
   static const String _nightSelectedMarkerImageName =
-      'workyday-marker-night-selected';
-  static const String _cafeMarkerImageName = 'workyday-marker-cafe';
+      'workyday-marker-night-selected-pastel';
+  static const String _cafeMarkerImageName = 'workyday-marker-cafe-pastel';
   static const String _cafeSelectedMarkerImageName =
-      'workyday-marker-cafe-selected';
-  static const String _standardMarkerImageName = 'workyday-marker-standard';
+      'workyday-marker-cafe-selected-pastel';
+  static const String _standardMarkerImageName = 'workyday-marker-standard-pastel';
   static const String _standardSelectedMarkerImageName =
-      'workyday-marker-standard-selected';
+      'workyday-marker-standard-selected-pastel';
   static const String _seenInitialKangarooHintKey =
       'seen_map_initial_kangaroo_hint';
   static const String _seenProfileTooltipKey = 'seen_map_profile_tooltip';
@@ -744,58 +754,64 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         fill: Colors.pinkAccent,
         icon: Icons.favorite,
         iconSize: 15,
-        outlineColor: const Color(0xFFE53935),
+        outlineColor: _selectedMarkerOutlineColor,
       ),
     );
     await _ensureNamedStyleImage(
       _nightMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFF6D28D9),
+        fill: _barMarkerColor,
         icon: Icons.local_bar,
         iconSize: 16,
+        iconColor: _barIconColor,
       ),
     );
     await _ensureNamedStyleImage(
       _nightSelectedMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFF6D28D9),
+        fill: _barMarkerColor,
         icon: Icons.local_bar,
         iconSize: 16,
-        outlineColor: const Color(0xFFE53935),
+        iconColor: _barIconColor,
+        outlineColor: _selectedMarkerOutlineColor,
       ),
     );
     await _ensureNamedStyleImage(
       _cafeMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFF111827),
+        fill: _cafeMarkerColor,
         icon: Icons.local_cafe,
         iconSize: 16,
+        iconColor: _cafeIconColor,
       ),
     );
     await _ensureNamedStyleImage(
       _cafeSelectedMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFF111827),
+        fill: _cafeMarkerColor,
         icon: Icons.local_cafe,
         iconSize: 16,
-        outlineColor: const Color(0xFFE53935),
+        iconColor: _cafeIconColor,
+        outlineColor: _selectedMarkerOutlineColor,
       ),
     );
     await _ensureNamedStyleImage(
       _standardMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFFFF8A00),
+        fill: _restaurantMarkerColor,
         icon: Icons.restaurant,
         iconSize: 16,
+        iconColor: _restaurantIconColor,
       ),
     );
     await _ensureNamedStyleImage(
       _standardSelectedMarkerImageName,
       await _buildPinIconBytes(
-        fill: const Color(0xFFFF8A00),
+        fill: _restaurantMarkerColor,
         icon: Icons.restaurant,
         iconSize: 16,
-        outlineColor: const Color(0xFFE53935),
+        iconColor: _restaurantIconColor,
+        outlineColor: _selectedMarkerOutlineColor,
       ),
     );
   }
@@ -847,6 +863,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     required Color fill,
     required IconData icon,
     required double iconSize,
+    Color iconColor = Colors.white,
     Color? outlineColor,
   }) async {
     const width = 48.0;
@@ -862,8 +879,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final hasOutline = outlineColor != null;
 
     final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.20)
-      ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+      ..color = Colors.black.withValues(alpha: 0.18)
+      ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 8);
     canvas.drawCircle(
       Offset(circleCenter.dx, circleCenter.dy + 3),
       circleRadius,
@@ -884,8 +901,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     canvas.drawPath(
       tailPath.shift(const Offset(0, 3)),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.12)
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6),
+        ..color = Colors.black.withValues(alpha: 0.10)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 8),
     );
 
     final fillPaint = Paint()..color = fill;
@@ -922,7 +939,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           fontSize: iconSize,
           fontFamily: icon.fontFamily,
           package: icon.fontPackage,
-          color: Colors.white,
+          color: iconColor,
         ),
       ),
     )..layout();
@@ -953,10 +970,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       Offset(center.dx, center.dy + 2),
       radius,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.18)
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 7),
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 9),
     );
-    canvas.drawCircle(center, radius, Paint()..color = const Color(0xFF111827));
+    canvas.drawCircle(center, radius, Paint()..color = _clusterMarkerColor);
     canvas.drawCircle(
       center,
       radius,
@@ -977,7 +994,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       text: TextSpan(
         text: label,
         style: TextStyle(
-          color: Colors.white,
+          color: _clusterTextColor,
           fontSize: fontSize,
           fontWeight: FontWeight.w800,
         ),
@@ -2148,6 +2165,47 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     unawaited(controller.animateCamera(CameraUpdate.zoomBy(-_zoomOutStep)));
   }
 
+  void _zoomIn() {
+    final controller = _mapController;
+    if (controller == null) return;
+    unawaited(controller.animateCamera(CameraUpdate.zoomBy(_zoomOutStep)));
+  }
+
+  Widget _buildDebugZoomControls() {
+    Widget button({required IconData icon, required VoidCallback onPressed}) {
+      return SizedBox(
+        width: 42,
+        height: 42,
+        child: IconButton(
+          tooltip: icon == Icons.add ? 'Zoom in' : 'Zoom out',
+          onPressed: onPressed,
+          icon: Icon(icon, size: 22),
+          color: Colors.black87,
+          padding: EdgeInsets.zero,
+        ),
+      );
+    }
+
+    // Temporary testing aid: remove this helper and _showDebugZoomControls later.
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      elevation: 4,
+      borderRadius: BorderRadius.circular(22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(icon: Icons.add, onPressed: _zoomIn),
+          Container(
+            width: 24,
+            height: 1,
+            color: Colors.black.withValues(alpha: 0.10),
+          ),
+          button(icon: Icons.remove, onPressed: _zoomOut),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRestaurantPopup() {
     if (_selectedRestaurant == null) {
       return const SizedBox.shrink();
@@ -2161,6 +2219,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           data: restaurant,
           workedCount: _parseCount(restaurant['worked_here_count']),
           isFavorite: favoritePlaces.contains(docId),
+          bottomOffset: kMapRestaurantPopupBottomOffset,
           onClose: _clearTemporarySelection,
           onWorkedHere: () => _showWorkedDialog(
             docId,
@@ -2405,6 +2464,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 child: FloatingActionButton(
                   onPressed: _isLocating ? null : _handleLocationFabPressed,
                   heroTag: 'fab_location',
+                  shape: const CircleBorder(),
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.blueGrey.shade700,
                   child: LocationFabIcon(
@@ -2424,6 +2484,12 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     foregroundColor: Colors.blueGrey.shade700,
                     child: const Icon(Icons.zoom_out),
                   ),
+                ),
+              if (_showDebugZoomControls)
+                Positioned(
+                  top: 86,
+                  left: 16,
+                  child: SafeArea(child: _buildDebugZoomControls()),
                 ),
             ],
           ),
@@ -2461,6 +2527,7 @@ class CompactCategorySwitch extends StatelessWidget {
   final Category selected;
   final ValueChanged<Category> onChanged;
   final bool farmEnabled;
+  static const Color _hospitalityAccentColor = Color(0xFF9CAF9F);
 
   @override
   Widget build(BuildContext context) {
@@ -2487,7 +2554,11 @@ class CompactCategorySwitch extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 2),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.blueAccent : Colors.transparent,
+                color: isSelected
+                    ? category == Category.hospitality
+                          ? _hospitalityAccentColor
+                          : Colors.blueAccent
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: InkWell(

@@ -14,7 +14,7 @@ class ProfileButtonIcon extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           const Center(
-            child: Icon(Icons.person_outline, color: Colors.black87),
+            child: Icon(Icons.person_outline, color: Colors.black),
           ),
           if (showBadge)
             Positioned(

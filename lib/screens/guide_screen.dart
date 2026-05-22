@@ -9,6 +9,13 @@ import 'guide_page_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guide_section_screen.dart';
 
+class _GuideCategoryStyle {
+  const _GuideCategoryStyle({required this.background, required this.icon});
+
+  final Color background;
+  final Color icon;
+}
+
 class GuideScreen extends StatefulWidget {
   const GuideScreen({super.key, this.onNavigateToTab});
 
@@ -29,6 +36,41 @@ class _GuideScreenState extends State<GuideScreen> {
     'agriculture': Icons.agriculture,
     'directions_car': Icons.directions_car,
     'attach_money': Icons.attach_money,
+  };
+
+  static const Map<String, _GuideCategoryStyle> _categoryStyles = {
+    'visa_requirements': _GuideCategoryStyle(
+      background: Color(0xFFE8847A),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'before_arrival': _GuideCategoryStyle(
+      background: Color(0xFFE9B34F),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'arrival_steps': _GuideCategoryStyle(
+      background: Color(0xFFB985D8),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'housing': _GuideCategoryStyle(
+      background: Color(0xFFA6D7D2),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'work': _GuideCategoryStyle(
+      background: Color(0xFF78A8E5),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'regional_and_extension': _GuideCategoryStyle(
+      background: Color(0xFF98A76B),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'transport': _GuideCategoryStyle(
+      background: Color(0xFF63B3C1),
+      icon: Color(0xFFFFFFFF),
+    ),
+    'money_taxes': _GuideCategoryStyle(
+      background: Color(0xFF9B8172),
+      icon: Color(0xFFFFFFFF),
+    ),
   };
 
   late Future<GuideManual> _future;
@@ -423,6 +465,12 @@ class _GuideScreenState extends State<GuideScreen> {
                     ),
                     itemBuilder: (context, index) {
                       final section = sections[index];
+                      final categoryStyle =
+                          _categoryStyles[section.id] ??
+                          const _GuideCategoryStyle(
+                            background: Color(0xFFD9EAF7),
+                            icon: Color(0xFF5B8DB8),
+                          );
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: () => _openSection(context, section, snapshot.data!.strings),
@@ -444,19 +492,30 @@ class _GuideScreenState extends State<GuideScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(7),
+                                width: 42,
+                                height: 42,
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.withValues(alpha: 0.08),
-                                  shape: BoxShape.circle,
+                                  color: categoryStyle.background,
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: categoryStyle.icon.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      blurRadius: 10,
+                                      spreadRadius: -3,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: Icon(
                                   _iconForSection(section.icon),
                                   size: 22,
-                              color: Colors.blue[700],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
+                                  color: categoryStyle.icon,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
                                 resolve(section.title),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
