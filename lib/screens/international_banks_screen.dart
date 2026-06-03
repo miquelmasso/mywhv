@@ -37,7 +37,7 @@ class InternationalBanksScreen extends StatelessWidget {
       asset: 'assets/n26 logo.png',
       directLink: 'https://n26.com/r/miquelm1156?cid=CTK&lang=es',
       discountCode: 'miquelm1156',
-      discountButtonLabel: 'Ves a N26',
+      discountButtonLabel: 'Go to N26',
       background: Color(0xFFFFFFFF),
       foreground: Color(0xFF5B8DB8),
     ),
@@ -281,7 +281,7 @@ class _BankCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
-            'Código de descuento',
+            'Discount code',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: accentColor,
@@ -292,40 +292,52 @@ class _BankCard extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(48, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.07),
-                  border: Border.all(
-                    color: accentColor.withValues(alpha: 0.22),
-                  ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        discountCode,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: accentColor,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0,
-                        ),
+                  onTap: () async {
+                    await Clipboard.setData(ClipboardData(text: discountCode));
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(48, 8, 8, 8),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.07),
+                      border: Border.all(
+                        color: accentColor.withValues(alpha: 0.22),
                       ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    IconButton(
-                      tooltip: 'Copiar código',
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: discountCode),
-                        );
-                      },
-                      icon: const Icon(Icons.copy_rounded, color: accentColor),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            discountCode,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: accentColor,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Copy code',
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(text: discountCode),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.copy_rounded,
+                            color: accentColor,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],

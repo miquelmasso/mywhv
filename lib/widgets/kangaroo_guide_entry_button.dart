@@ -32,8 +32,8 @@ class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
   }
 
   Future<void> _prepareVisibility() async {
-    final finished =
-        await JourneyGuideProgressService.instance.isJourneyFinished();
+    final finished = await JourneyGuideProgressService.instance
+        .isJourneyFinished();
     if (!mounted || finished) return;
     setState(() => _visible = true);
     _controller.forward();
@@ -81,7 +81,7 @@ class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
                 ],
               ),
               child: const Text(
-                'Deixa’m guiar-te per Austràlia 🇦🇺',
+                'Let me guide you through Australia 🇦🇺',
                 style: TextStyle(
                   color: Color(0xFF1D222B),
                   fontWeight: FontWeight.w700,

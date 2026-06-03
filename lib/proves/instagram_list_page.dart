@@ -52,7 +52,7 @@ class _InstagramListPageState extends State<InstagramListPage> {
         _hasLoaded = true;
       });
     } catch (e) {
-      debugPrint('❌ Error carregant enllaços d\'Instagram: $e');
+      debugPrint('❌ Error loading Instagram links: $e');
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -135,16 +135,16 @@ class _InstagramListPageState extends State<InstagramListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Enllaços d\'Instagram'),
+        title: const Text('Instagram links'),
         backgroundColor: Colors.pinkAccent,
         actions: [
           IconButton(
-            tooltip: 'Recarregar',
+            tooltip: 'Reload',
             onPressed: _loading || _exporting ? null : _loadInstagramLinks,
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            tooltip: 'Exportar CSV',
+            tooltip: 'Export CSV',
             onPressed: _loading || _exporting ? null : _exportCsv,
             icon: _exporting
                 ? const SizedBox(
@@ -159,11 +159,9 @@ class _InstagramListPageState extends State<InstagramListPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : !_hasLoaded
-          ? const Center(
-              child: Text('Prem actualitzar per carregar les dades.'),
-            )
+          ? const Center(child: Text('Press reload to load the data.'))
           : _restaurants.isEmpty
-          ? const Center(child: Text('⚠️ No hi ha dades.'))
+          ? const Center(child: Text('⚠️ No data available.'))
           : Column(
               children: [
                 Container(
@@ -179,14 +177,14 @@ class _InstagramListPageState extends State<InstagramListPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Enllaços totals: ${_restaurants.length}',
+                          'Total links: ${_restaurants.length}',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                       ElevatedButton.icon(
                         onPressed: _exporting ? null : _exportCsv,
                         icon: const Icon(Icons.description_outlined),
-                        label: const Text('Generar CSV'),
+                        label: const Text('Generate CSV'),
                       ),
                     ],
                   ),
@@ -221,7 +219,7 @@ class _InstagramListPageState extends State<InstagramListPage> {
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.edit_outlined),
-                            tooltip: 'Editar restaurant',
+                            tooltip: 'Edit restaurant',
                             onPressed: () {
                               Navigator.push(
                                 context,

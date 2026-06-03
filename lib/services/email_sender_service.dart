@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 
+import 'app_error_dialog_service.dart';
+
 class EmailSenderService {
   static const _emailMessageKey = 'emailMessage';
 
@@ -15,7 +17,8 @@ class EmailSenderService {
     required String email,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final message = prefs.getString(_emailMessageKey) ?? 'Hola, adjunto mi currículum.';
+    final message =
+        prefs.getString(_emailMessageKey) ?? 'Hi, I am attaching my CV.';
     final cvPath = prefs.getString('cvPath');
 
     final attachments = <String>[];
@@ -34,7 +37,10 @@ class EmailSenderService {
     try {
       await FlutterEmailSender.send(emailToSend);
     } catch (e) {
-      // Silence UI to avoid disruptive snackbars; surface errors via logs if needed.
+      debugPrint('Email sender failed: $e');
+      if (context.mounted) {
+        await AppErrorDialogService.showMailErrorDialog(context);
+      }
     }
   }
 }

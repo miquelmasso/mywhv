@@ -26,7 +26,7 @@ class _TipsPageState extends State<TipsPage> {
         SnackBar(
           content: Text(
             total == 0
-                ? '⚠️ No s’han trobat restaurants a SQLite.'
+                ? '⚠️ No restaurants found in SQLite.'
                 : '✅ $total restaurants carregats des de SQLite.',
           ),
           backgroundColor: total == 0 ? Colors.orange : Colors.green.shade700,
@@ -53,7 +53,7 @@ class _TipsPageState extends State<TipsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Gestió de restaurants',
+          'Restaurant management',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
@@ -90,7 +90,7 @@ class _TipsPageState extends State<TipsPage> {
                 );
               },
               icon: const Icon(Icons.location_on),
-              label: const Text('Afegir per codi postal'),
+              label: const Text('Add by postcode'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.blueAccent,
@@ -108,7 +108,7 @@ class _TipsPageState extends State<TipsPage> {
                 );
               },
               icon: const Icon(Icons.map),
-              label: const Text('Afegir per estat'),
+              label: const Text('Add by state'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade600,

@@ -298,7 +298,7 @@ class MapMarkersService {
   // 🔹 Incrementa el comptador "worked_here_count"
   static Future<void> incrementWorkedHere(String docId) async {
     if (docId.trim().isEmpty) {
-      throw ArgumentError('Document ID buit o invàlid');
+      throw ArgumentError('Document ID is empty or invalid');
     }
     await _firestore.collection('restaurants').doc(docId).set({
       'worked_here_count': FieldValue.increment(1),
@@ -309,7 +309,7 @@ class MapMarkersService {
   // 🔹 Redueix el comptador "worked_here_count" si algú vol treure-ho
   static Future<void> decrementWorkedHere(String docId) async {
     if (docId.trim().isEmpty) {
-      throw ArgumentError('Document ID buit o invàlid');
+      throw ArgumentError('Document ID is empty or invalid');
     }
     debugPrint('ℹ️ decrementWorkedHere skipped: local SQLite mode');
   }

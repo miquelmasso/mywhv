@@ -52,7 +52,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
   Future<Map<String, dynamic>> scrapeContactsFromUrl(String url) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      throw ArgumentError('URL no vàlida (ha de ser http/https)');
+      throw ArgumentError('Invalid URL (must be http/https)');
     }
 
     final res = await http.get(
@@ -136,7 +136,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
     final double? lng = double.tryParse(_lngController.text.trim());
     if (lat == null || lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Introdueix latitud i longitud vàlides.')),
+        const SnackBar(content: Text('Enter valid latitude and longitude.')),
       );
       return;
     }
@@ -214,7 +214,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
     final url = _urlCtrl.text.trim();
     if (url.isEmpty) {
       setState(() {
-        _extractError = 'Introdueix una URL';
+        _extractError = 'Enter a URL';
       });
       return;
     }
@@ -253,7 +253,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
       debugPrint('scrapeContactsFromUrl error: $e\n$st');
       setState(() {
         _extractError =
-            'No s\'ha pogut extreure la informació. Torna-ho a provar.';
+            'We could not extract the information. Please try again.';
       });
     } finally {
       if (mounted) {
@@ -267,7 +267,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Afegir restaurant')),
+      appBar: AppBar(title: const Text('Add restaurant')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -314,7 +314,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                   controller: _nameController,
                   label: 'Nom del restaurant',
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'El nom és obligatori'
+                      ? 'Name is required'
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -325,7 +325,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                     decimal: true,
                   ),
                   validator: (v) => (double.tryParse(v ?? '') == null)
-                      ? 'Introdueix una latitud vàlida'
+                      ? 'Enter a valid latitude'
                       : null,
                   enablePaste: true,
                 ),
@@ -337,42 +337,42 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                     decimal: true,
                   ),
                   validator: (v) => (double.tryParse(v ?? '') == null)
-                      ? 'Introdueix una longitud vàlida'
+                      ? 'Enter a valid longitude'
                       : null,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _phoneController,
-                  label: 'Telèfon',
+                  label: 'Phone',
                   keyboardType: TextInputType.phone,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _emailController,
-                  label: 'Correu electrònic',
+                  label: 'Email',
                   keyboardType: TextInputType.emailAddress,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _facebookController,
-                  label: 'Enllaç de Facebook',
+                  label: 'Facebook link',
                   keyboardType: TextInputType.url,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _instagramController,
-                  label: 'Enllaç d\'Instagram',
+                  label: 'Instagram link',
                   keyboardType: TextInputType.url,
                   enablePaste: true,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
                   controller: _careersController,
-                  label: 'Pàgina de feina (careers)',
+                  label: 'Careers page',
                   keyboardType: TextInputType.url,
                   action: TextInputAction.done,
                   enablePaste: true,
@@ -383,7 +383,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                   icon: const Icon(Icons.save),
                   label: _saving
                       ? const Text('Guardant...')
-                      : const Text('Afegir restaurant'),
+                      : const Text('Add restaurant'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
                   ),

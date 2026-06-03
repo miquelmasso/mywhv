@@ -52,25 +52,25 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
 
   Future<void> _deleteByState() async {
     if (_selectedState == null) {
-      _showSnack('Selecciona un estat per eliminar.', Colors.orange);
+      _showSnack('Select a state to delete.', Colors.orange);
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar farms per estat'),
+        title: const Text('Delete farms by state'),
         content: Text(
-          'Segur que vols eliminar totes les farms de ${_selectedState!}? Aquesta acció no es pot desfer.',
+          'Are you sure you want to delete all farms from ${_selectedState!}? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel·lar'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -89,7 +89,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       setState(() => _deleted = deleted);
 
       _showSnack(
-        'Eliminades $_deleted farms de ${_selectedState!}',
+        'Deleted $_deleted farms from ${_selectedState!}',
         Colors.green,
       );
     } catch (e) {
@@ -104,7 +104,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
 
   Future<void> _importByState() async {
     if (_selectedState == null) {
-      _showSnack('Selecciona un estat per afegir.', Colors.orange);
+      _showSnack('Select a state to add.', Colors.orange);
       return;
     }
 
@@ -121,7 +121,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       final start = range.$1;
       final end = range.$2;
       if (end < start) {
-        throw Exception('No hi ha rang definit per ${_selectedState!}');
+        throw Exception('No range defined for ${_selectedState!}');
       }
 
       final added = await _importService.importFarmsForState(_selectedState!);
@@ -131,7 +131,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
       });
 
       _showSnack(
-        'Importació de farms completada per ${_selectedState!}. Nous: $added',
+        'Farm import completed for ${_selectedState!}. New: $added',
         Colors.green,
       );
     } catch (e) {
@@ -148,7 +148,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
     if (_isImportingHarvest) return;
     setState(() {
       _isImportingHarvest = true;
-      _harvestStatus = 'Descarregant...';
+      _harvestStatus = 'Downloading...';
       _harvestParsed = 0;
       _harvestWritten = 0;
       _harvestErrors = 0;
@@ -156,13 +156,13 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
 
     try {
       setState(() {
-        _harvestStatus = 'Llegint asset...';
+        _harvestStatus = 'Reading asset...';
       });
       final written = await _harvestAssetService.importHarvestPlacesFromAsset();
       _harvestParsed = written;
       _harvestWritten = written;
       _harvestErrors = 0;
-      _harvestStatus = 'Completat';
+      _harvestStatus = 'Completed';
       _showSnack('Harvest import. Docs: $written', Colors.green);
     } catch (e) {
       _showSnack('We could not import harvest data right now.', Colors.red);
@@ -209,7 +209,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestionar farms'),
+        title: const Text('Manage farms'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -221,14 +221,14 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Afegir o eliminar farms per estat.',
+              'Add or delete farms by state.',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _selectedState,
               decoration: const InputDecoration(
-                labelText: 'Escull estat',
+                labelText: 'Choose state',
                 border: OutlineInputBorder(),
               ),
               items: _states
@@ -242,9 +242,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
             ElevatedButton.icon(
               onPressed: (_isDeleting || _isImporting) ? null : _importByState,
               icon: const Icon(Icons.add),
-              label: Text(
-                _isImporting ? 'Important...' : 'Afegir farms per estat',
-              ),
+              label: Text(_isImporting ? 'Importing...' : 'Add farms by state'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade700,
@@ -257,7 +255,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
               icon: const Icon(Icons.cloud_download),
               label: Text(
                 _isImportingHarvest
-                    ? 'Important...'
+                    ? 'Importing...'
                     : '🌾 Import Harvest (Admin)',
               ),
               style: ElevatedButton.styleFrom(
@@ -288,7 +286,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
               onPressed: _isDeleting ? null : _deleteByState,
               icon: const Icon(Icons.delete_forever),
               label: Text(
-                _isDeleting ? 'Eliminant...' : 'Eliminar farms per estat',
+                _isDeleting ? 'Deleting...' : 'Delete farms by state',
               ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
@@ -305,7 +303,7 @@ class _ManageFarmsPageState extends State<ManageFarmsPage> {
               const SizedBox(height: 8),
               if (_total > 0 && _isImporting)
                 Text(
-                  'Important $_processed/$_total codis per ${_selectedState ?? ''}...',
+                  'Importing $_processed/$_total postcodes for ${_selectedState ?? ''}...',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               if (_isImportingHarvest)

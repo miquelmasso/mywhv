@@ -12,34 +12,38 @@ class EmailExtractor {
     debugPrint(msg);
   }
 
-  Future<String?> extract(String baseUrl, {String? businessName, String? locationName}) async {
+  Future<String?> extract(
+    String baseUrl, {
+    String? businessName,
+    String? locationName,
+  }) async {
     final tried = <String>{};
     final found = <Map<String, dynamic>>[];
-final cleanedBase = _cleanBaseUrl(baseUrl);
+    final cleanedBase = _cleanBaseUrl(baseUrl);
 
-// 🔹 Funció segura per combinar camins sense duplicar el domini
-String safeCombine(String base, String path) {
-  // Si el path ja comença amb http o amb el domini complet, el retorna tal qual
-  if (path.startsWith('http') || path.startsWith(base)) return path;
+    // 🔹 Funció segura per combinar camins sense duplicar el domini
+    String safeCombine(String base, String path) {
+      // Si el path ja comença amb http o amb el domini complet, el retorna tal qual
+      if (path.startsWith('http') || path.startsWith(base)) return path;
 
-  // Si és un path buit o "/", retorna simplement el domini base
-  if (path.isEmpty || path == '/') return base;
+      // Si és un path buit o "/", retorna simplement el domini base
+      if (path.isEmpty || path == '/') return base;
 
-  // Afegeix "/" només si cal
-  return base.endsWith('/') ? '$base$path' : '$base/$path';
-}
+      // Afegeix "/" només si cal
+      return base.endsWith('/') ? '$base$path' : '$base/$path';
+    }
 
-// 🔹 Llista d’URLs a comprovar, amb combinació segura
-final urlsToCheck = <String>{
-  cleanedBase,
-  safeCombine(cleanedBase, 'contact'),
-  safeCombine(cleanedBase, 'contact-us'),
-  safeCombine(cleanedBase, 'about'),
-  safeCombine(cleanedBase, 'about-us'),
-  safeCombine(cleanedBase, 'work-with-us'),
-  safeCombine(cleanedBase, 'join-us'),
-  safeCombine(cleanedBase, 'careers'),
-};
+    // 🔹 Llista d’URLs a comprovar, amb combinació segura
+    final urlsToCheck = <String>{
+      cleanedBase,
+      safeCombine(cleanedBase, 'contact'),
+      safeCombine(cleanedBase, 'contact-us'),
+      safeCombine(cleanedBase, 'about'),
+      safeCombine(cleanedBase, 'about-us'),
+      safeCombine(cleanedBase, 'work-with-us'),
+      safeCombine(cleanedBase, 'join-us'),
+      safeCombine(cleanedBase, 'careers'),
+    };
 
     for (final url in urlsToCheck) {
       if (!tried.add(url)) continue;
@@ -56,7 +60,7 @@ final urlsToCheck = <String>{
 
       for (final email in candidates) {
         if (!_isValidEmail(email, _domain(baseUrl), originUrl: url)) {
-          _logEmail('❌ Filtrat: $email (invàlid)');
+          _logEmail('❌ Filtered: $email (invalid)');
           continue;
         }
 
@@ -73,7 +77,7 @@ final urlsToCheck = <String>{
     }
 
     if (found.isEmpty) {
-      _logEmail('⚠️ Cap correu vàlid trobat per $baseUrl');
+      _logEmail('⚠️ No valid email found for $baseUrl');
       return null;
     }
 
@@ -86,7 +90,7 @@ final urlsToCheck = <String>{
 
     final best = found.first;
     if ((best['score'] as int) < 40) {
-      _logEmail('⚠️ Cap correu amb prou confiança.');
+      _logEmail('⚠️ No email with enough confidence.');
       return null;
     }
 
@@ -99,7 +103,9 @@ final urlsToCheck = <String>{
     try {
       final client = HttpClient()..badCertificateCallback = (_, _, _) => true;
       final ioClient = IOClient(client);
-      final response = await ioClient.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final response = await ioClient
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) return response.body;
       _logEmail('⚠️ HTTP ${response.statusCode} per $url');
@@ -110,19 +116,20 @@ final urlsToCheck = <String>{
   }
 
   // ---------------- Extractors ----------------
-  final _emailRegex = RegExp(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}');
+  final _emailRegex = RegExp(
+    r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+  );
 
-  Set<String> _emailsFromMailto(String html) =>
-      RegExp(r'mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})')
-          .allMatches(html)
-          .map((m) => m.group(1)!)
-          .toSet();
+  Set<String> _emailsFromMailto(String html) => RegExp(
+    r'mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})',
+  ).allMatches(html).map((m) => m.group(1)!).toSet();
 
   Set<String> _emailsDirect(String html) =>
       _emailRegex.allMatches(html).map((m) => m.group(0)!).toSet();
 
-  Set<String> _emailsFromJsonLd(String html) =>
-      RegExp(r'"email"\s*:\s*"([^"]+)"').allMatches(html).map((m) => m.group(1)!).toSet();
+  Set<String> _emailsFromJsonLd(String html) => RegExp(
+    r'"email"\s*:\s*"([^"]+)"',
+  ).allMatches(html).map((m) => m.group(1)!).toSet();
 
   String _deobfuscate(String html) => html
       .replaceAll('&commat;', '@')
@@ -168,13 +175,26 @@ final urlsToCheck = <String>{
 
     // 🔹 Paraules clau útils
     const roleKeywords = [
-      'reception', 'contact', 'info', 'admin', 'manager', 'sales',
-      'reservations', 'booking', 'orders', 'team', 'hr', 'hello'
+      'reception',
+      'contact',
+      'info',
+      'admin',
+      'manager',
+      'sales',
+      'reservations',
+      'booking',
+      'orders',
+      'team',
+      'hr',
+      'hello',
     ];
     if (roleKeywords.any((k) => e.contains(k))) score += 20;
 
     // 🔹 Nom de l'empresa
-    final nameParts = businessName.toLowerCase().split(RegExp(r'[\s\-_]+')).where((n) => n.length > 3);
+    final nameParts = businessName
+        .toLowerCase()
+        .split(RegExp(r'[\s\-_]+'))
+        .where((n) => n.length > 3);
     if (nameParts.any((p) => e.contains(p))) score += 20;
 
     // 🔹 Localització
@@ -201,45 +221,71 @@ final urlsToCheck = <String>{
   }
 
   // ---------------- Validació ----------------
- bool _isValidEmail(String email, String domain, {String? originUrl}) {
-  final e = email.toLowerCase();
+  bool _isValidEmail(String email, String domain, {String? originUrl}) {
+    final e = email.toLowerCase();
 
-  // 1️⃣ Patró bàsic correcte
-  final baseValid = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(com|com\.au)$').hasMatch(e);
-  if (!baseValid) return false;
+    // 1️⃣ Patró bàsic correcte
+    final baseValid = RegExp(
+      r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(com|com\.au)$',
+    ).hasMatch(e);
+    if (!baseValid) return false;
 
-  // 2️⃣ Bloqueja si el website o origen és Facebook o similar
-  if ((originUrl ?? '').contains('facebook.com') || (originUrl ?? '').contains('fbcdn.net')) {
-    return false;
+    // 2️⃣ Bloqueja si el website o origen és Facebook o similar
+    if ((originUrl ?? '').contains('facebook.com') ||
+        (originUrl ?? '').contains('fbcdn.net')) {
+      return false;
+    }
+
+    // 3️⃣ Bloqueja correus que semblin tècnics o falsos
+    const blockedPatterns = [
+      'loc@ion',
+      'valid@ion',
+      'transl@tion',
+      'jquery',
+      'cookie',
+      'anim@ed',
+      'modulemetad@a',
+      'mut@ion',
+      'dataset',
+      'popover',
+      'popover',
+      'popover',
+      'test@',
+      'appspot',
+      'example',
+      'localhost',
+      'static',
+      'analytics',
+      'popover',
+      'react',
+      'popover',
+      'badge',
+      'popover',
+      'dataset',
+      'aLayer.push',
+      'render',
+      'imageinfo',
+      'popover',
+      'popover',
+    ];
+    for (final pattern in blockedPatterns) {
+      if (e.contains(pattern)) return false;
+    }
+
+    // 4️⃣ Bloqueja dominis sospitosos o no humans
+    const invalidDomains = [
+      'sky.com', // correu personal no relacionat amb negocis
+      'sentry.io',
+      'wixpress.com',
+      'parastorage.com',
+      'cloudflare.com',
+      'google.com',
+      'example.com',
+    ];
+    for (final bad in invalidDomains) {
+      if (e.endsWith(bad)) return false;
+    }
+
+    return true;
   }
-
-  // 3️⃣ Bloqueja correus que semblin tècnics o falsos
-  const blockedPatterns = [
-    'loc@ion', 'valid@ion', 'transl@tion', 'jquery', 'cookie', 'anim@ed',
-    'modulemetad@a', 'mut@ion', 'dataset', 'popover', 'popover', 'popover', 
-    'test@', 'appspot', 'example', 'localhost', 'static', 'analytics', 'popover',
-    'react', 'popover', 'badge', 'popover', 'dataset', 'aLayer.push', 'render',
-    'imageinfo', 'popover', 'popover'
-  ];
-  for (final pattern in blockedPatterns) {
-    if (e.contains(pattern)) return false;
-  }
-
-  // 4️⃣ Bloqueja dominis sospitosos o no humans
-  const invalidDomains = [
-    'sky.com', // correu personal no relacionat amb negocis
-    'sentry.io',
-    'wixpress.com',
-    'parastorage.com',
-    'cloudflare.com',
-    'google.com',
-    'example.com'
-  ];
-  for (final bad in invalidDomains) {
-    if (e.endsWith(bad)) return false;
-  }
-
-
-  return true;
-}
 }

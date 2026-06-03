@@ -48,7 +48,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (!GoogleServicesConfig.enableExternalGoogleMapsLinks) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Maps està pausat temporalment.')),
+        const SnackBar(content: Text('Google Maps is temporarily paused.')),
       );
       return;
     }

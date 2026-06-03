@@ -274,7 +274,7 @@ Future<bool?> _showDiscountCodeDialog(BuildContext context) async {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
-          'Código de descuento',
+          'Discount code',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: accentColor,
@@ -285,38 +285,54 @@ Future<bool?> _showDiscountCodeDialog(BuildContext context) async {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(48, 8, 8, 8),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.07),
-                border: Border.all(color: accentColor.withValues(alpha: 0.22)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      discountCode,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: accentColor,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0,
-                      ),
+                onTap: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(text: discountCode),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(48, 8, 8, 8),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.07),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.22),
                     ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  IconButton(
-                    tooltip: 'Copiar código',
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        const ClipboardData(text: discountCode),
-                      );
-                    },
-                    icon: const Icon(Icons.copy_rounded, color: accentColor),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          discountCode,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: accentColor,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Copy code',
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            const ClipboardData(text: discountCode),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.copy_rounded,
+                          color: accentColor,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ],

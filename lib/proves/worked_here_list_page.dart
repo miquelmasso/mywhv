@@ -108,7 +108,7 @@ class _WorkedHereListPageState extends State<WorkedHereListPage> {
         backgroundColor: Colors.deepPurple,
         actions: [
           IconButton(
-            tooltip: 'Recarregar',
+            tooltip: 'Reload',
             onPressed: _loading ? null : _loadRestaurants,
             icon: const Icon(Icons.refresh),
           ),
@@ -117,11 +117,9 @@ class _WorkedHereListPageState extends State<WorkedHereListPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : !_hasLoaded
-          ? const Center(
-              child: Text('Prem actualitzar per carregar les dades.'),
-            )
+          ? const Center(child: Text('Press reload to load the data.'))
           : _restaurants.isEmpty
-          ? const Center(child: Text('No hi ha restaurants disponibles.'))
+          ? const Center(child: Text('No restaurants available.'))
           : Column(
               children: [
                 Container(
@@ -175,7 +173,7 @@ class _WorkedHereListPageState extends State<WorkedHereListPage> {
                               const SizedBox(width: 8),
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined),
-                                tooltip: 'Editar restaurant',
+                                tooltip: 'Edit restaurant',
                                 onPressed: () {
                                   Navigator.push(
                                     context,

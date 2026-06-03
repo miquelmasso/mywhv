@@ -24,7 +24,6 @@ import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../services/runtime_device_service.dart';
 import '../utils/australia_map_viewport.dart';
-import '../widgets/broken_link_popup_test_button.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/map_place_popup.dart';
@@ -84,7 +83,6 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const double _defaultZoom = 3.8;
   static const double _maxMapZoom = 18.2;
   static const bool _showZoomOutButton = false;
-  static const bool _showDebugZoomControls = true;
   static const double _locationFabBottom = kMapPopupDockOffset + 172;
   static const double _initialKangarooBottomOffset = 212;
   static const double _zoomOutStep = 1.2;
@@ -1617,7 +1615,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Future<void> _toggleFavorite(String restaurantId) async {
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: this place has no valid ID.')),
       );
       return;
     }
@@ -1684,7 +1682,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: this place has no valid ID.')),
       );
       return;
     }
@@ -2166,47 +2164,6 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     unawaited(controller.animateCamera(CameraUpdate.zoomBy(-_zoomOutStep)));
   }
 
-  void _zoomIn() {
-    final controller = _mapController;
-    if (controller == null) return;
-    unawaited(controller.animateCamera(CameraUpdate.zoomBy(_zoomOutStep)));
-  }
-
-  Widget _buildDebugZoomControls() {
-    Widget button({required IconData icon, required VoidCallback onPressed}) {
-      return SizedBox(
-        width: 42,
-        height: 42,
-        child: IconButton(
-          tooltip: icon == Icons.add ? 'Zoom in' : 'Zoom out',
-          onPressed: onPressed,
-          icon: Icon(icon, size: 22),
-          color: Colors.black87,
-          padding: EdgeInsets.zero,
-        ),
-      );
-    }
-
-    // Temporary testing aid: remove this helper and _showDebugZoomControls later.
-    return Material(
-      color: Colors.white.withValues(alpha: 0.94),
-      elevation: 4,
-      borderRadius: BorderRadius.circular(22),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          button(icon: Icons.add, onPressed: _zoomIn),
-          Container(
-            width: 24,
-            height: 1,
-            color: Colors.black.withValues(alpha: 0.10),
-          ),
-          button(icon: Icons.remove, onPressed: _zoomOut),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRestaurantPopup() {
     if (_selectedRestaurant == null) {
       return const SizedBox.shrink();
@@ -2487,18 +2444,6 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     child: const Icon(Icons.zoom_out),
                   ),
                 ),
-              if (_showDebugZoomControls)
-                Positioned(
-                  top: 86,
-                  left: 16,
-                  child: SafeArea(child: _buildDebugZoomControls()),
-                ),
-              // Temporary QA button for previewing the broken-link dialog.
-              const Positioned(
-                left: 16,
-                bottom: 112,
-                child: SafeArea(child: BrokenLinkPopupTestButton()),
-              ),
             ],
           ),
         );

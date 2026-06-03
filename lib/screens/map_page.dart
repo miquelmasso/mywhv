@@ -1108,7 +1108,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sí'),
+            child: const Text('Yes'),
           ),
         ],
       ),
@@ -1199,7 +1199,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
-              'Google Maps està pausat temporalment.',
+              'Google Maps is temporarily paused.',
               textAlign: TextAlign.center,
             ),
           ),

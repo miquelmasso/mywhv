@@ -1862,7 +1862,7 @@ Widget _buildBlockWidget(
                 }
               : null,
           child: _InfoCard(
-            title: block.title ?? (isWarning ? 'Atenció' : 'Tip'),
+            title: block.title ?? (isWarning ? 'Important' : 'Tip'),
             color: Colors.orange.shade50,
             leading: Icon(
               isWarning ? Icons.warning_amber : Icons.lightbulb_outline,
@@ -2603,6 +2603,7 @@ class _PopularESimsButton extends StatelessWidget {
                   'sally_link',
                   'Sally_link',
                   'sallyesim_link',
+                  'sally e-sim_link',
                 ]),
               ),
               const SizedBox(height: 12),

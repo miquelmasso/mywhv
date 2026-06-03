@@ -44,7 +44,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     if (_selectedState == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona un estat.')));
+      ).showSnackBar(const SnackBar(content: Text('Select a state.')));
       return;
     }
 
@@ -62,7 +62,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
       final start = range.$1;
       final end = range.$2;
       if (end < start) {
-        throw Exception('No hi ha rang definit per ${_selectedState!}');
+        throw Exception('No range defined for ${_selectedState!}');
       }
 
       setState(() => _total = end - start + 1);
@@ -129,7 +129,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     if (_skipCompleter != null && !_skipCompleter!.isCompleted) {
       _skipCompleter!.complete();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saltant el codi $_currentPostcode...')),
+        SnackBar(content: Text('Skipping postcode $_currentPostcode...')),
       );
     }
   }
@@ -143,7 +143,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Afegir per estat',
+          'Add by state',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
@@ -162,14 +162,14 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
           children: [
             const SizedBox(height: 10),
             const Text(
-              'Importa tots els codis postals remots d’un estat (criteris Tourism & Hospitality).',
+              'Import all remote postcodes from one state (Tourism & Hospitality criteria).',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 18),
             DropdownButtonFormField<String>(
               initialValue: _selectedState,
               decoration: InputDecoration(
-                labelText: 'Escull estat',
+                labelText: 'Choose state',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -185,7 +185,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
             ElevatedButton.icon(
               onPressed: _isImporting ? null : _startImport,
               icon: const Icon(Icons.download),
-              label: const Text('Importar restaurants per estat'),
+              label: const Text('Import restaurants by state'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade600,
@@ -199,13 +199,13 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
               Text(
                 _total == 0
                     ? 'Preparing import for ${_selectedState ?? ''}...'
-                    : 'Important $_processed/$_total codis postals per ${_selectedState ?? ''}...',
+                    : 'Importing $_processed/$_total postcodes for ${_selectedState ?? ''}...',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               if (_currentPostcode != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Codi actual: $_currentPostcode',
+                  'Current postcode: $_currentPostcode',
                   style: const TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 12),
@@ -214,7 +214,7 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
                   child: OutlinedButton.icon(
                     onPressed: _skipCurrentPostcode,
                     icon: const Icon(Icons.fast_forward_rounded),
-                    label: const Text('Saltar i seguir'),
+                    label: const Text('Skip and continue'),
                   ),
                 ),
               ] else
@@ -222,8 +222,8 @@ class _AddRestaurantsByStatePageState extends State<AddRestaurantsByStatePage> {
             ],
             const SizedBox(height: 16),
             Text(
-              'Les dades es guarden amb:'
-              ' nom, telèfon, email, web, facebook_url, latitude/longitude, postcode, postcode_display, worked_here_count, state, timestamp.',
+              'Data is saved with:'
+              ' name, phone, email, web, facebook_url, latitude/longitude, postcode, postcode_display, worked_here_count, state, timestamp.',
               style: const TextStyle(color: Colors.black54),
             ),
           ],

@@ -29,7 +29,7 @@ class RestaurantCollector {
     // 2️⃣ Fusionem i eliminem duplicats
     final allPostcodes = {...postcodes417, ...postcodes462}.toList();
     debugPrint(
-      '📍 ${allPostcodes.length} codis únics de Tourism & Hospitality trobats.',
+      '📍 Found ${allPostcodes.length} unique Tourism & Hospitality postcodes.',
     );
 
     // 3️⃣ Recorrem cada codi postal
@@ -84,9 +84,8 @@ class RestaurantCollector {
     final snapshot = await _firestore.collection(collectionName).get();
     final tourismDoc = snapshot.docs.firstWhere(
       (d) => d.id.toLowerCase().contains('tourism'),
-      orElse: () => throw Exception(
-        '❌ No s’ha trobat la indústria Tourism a $collectionName',
-      ),
+      orElse: () =>
+          throw Exception('❌ Tourism industry not found in $collectionName'),
     );
     return List<int>.from(tourismDoc['postcodes']);
   }

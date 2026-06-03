@@ -121,7 +121,9 @@ class RestaurantFetcher {
       ...snap462.docs.map((d) => d['postcode']),
     }.toList();
 
-    debugPrint("🚀 Trobats ${allPostcodes.length} codis únics per 417 i 462");
+    debugPrint(
+      "🚀 Found ${allPostcodes.length} unique postcodes for 417 and 462",
+    );
 
     for (final postcode in allPostcodes) {
       final restaurants = await _fetchRestaurants(postcode);

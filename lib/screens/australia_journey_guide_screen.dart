@@ -30,6 +30,11 @@ class AustraliaJourneyGuideScreen extends StatefulWidget {
       _AustraliaJourneyGuideScreenState();
 }
 
+final Map<String, List<String>> journeyGuideChecklistItemsByStep = {
+  for (final step in _AustraliaJourneyGuideScreenState._steps)
+    step.id: step.checklistItems,
+};
+
 class _AustraliaJourneyGuideScreenState
     extends State<AustraliaJourneyGuideScreen> {
   static const List<_JourneyStepData> _steps = [
@@ -1433,6 +1438,7 @@ class _RecommendedResourceCard extends StatelessWidget {
                 'sally_link',
                 'Sally_link',
                 'sallyesim_link',
+                'sally e-sim_link',
               ],
             ),
             _ResourceProvider(

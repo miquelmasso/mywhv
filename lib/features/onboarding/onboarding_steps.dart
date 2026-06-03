@@ -1,4 +1,11 @@
-enum OnboardingTarget { none, mapArea, mapTab, automaticEmail, guideTab }
+enum OnboardingTarget {
+  none,
+  mapArea,
+  mapTab,
+  automaticEmail,
+  guideTab,
+  guideKangaroo,
+}
 
 class OnboardingStepData {
   const OnboardingStepData({
@@ -55,7 +62,14 @@ const List<OnboardingStepData> onboardingSteps = <OnboardingStepData>[
       'housing',
       'taxes and super',
     ],
-    primaryLabel: 'Finish',
+    primaryLabel: 'Next',
     target: OnboardingTarget.guideTab,
+  ),
+  OnboardingStepData(
+    id: 'guide_kangaroo',
+    title: 'Your Australia journey',
+    description: 'Tap the kangaroo to open the guided journey and checklist.',
+    primaryLabel: 'Finish',
+    target: OnboardingTarget.guideKangaroo,
   ),
 ];

@@ -30,7 +30,7 @@ class DataListsPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.email_outlined),
-                label: const Text('Correus'),
+                label: const Text('Emails'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   foregroundColor: Colors.white,

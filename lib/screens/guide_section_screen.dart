@@ -1093,6 +1093,7 @@ class _PopularESimsButton extends StatelessWidget {
                   'sally_link',
                   'Sally_link',
                   'sallyesim_link',
+                  'sally e-sim_link',
                 ]),
               ),
               const SizedBox(height: 12),

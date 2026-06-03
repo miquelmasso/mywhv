@@ -10,14 +10,14 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
+      appBar: AppBar(title: const Text('Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Configuració de perfil',
+              'Profile settings',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -35,7 +35,9 @@ class ProfilePage extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const MailSetupPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const MailSetupPage(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.email_outlined),
@@ -43,7 +45,10 @@ class ProfilePage extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
 
@@ -53,7 +58,9 @@ class ProfilePage extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const FavoritesScreen(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.favorite_outline),
@@ -61,7 +68,10 @@ class ProfilePage extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.pinkAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
 
@@ -72,7 +82,9 @@ class ProfilePage extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const AdminPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const AdminPage(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.admin_panel_settings),
@@ -80,7 +92,10 @@ class ProfilePage extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueGrey,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
+import '../services/journey_guide_progress_service.dart';
 import '../services/search_service.dart';
 import 'australia_journey_guide_screen.dart';
 import 'guide_page_screen.dart';
@@ -19,9 +20,10 @@ class _GuideCategoryStyle {
 }
 
 class GuideScreen extends StatefulWidget {
-  const GuideScreen({super.key, this.onNavigateToTab});
+  const GuideScreen({super.key, this.onNavigateToTab, this.kangarooButtonKey});
 
   final void Function(int index)? onNavigateToTab;
+  final GlobalKey? kangarooButtonKey;
 
   @override
   State<GuideScreen> createState() => _GuideScreenState();
@@ -83,11 +85,13 @@ class _GuideScreenState extends State<GuideScreen> {
   List<SearchResult> _results = [];
   final SearchService _searchService = SearchService.instance;
   final TextEditingController _searchController = TextEditingController();
+  bool _showJourneyBadge = true;
 
   @override
   void initState() {
     super.initState();
     _future = _loadManualWithSavedLocale();
+    _refreshJourneyBadge();
   }
 
   void _clearSearch() {
@@ -320,7 +324,7 @@ class _GuideScreenState extends State<GuideScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_results.isEmpty) {
-      return const Center(child: Text('No s’han trobat resultats'));
+      return const Center(child: Text('No results found'));
     }
     return ListView.separated(
       itemCount: _results.length,
@@ -377,11 +381,20 @@ class _GuideScreenState extends State<GuideScreen> {
     );
   }
 
+  Future<void> _refreshJourneyBadge() async {
+    final completed = await JourneyGuideProgressService.instance
+        .isEverythingCompleted(
+          checklistItemsByStep: journeyGuideChecklistItemsByStep,
+        );
+    if (!mounted) return;
+    setState(() => _showJourneyBadge = !completed);
+  }
+
   Future<void> _openJourneyGuide() async {
     _clearSearch();
     final manual = await _future;
     if (!mounted) return;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AustraliaJourneyGuideScreen(
@@ -390,6 +403,8 @@ class _GuideScreenState extends State<GuideScreen> {
         ),
       ),
     );
+    if (!mounted) return;
+    await _refreshJourneyBadge();
   }
 
   @override
@@ -401,16 +416,45 @@ class _GuideScreenState extends State<GuideScreen> {
         leading: Padding(
           padding: const EdgeInsets.only(left: 18, top: 8),
           child: InkWell(
+            key: widget.kangarooButtonKey,
             customBorder: const CircleBorder(),
             onTap: _openJourneyGuide,
             child: SizedBox(
               width: 82,
               height: 82,
-              child: Image.asset(
-                'assets/ kangaroo_icon.png',
-                width: 82,
-                height: 82,
-                fit: BoxFit.contain,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Image.asset(
+                      'assets/ kangaroo_icon.png',
+                      width: 82,
+                      height: 82,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  if (_showJourneyBadge)
+                    Positioned(
+                      top: 13,
+                      right: 13,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE94B4B),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -473,7 +517,7 @@ class _GuideScreenState extends State<GuideScreen> {
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Error carregant la guia.'),
+                            const Text('We could not load the guide.'),
                             const SizedBox(height: 12),
                             ElevatedButton(
                               onPressed: () {
@@ -513,9 +557,7 @@ class _GuideScreenState extends State<GuideScreen> {
 
                       final sections = _filterSections(snapshot.data!.sections);
                       if (sections.isEmpty) {
-                        return const Center(
-                          child: Text('No s’han trobat seccions.'),
-                        );
+                        return const Center(child: Text('No sections found.'));
                       }
                       return GridView.builder(
                         itemCount: sections.length,

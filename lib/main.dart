@@ -109,6 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
       GlobalKey<MapScreenState>();
   final GlobalKey _mapTabIconKey = GlobalKey();
   final GlobalKey _guideTabIconKey = GlobalKey();
+  final GlobalKey _guideKangarooButtonKey = GlobalKey();
   OnboardingController? _onboardingController;
   late bool _isMaintenanceScreenVisible;
 
@@ -165,7 +166,10 @@ class _MyHomePageState extends State<MyHomePage> {
         _isMaintenanceScreenVisible
             ? const MapMaintenancePage()
             : MapScreen(key: _primaryOsmMapPageKey),
-      1 => GuideScreen(onNavigateToTab: _onItemTapped),
+      1 => GuideScreen(
+        onNavigateToTab: _onItemTapped,
+        kangarooButtonKey: _guideKangarooButtonKey,
+      ),
       2 => const TipsRandomPage(),
       3 => const ForumPage(),
       _ => const SizedBox.shrink(),
@@ -225,7 +229,8 @@ class _MyHomePageState extends State<MyHomePage> {
       OnboardingTarget.mapArea ||
       OnboardingTarget.mapTab ||
       OnboardingTarget.automaticEmail => _mapTabIndex,
-      OnboardingTarget.guideTab => _guideTabIndex,
+      OnboardingTarget.guideTab ||
+      OnboardingTarget.guideKangaroo => _guideTabIndex,
       OnboardingTarget.none => null,
     };
   }
@@ -453,6 +458,8 @@ class _MyHomePageState extends State<MyHomePage> {
         return primaryOsmMapState?.onboardingMailTileRect;
       case OnboardingTarget.guideTab:
         return _rectForKey(_guideTabIconKey);
+      case OnboardingTarget.guideKangaroo:
+        return _rectForKey(_guideKangarooButtonKey);
     }
   }
 

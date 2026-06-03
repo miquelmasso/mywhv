@@ -39,7 +39,7 @@ class _AddRestaurantsByPostcodePageState
     final input = _postcodeController.text.trim();
     if (input.isEmpty) {
       setState(() {
-        _result = '❌ Introdueix un codi postal.';
+        _result = '❌ Enter a postcode.';
         _restaurantName = '';
       });
       return;
@@ -50,7 +50,7 @@ class _AddRestaurantsByPostcodePageState
 
     if (postcodeNum == null) {
       setState(() {
-        _result = '❌ Escriu un número vàlid.';
+        _result = '❌ Enter a valid number.';
         _restaurantName = '';
       });
       return;
@@ -84,15 +84,15 @@ class _AddRestaurantsByPostcodePageState
 
       if (!found) {
         setState(() {
-          _result = '⚠️ $postcodeStr no és regional ni remot.';
+          _result = '⚠️ $postcodeStr is not regional or remote.';
         });
       } else {
         if (category.contains('Regional')) {
-          _result = '✅ $postcodeStr és REGIONAL (Regional Australia)';
+          _result = '✅ $postcodeStr is REGIONAL (Regional Australia)';
         } else if (category.contains('Hospitality')) {
-          _result = '✅ $postcodeStr és REMOTE (Tourism & Hospitality)';
+          _result = '✅ $postcodeStr is REMOTE (Tourism & Hospitality)';
         } else {
-          _result = '✅ $postcodeStr és vàlid per al visat 417/462.';
+          _result = '✅ $postcodeStr is valid for visa 417/462.';
         }
 
         final list = await _placesService.saveTwoRestaurantsForPostcode(
@@ -101,14 +101,14 @@ class _AddRestaurantsByPostcodePageState
         final restaurant = list.isNotEmpty ? list.first : null;
 
         if (restaurant != null) {
-          final name = restaurant['name'] ?? 'Nom desconegut';
+          final name = restaurant['name'] ?? 'Unknown name';
 
           setState(() {
             _restaurantName = name;
           });
         } else {
           setState(() {
-            _restaurantName = 'No s’ha trobat cap restaurant per aquest codi.';
+            _restaurantName = 'No restaurants found for this postcode.';
           });
         }
       }
@@ -125,7 +125,7 @@ class _AddRestaurantsByPostcodePageState
   Future<void> _addRestaurantAutomatically() async {
     final input = _postcodeController.text.trim();
     if (input.isEmpty) {
-      _showSnack('❌ Introdueix un codi postal.');
+      _showSnack('❌ Enter a postcode.');
       return;
     }
 
@@ -141,20 +141,17 @@ class _AddRestaurantsByPostcodePageState
 
       if (!result.allowed) {
         _showSnack(
-          '❌ El codi postal ${result.postcode} no és REMOT ni del Northern Territory.',
+          '❌ Postcode ${result.postcode} is not REMOTE or in the Northern Territory.',
           color: Colors.deepOrange,
         );
         return;
       }
 
       if (result.addedCount == 0) {
-        _showSnack(
-          '⚠️ No s’han trobat restaurants nous.',
-          color: Colors.orange,
-        );
+        _showSnack('⚠️ No new restaurants found.', color: Colors.orange);
       } else {
         _showSnack(
-          '✅ ${result.addedCount} restaurants afegits correctament per ${result.postcode}!',
+          '✅ ${result.addedCount} restaurants added for ${result.postcode}!',
           color: Colors.green,
         );
       }
@@ -179,15 +176,12 @@ class _AddRestaurantsByPostcodePageState
           .get();
 
       if (snapshot.docs.isEmpty) {
-        _showSnack(
-          '⚠️ No hi ha cap restaurant per eliminar.',
-          color: Colors.orange,
-        );
+        _showSnack('⚠️ No restaurants to delete.', color: Colors.orange);
       } else {
         final doc = snapshot.docs.first;
-        final name = doc['name'] ?? 'Desconegut';
+        final name = doc['name'] ?? 'Unknown';
         await doc.reference.delete();
-        _showSnack('🗑️ Eliminat: $name', color: Colors.redAccent);
+        _showSnack('🗑️ Deleted: $name', color: Colors.redAccent);
       }
     } catch (e) {
       _showSnack(
@@ -220,8 +214,8 @@ class _AddRestaurantsByPostcodePageState
         await snapshot.docs[i].reference.delete();
       }
 
-      final lastName = snapshot.docs.first['name'] ?? 'Desconegut';
-      _showSnack('🧹 Tots eliminats excepte: $lastName', color: Colors.purple);
+      final lastName = snapshot.docs.first['name'] ?? 'Unknown';
+      _showSnack('🧹 Deleted all except: $lastName', color: Colors.purple);
     } catch (e) {
       _showSnack(
         'We could not delete the restaurants right now. Please try again.',
@@ -235,9 +229,9 @@ class _AddRestaurantsByPostcodePageState
   Future<void> _findAllRestaurantsByPostcode() async {
     final input = _postcodeController.text.trim();
     if (input.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Introdueix un codi postal.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('❌ Enter a postcode.')));
       return;
     }
 
@@ -261,17 +255,13 @@ class _AddRestaurantsByPostcodePageState
       if (totalAdded == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '⚠️ No s’han trobat nous restaurants per $postcodeStr.',
-            ),
+            content: Text('⚠️ No new restaurants found for $postcodeStr.'),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '✅ S’han afegit $totalAdded restaurants per $postcodeStr!',
-            ),
+            content: Text('✅ Added $totalAdded restaurants for $postcodeStr!'),
             backgroundColor: Colors.green.shade700,
           ),
         );
@@ -318,7 +308,7 @@ class _AddRestaurantsByPostcodePageState
             children: [
               const SizedBox(height: 10),
               const Text(
-                'Comprova si un codi postal és\nREGIONAL o REMOT',
+                'Check if a postcode is\nREGIONAL or REMOTE',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -331,7 +321,7 @@ class _AddRestaurantsByPostcodePageState
                 controller: _postcodeController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Introdueix codi postal',
+                  labelText: 'Enter postcode',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -380,7 +370,7 @@ class _AddRestaurantsByPostcodePageState
                   ElevatedButton.icon(
                     onPressed: _addRestaurantAutomatically,
                     icon: const Icon(Icons.restaurant),
-                    label: const Text('Afegir restaurant'),
+                    label: const Text('Add restaurant'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade600,
                       foregroundColor: Colors.white,
@@ -389,7 +379,7 @@ class _AddRestaurantsByPostcodePageState
                   ElevatedButton.icon(
                     onPressed: _deleteLastRestaurant,
                     icon: const Icon(Icons.delete_outline),
-                    label: const Text('Eliminar últim'),
+                    label: const Text('Delete latest'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
@@ -398,7 +388,7 @@ class _AddRestaurantsByPostcodePageState
                   ElevatedButton.icon(
                     onPressed: _deleteAllExceptLast,
                     icon: const Icon(Icons.cleaning_services),
-                    label: const Text('Eliminar tots menys l’últim'),
+                    label: const Text('Delete all except latest'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
@@ -407,7 +397,7 @@ class _AddRestaurantsByPostcodePageState
                   ElevatedButton.icon(
                     onPressed: _findAllRestaurantsByPostcode,
                     icon: const Icon(Icons.search_rounded),
-                    label: const Text('Afegir tots els del codi postal'),
+                    label: const Text('Add all from postcode'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
                       foregroundColor: Colors.white,

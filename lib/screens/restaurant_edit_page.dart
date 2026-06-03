@@ -100,7 +100,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Canvis desats correctament!')),
+        const SnackBar(content: Text('✅ Changes saved successfully!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -165,7 +165,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: const Text('Editar restaurants')),
+      appBar: AppBar(title: const Text('Edit restaurants')),
       body: SafeArea(
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
@@ -184,7 +184,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                       );
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Afegir restaurant manualment'),
+                    label: const Text('Add restaurant manually'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -192,7 +192,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                   controller: _searchController,
                   onChanged: (value) => _searchRestaurants(value),
                   decoration: InputDecoration(
-                    labelText: 'Cerca un restaurant',
+                    labelText: 'Search for a restaurant',
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _searchController.text.isNotEmpty
@@ -231,7 +231,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                       itemBuilder: (context, index) {
                         final r = _results[index];
                         return ListTile(
-                          title: Text(r['name'] ?? 'Sense nom'),
+                          title: Text(r['name'] ?? 'No name'),
                           onTap: () => _selectRestaurant(r),
                         );
                       },
@@ -241,7 +241,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                 if (_selectedRestaurant != null) ...[
                   _buildClearableField(
                     controller: _phoneController,
-                    label: 'Telèfon',
+                    label: 'Phone',
                     keyboardType: TextInputType.phone,
                     focusNode: phoneFocus,
                     nextFocus: emailFocus,
@@ -249,35 +249,35 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                   const SizedBox(height: 12),
                   _buildClearableField(
                     controller: _emailController,
-                    label: 'Correu electrònic',
+                    label: 'Email',
                     focusNode: emailFocus,
                     nextFocus: facebookFocus,
                   ),
                   const SizedBox(height: 12),
                   _buildClearableField(
                     controller: _facebookController,
-                    label: 'Enllaç de Facebook',
+                    label: 'Facebook link',
                     focusNode: facebookFocus,
                     nextFocus: instagramFocus,
                   ),
                   const SizedBox(height: 12),
                   _buildClearableField(
                     controller: _instagramController,
-                    label: 'Enllaç d\'Instagram',
+                    label: 'Instagram link',
                     focusNode: instagramFocus,
                     nextFocus: careersFocus,
                   ),
                   const SizedBox(height: 12),
                   _buildClearableField(
                     controller: _careersController,
-                    label: 'Pàgina de feina (careers)',
+                    label: 'Careers page',
                     focusNode: careersFocus,
                     action: TextInputAction.done,
                   ),
                   const SizedBox(height: 20),
                   SwitchListTile(
                     title: const Text(
-                      '🚫 Bloquejar restaurant',
+                      '🚫 Block restaurant',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     value: _isBlocked,

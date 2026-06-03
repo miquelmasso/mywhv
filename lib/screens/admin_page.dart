@@ -64,7 +64,7 @@ class AdminPage extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: null,
                 icon: const Icon(Icons.map),
-                label: const Text('Altres mapes desactivats'),
+                label: const Text('Other maps disabled'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo,
                   foregroundColor: Colors.white,
@@ -76,7 +76,7 @@ class AdminPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Només queda actiu el mapa principal de l’app.',
+                'Only the main app map remains active.',
                 style: TextStyle(color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
@@ -91,7 +91,7 @@ class AdminPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.edit_outlined),
-                label: const Text('Editar restaurants'),
+                label: const Text('Edit restaurants'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   foregroundColor: Colors.white,

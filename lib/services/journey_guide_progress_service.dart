@@ -65,4 +65,23 @@ class JourneyGuideProgressService {
     await prefs.setStringList(key, items.toList());
     return items;
   }
+
+  Future<bool> isEverythingCompleted({
+    required Map<String, List<String>> checklistItemsByStep,
+  }) async {
+    final finishedJourney = await isJourneyFinished();
+    if (!finishedJourney) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    for (final entry in checklistItemsByStep.entries) {
+      final checkedItems =
+          (prefs.getStringList('$_checklistPrefix${entry.key}') ??
+                  const <String>[])
+              .toSet();
+      for (final item in entry.value) {
+        if (!checkedItems.contains(item)) return false;
+      }
+    }
+    return true;
+  }
 }

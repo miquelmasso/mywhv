@@ -69,15 +69,12 @@ class PostcodeEligibilityService {
     final trimmed = raw.trim();
     final normalized = _normalize(trimmed);
     if (trimmed.isEmpty) {
-      return PostcodeEligibilityResult.invalid(
-        'Introdueix un codi postal.',
-        normalized,
-      );
+      return PostcodeEligibilityResult.invalid('Enter a postcode.', normalized);
     }
     final number = int.tryParse(normalized);
     if (number == null || normalized.length != 4) {
       return PostcodeEligibilityResult.invalid(
-        'Escriu un postcode de 4 dígits.',
+        'Enter a 4-digit postcode.',
         normalized,
       );
     }

@@ -39,7 +39,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
     if (_selectedState == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona un estat.')));
+      ).showSnackBar(const SnackBar(content: Text('Select a state.')));
       return;
     }
 
@@ -56,7 +56,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
       final start = range.$1;
       final end = range.$2;
       if (end < start) {
-        throw Exception('No hi ha rang definit per ${_selectedState!}');
+        throw Exception('No range defined for ${_selectedState!}');
       }
 
       setState(() => _total = end - start + 1);
@@ -76,7 +76,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Importació de farms completada: $_processed/$_total codis per ${_selectedState!}.',
+            'Farm import completed: $_processed/$_total postcodes for ${_selectedState!}.',
           ),
         ),
       );
@@ -103,7 +103,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Afegir farms per estat',
+          'Add farms by state',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
@@ -122,14 +122,14 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
           children: [
             const SizedBox(height: 10),
             const Text(
-              'Importa totes les farms d’un estat (només codis regionals).',
+              'Import all farms from a state (regional postcodes only).',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 18),
             DropdownButtonFormField<String>(
               initialValue: _selectedState,
               decoration: InputDecoration(
-                labelText: 'Escull estat',
+                labelText: 'Choose state',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -145,7 +145,7 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
             ElevatedButton.icon(
               onPressed: _isImporting ? null : _startImport,
               icon: const Icon(Icons.download),
-              label: const Text('Importar farms per estat'),
+              label: const Text('Import farms by state'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.green.shade700,
@@ -159,13 +159,13 @@ class _AddFarmsByStatePageState extends State<AddFarmsByStatePage> {
               Text(
                 _total == 0
                     ? 'Preparing import for ${_selectedState ?? ''}...'
-                    : 'Important $_processed/$_total codis postals per ${_selectedState ?? ''}...',
+                    : 'Importing $_processed/$_total postcodes for ${_selectedState ?? ''}...',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
             const SizedBox(height: 16),
             const Text(
-              'Els camps desats inclouen: name, address, state, postcode, '
+              'Saved fields include: name, address, state, postcode, '
               'latitude/longitude, phone, website, email, facebook_url, instagram_url, '
               'careers_page, source_place_id, timestamp, worked_here_count, '
               'is_remote_462, category.',

@@ -1,40 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/report_message_page.dart';
 
-class ExternalLinkService {
-  const ExternalLinkService._();
+class AppErrorDialogs {
+  const AppErrorDialogs._();
 
-  static const String _brokenLinkAsset = 'assets/Enllaç trencat cangur .png';
+  static const Color _accent = Color(0xFF7470C8);
+  static const Color _ink = Color(0xFF151922);
+  static const Color _muted = Color(0xFF5D6470);
 
-  static Future<bool> open(
-    BuildContext context,
-    String? link, {
-    LaunchMode mode = LaunchMode.externalApplication,
-  }) async {
-    final rawLink = link?.trim() ?? '';
-    final uri = Uri.tryParse(rawLink);
-    if (rawLink.isEmpty || uri == null || !uri.hasScheme) {
-      if (context.mounted) await showBrokenLinkDialog(context);
-      return false;
-    }
-
-    bool opened;
-    try {
-      opened = await launchUrl(uri, mode: mode);
-    } catch (error) {
-      debugPrint('External link open failed: $error');
-      opened = false;
-    }
-
-    if (!opened && context.mounted) {
-      await showBrokenLinkDialog(context);
-    }
-    return opened;
+  static Future<void> showMapAssetError(
+    BuildContext context, {
+    VoidCallback? onRetry,
+  }) {
+    return show(
+      context,
+      title: 'Didn\'t load',
+      message: 'Something went wrong. Please try again.',
+      helperTitle: 'Next step',
+      helperText: 'Try again later or report it.',
+      imageAsset: 'assets/kangaroo_sad.png',
+    );
   }
 
-  static Future<void> showBrokenLinkDialog(BuildContext context) async {
+  static Future<void> showMailError(BuildContext context) {
+    return show(
+      context,
+      title: 'Email failed',
+      message: 'We could not open your email app.',
+      helperTitle: 'Next step',
+      helperText: 'Check Mail setup or report it.',
+      imageAsset: 'assets/kangaroo_sad.png',
+    );
+  }
+
+  static Future<void> show(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String helperTitle,
+    required String helperText,
+    String? imageAsset,
+  }) async {
     if (!context.mounted) return;
 
     await showDialog<void>(
@@ -53,49 +60,53 @@ class ExternalLinkService {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: SizedBox(
-                        height: 142,
-                        width: double.infinity,
-                        child: Image.asset(
-                          _brokenLinkAsset,
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0, 0.12),
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.link_off_rounded,
-                            size: 92,
-                            color: Color(0xFF7470C8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text.rich(
-                      TextSpan(
+                    Padding(
+                      padding: const EdgeInsets.only(right: 48),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          TextSpan(
-                            text: 'Oops! ',
-                            style: TextStyle(color: Color(0xFF7470C8)),
+                          SizedBox(
+                            width: 50,
+                            height: 64,
+                            child: imageAsset == null
+                                ? const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 46,
+                                    color: _accent,
+                                  )
+                                : Image.asset(
+                                    imageAsset,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, _, _) => const Icon(
+                                      Icons.error_outline_rounded,
+                                      size: 46,
+                                      color: _accent,
+                                    ),
+                                  ),
                           ),
-                          TextSpan(text: 'Link failed'),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              title,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                color: _ink,
+                                fontSize: 21,
+                                height: 1.08,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF151922),
-                        fontSize: 24,
-                        height: 1.12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'This link is not available right now.',
+                    Text(
+                      message,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF5D6470),
+                      style: const TextStyle(
+                        color: _muted,
                         fontSize: 15.5,
                         height: 1.35,
                         fontWeight: FontWeight.w500,
@@ -109,34 +120,34 @@ class ExternalLinkService {
                         color: const Color(0xFFF1EFFF),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 21,
-                            backgroundColor: Color(0xFF7470C8),
+                            backgroundColor: _accent,
                             child: Icon(
                               Icons.lightbulb_outline_rounded,
                               color: Colors.white,
                             ),
                           ),
-                          SizedBox(width: 12),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'What can you do?',
-                                  style: TextStyle(
-                                    color: Color(0xFF7470C8),
+                                  helperTitle,
+                                  style: const TextStyle(
+                                    color: _accent,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Try again later or report it.',
-                                  style: TextStyle(
-                                    color: Color(0xFF151922),
+                                  helperText,
+                                  style: const TextStyle(
+                                    color: _ink,
                                     fontSize: 14,
                                     height: 1.28,
                                   ),
@@ -152,8 +163,8 @@ class ExternalLinkService {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF7470C8),
-                          side: const BorderSide(color: Color(0xFF7470C8)),
+                          foregroundColor: _accent,
+                          side: const BorderSide(color: _accent),
                           padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -191,10 +202,7 @@ class ExternalLinkService {
                     padding: EdgeInsets.zero,
                     tooltip: 'Close',
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: Color(0xFF151922),
-                    ),
+                    icon: const Icon(Icons.close_rounded, color: _ink),
                   ),
                 ),
               ),

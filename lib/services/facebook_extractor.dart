@@ -27,7 +27,7 @@ class FacebookExtractor {
         (baseUri.host.contains('facebook.com') ||
             baseUri.host.contains('fb.com') ||
             baseUri.host.contains('m.facebook.com'))) {
-      _log('⚠️ La web base és Facebook; s’omet la detecció de pàgina.');
+      _log('⚠️ Base website is Facebook; skipping page detection.');
       return null;
     }
 
@@ -74,7 +74,7 @@ class FacebookExtractor {
     // 🔹 Selecciona el millor link
     final best = _selectBest(found, businessName);
     if (best == null) {
-      _log('⚠️ Cap Facebook vàlid per $baseUrl');
+      _log('⚠️ No valid Facebook link for $baseUrl');
       return null;
     }
     _log('✅ Facebook trobat: $best');
@@ -85,8 +85,7 @@ class FacebookExtractor {
 
   Future<String?> _fetchHtmlUnsafe(String url) async {
     try {
-      final client = HttpClient()
-        ..badCertificateCallback = (_, _, _) => true;
+      final client = HttpClient()..badCertificateCallback = (_, _, _) => true;
       final ioClient = IOClient(client);
       final response = await ioClient
           .get(Uri.parse(url))
@@ -176,11 +175,17 @@ class FacebookExtractor {
     if (uri == null) return false;
 
     final host = uri.host.toLowerCase();
-    if (!host.contains('facebook.com') && !host.contains('fb.com')) return false;
+    if (!host.contains('facebook.com') && !host.contains('fb.com')) {
+      return false;
+    }
 
-    if (uri.path.isEmpty || uri.path == '/') return false;
+    if (uri.path.isEmpty || uri.path == '/') {
+      return false;
+    }
 
-    final segments = uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    final segments = uri.pathSegments
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
     if (segments.isEmpty) return false;
 
     const badLastSegments = {
@@ -206,7 +211,9 @@ class FacebookExtractor {
 
     if (uri.path == '/profile.php') {
       final id = uri.queryParameters['id'];
-      return id != null && id.trim().isNotEmpty && RegExp(r'^\d+$').hasMatch(id);
+      return id != null &&
+          id.trim().isNotEmpty &&
+          RegExp(r'^\d+$').hasMatch(id);
     }
 
     // slug-based paths
@@ -264,8 +271,9 @@ class FacebookExtractor {
     final host = uri.host.toLowerCase();
     if (host.startsWith('www.')) score += 10;
 
-    final pathSegments =
-        uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    final pathSegments = uri.pathSegments
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
 
     // profile.php with id
     if (uri.path == '/profile.php' &&
@@ -275,8 +283,10 @@ class FacebookExtractor {
     }
 
     // business name match
-    final normalizedBiz =
-        businessName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final normalizedBiz = businessName.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
     final candidateSlug = _extractSlugFromPath(pathSegments);
     if (normalizedBiz.isNotEmpty &&
         candidateSlug.isNotEmpty &&
@@ -299,7 +309,10 @@ class FacebookExtractor {
     if (segments.first.toLowerCase() == 'pages' && segments.length >= 2) {
       return segments[1].toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     }
-    final last = segments.last.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final last = segments.last.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
     return last;
   }
 }

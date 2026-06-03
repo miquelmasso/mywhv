@@ -151,16 +151,16 @@ class _EmailsListPageState extends State<EmailsListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Correus dels restaurants'),
+        title: const Text('Restaurant emails'),
         backgroundColor: Colors.blueAccent,
         actions: [
           IconButton(
-            tooltip: 'Recarregar',
+            tooltip: 'Reload',
             onPressed: _loading || _exporting ? null : _loadEmails,
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            tooltip: 'Exportar CSV',
+            tooltip: 'Export CSV',
             onPressed: _loading || _exporting ? null : _exportCsv,
             icon: _exporting
                 ? const SizedBox(
@@ -175,11 +175,9 @@ class _EmailsListPageState extends State<EmailsListPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : !_hasLoaded
-          ? const Center(
-              child: Text('Prem actualitzar per carregar les dades.'),
-            )
+          ? const Center(child: Text('Press reload to load the data.'))
           : _restaurants.isEmpty
-          ? const Center(child: Text('No hi ha correus disponibles.'))
+          ? const Center(child: Text('No emails available.'))
           : Column(
               children: [
                 Container(
@@ -195,14 +193,14 @@ class _EmailsListPageState extends State<EmailsListPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Correus totals: ${_restaurants.length}',
+                          'Total emails: ${_restaurants.length}',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                       ElevatedButton.icon(
                         onPressed: _exporting ? null : _exportCsv,
                         icon: const Icon(Icons.description_outlined),
-                        label: const Text('Generar CSV'),
+                        label: const Text('Generate CSV'),
                       ),
                     ],
                   ),
@@ -228,7 +226,7 @@ class _EmailsListPageState extends State<EmailsListPage> {
                           subtitle: SelectableText(email),
                           trailing: IconButton(
                             icon: const Icon(Icons.edit_outlined),
-                            tooltip: 'Editar restaurant',
+                            tooltip: 'Edit restaurant',
                             onPressed: () {
                               Navigator.push(
                                 context,

@@ -991,7 +991,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   Future<void> _toggleFavorite(String restaurantId) async {
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: this place has no valid ID.')),
       );
       return;
     }
@@ -1061,7 +1061,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
 
     if (restaurantId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: el restaurant no té ID vàlid.')),
+        const SnackBar(content: Text('Error: this place has no valid ID.')),
       );
       return;
     }
