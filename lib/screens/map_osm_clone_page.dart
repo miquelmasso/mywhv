@@ -9,11 +9,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart' hide Path;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../widgets/map_place_popup.dart';
+import '../services/donation_service.dart';
+import '../services/external_link_service.dart';
 import '../services/harvest_places_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
@@ -925,6 +926,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
 
   void _showProfilePopup() {
     final isAdmin = isAdminSession;
+    final parentContext = context;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -945,6 +947,10 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                 onReports: () {
                   Navigator.of(context).pop();
                   _openReports();
+                },
+                onSupport: () {
+                  Navigator.of(context).pop();
+                  DonationService.instance.showSupportPopup(parentContext);
                 },
                 onFavorites: () {
                   Navigator.of(context).pop();
@@ -971,21 +977,14 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   }
 
   Future<void> _openUrl(String url) async {
-    if (url.isEmpty) return;
-    final uri = Uri.parse(url);
-    final canOpen = await canLaunchUrl(uri);
+    final opened = await ExternalLinkService.open(context, url);
     if (!mounted) return;
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened) {
       unawaited(
         _handlePositiveReviewAction(
           ReviewService.actionContactOrExternalLinkTapped,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
     }
   }
 
@@ -1972,6 +1971,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                       child: _ProfilePopupMenu(
                         onMail: () {},
                         onReports: () {},
+                        onSupport: () {},
                         onFavorites: () {},
                         onAdmin: () {},
                         showAdmin: false,
@@ -2478,6 +2478,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   const _ProfilePopupMenu({
     required this.onMail,
     required this.onReports,
+    required this.onSupport,
     required this.onFavorites,
     required this.onAdmin,
     required this.showAdmin,
@@ -2486,6 +2487,7 @@ class _ProfilePopupMenu extends StatelessWidget {
 
   final VoidCallback onMail;
   final VoidCallback onReports;
+  final VoidCallback onSupport;
   final VoidCallback onFavorites;
   final VoidCallback onAdmin;
   final bool showAdmin;
@@ -2536,6 +2538,14 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconBg: const Color(0xFFFDEBD3),
               text: 'Send report',
               onTap: onReports,
+            ),
+            const SizedBox(height: 14),
+            _ProfileTile(
+              icon: Icons.local_cafe_outlined,
+              iconColor: const Color(0xFFB2872B),
+              iconBg: const Color(0xFFFFF3C4),
+              text: 'Buy me a coffe',
+              onTap: onSupport,
             ),
             if (showAdmin) ...[
               const SizedBox(height: 14),

@@ -39,6 +39,7 @@ class UpdateService {
   static final UpdateService instance = UpdateService._();
 
   static const String _softUpdateSeenVersionKey = 'soft_update_seen_version';
+  static const Duration _normalFetchInterval = Duration(days: 30);
 
   final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
   final ValueNotifier<AppUpdateNotice?> _softUpdateNotice =
@@ -67,8 +68,8 @@ class UpdateService {
 
     await _remoteConfig.setConfigSettings(
       RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: const Duration(hours: 12),
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: _normalFetchInterval,
       ),
     );
 

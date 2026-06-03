@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/restaurant_edit_page.dart';
+import '../services/external_link_service.dart';
 import '../services/map_markers_service.dart';
 import 'csv_export_helper.dart';
 
@@ -127,17 +127,8 @@ class _InstagramListPageState extends State<InstagramListPage> {
   }
 
   Future<void> _openUrl(String url) async {
-    if (url.isEmpty) return;
-    final uri = Uri.parse(url);
-    final canOpen = await canLaunchUrl(uri);
     if (!mounted) return;
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No s’ha pogut obrir l’enllaç')),
-      );
-    }
+    await ExternalLinkService.open(context, url);
   }
 
   @override

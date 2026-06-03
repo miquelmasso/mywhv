@@ -19,6 +19,8 @@ import 'screens/tips_random_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
+import 'services/affiliate_links_service.dart';
+import 'services/donation_service.dart';
 import 'services/map_display_settings_service.dart';
 import 'services/map_markers_service.dart';
 import 'services/remote_config_service.dart';
@@ -42,13 +44,8 @@ Future<void> main() async {
 
   await MapDisplaySettingsService.instance.init();
   await RuntimeDeviceService.instance.init();
-  final shouldShowOnboarding =
-      await OnboardingController.peekShouldShowOnLaunch();
-  final initialHomeIndex =
-      shouldShowOnboarding &&
-          !MapDisplaySettingsService.instance.isMaintenanceScreenVisible
-      ? 1
-      : 0;
+  await DonationService.instance.registerAppOpen();
+  const initialHomeIndex = 1;
 
   runApp(MyApp(initialHomeIndex: initialHomeIndex));
   FlutterNativeSplash.remove();
@@ -59,6 +56,7 @@ Future<void> _bootstrapDeferredAppServices() async {
   try {
     await Future.wait<void>([
       OfflineBootstrapService.instance.init(),
+      AffiliateLinksService.instance.init(),
       RemoteConfigService.instance.init(),
       ReviewService.instance.registerAppOpen(),
     ]);
@@ -126,10 +124,16 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(RemoteConfigService.instance.maybeShowUpdateDialog(context));
+      unawaited(_showStartupDialogs());
     });
     unawaited(_warmUpMapInBackground());
     unawaited(_initOnboarding());
+  }
+
+  Future<void> _showStartupDialogs() async {
+    await RemoteConfigService.instance.maybeShowUpdateDialog(context);
+    if (!mounted) return;
+    await DonationService.instance.maybeShowAutomaticPopup(context);
   }
 
   Future<void> _warmUpMapInBackground() async {
@@ -483,11 +487,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Color(0xFF75623C),
   ];
 
-  Widget _buildDockNavItem(
-    IconData iconData,
-    int index, {
-    GlobalKey? iconKey,
-  }) {
+  Widget _buildDockNavItem(IconData iconData, int index, {GlobalKey? iconKey}) {
     final isSelected = _selectedIndex == index;
     final itemColor = _dockItemColors[index];
     final iconColor = _dockIconColors[index];

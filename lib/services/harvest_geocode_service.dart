@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../config/google_services_config.dart';
 import 'google_places_service.dart';
 
 class GeocodeResult {
@@ -44,8 +45,21 @@ class HarvestGeocodeService {
 
   Future<HarvestCombinedResult> importAndGeocodeFromAsset() async {
     final importOutcome = await importFromAssetWithMonths();
+    if (!GoogleServicesConfig.enableGoogleGeocoding) {
+      debugPrint(
+        'ℹ️ Google Geocoding paused: harvest asset imported without geocoding.',
+      );
+      return HarvestCombinedResult(
+        importOutcome: importOutcome,
+        geocodeResult: GeocodeResult(updated: 0, skipped: 0, errors: 0),
+      );
+    }
+
     final geocodeRes = await geocodeMissingHarvestPlaces();
-    return HarvestCombinedResult(importOutcome: importOutcome, geocodeResult: geocodeRes);
+    return HarvestCombinedResult(
+      importOutcome: importOutcome,
+      geocodeResult: geocodeRes,
+    );
   }
 
   Future<HarvestImportOutcome> importFromAssetWithMonths() async {
@@ -83,8 +97,14 @@ class HarvestGeocodeService {
         final name = (place['name'] ?? place['place'] ?? '').toString();
         final postcode = (place['postcode'] ?? '').toString();
         final explicitId = (place['id'] ?? '').toString();
-        if (name.trim().isEmpty || !_validPostcode(postcode) || stateCode.isEmpty) continue;
-        final docId = explicitId.isNotEmpty ? explicitId : _buildId(stateCode, postcode, name);
+        if (name.trim().isEmpty ||
+            !_validPostcode(postcode) ||
+            stateCode.isEmpty) {
+          continue;
+        }
+        final docId = explicitId.isNotEmpty
+            ? explicitId
+            : _buildId(stateCode, postcode, name);
         final isNew = !existingIds.contains(docId);
 
         final data = {
@@ -96,7 +116,8 @@ class HarvestGeocodeService {
           'updated_at': FieldValue.serverTimestamp(),
           'latitude': (place['latitude'] as num?)?.toDouble() ?? 0.0,
           'longitude': (place['longitude'] as num?)?.toDouble() ?? 0.0,
-          'coords_placeholder': ((place['latitude'] ?? 0) == 0 || (place['longitude'] ?? 0) == 0),
+          'coords_placeholder':
+              ((place['latitude'] ?? 0) == 0 || (place['longitude'] ?? 0) == 0),
         };
         if (isNew) {
           data['created_at'] = FieldValue.serverTimestamp();
@@ -116,7 +137,11 @@ class HarvestGeocodeService {
           for (int m = 1; m <= 12; m++) {
             final mm = m.toString().padLeft(2, '0');
             batch.set(
-              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              firestore
+                  .collection(_collection)
+                  .doc(docId)
+                  .collection('months')
+                  .doc(mm),
               {
                 'month': m,
                 'fruits': [],
@@ -146,7 +171,11 @@ class HarvestGeocodeService {
             final other = _cleanListOfMaps(mObj['other']);
 
             batch.set(
-              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              firestore
+                  .collection(_collection)
+                  .doc(docId)
+                  .collection('months')
+                  .doc(mm),
               {
                 'month': mInt,
                 if (mObj['month_label'] != null)
@@ -169,7 +198,11 @@ class HarvestGeocodeService {
             if (seenMonths.contains(m)) continue;
             final mm = m.toString().padLeft(2, '0');
             batch.set(
-              firestore.collection(_collection).doc(docId).collection('months').doc(mm),
+              firestore
+                  .collection(_collection)
+                  .doc(docId)
+                  .collection('months')
+                  .doc(mm),
               {
                 'month': m,
                 'fruits': [],
@@ -194,7 +227,11 @@ class HarvestGeocodeService {
     }
 
     await commitBatch();
-    return HarvestImportOutcome(docs: docs, monthsUpdated: monthsUpdated, errors: errors);
+    return HarvestImportOutcome(
+      docs: docs,
+      monthsUpdated: monthsUpdated,
+      errors: errors,
+    );
   }
 
   Future<GeocodeResult> initHarvestCoords() async {
@@ -224,16 +261,12 @@ class HarvestGeocodeService {
         continue;
       }
 
-      batch.set(
-        doc.reference,
-        {
-          'latitude': 0.0,
-          'longitude': 0.0,
-          'coords_placeholder': true,
-          'coords_init_at': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(doc.reference, {
+        'latitude': 0.0,
+        'longitude': 0.0,
+        'coords_placeholder': true,
+        'coords_init_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       batchCount++;
       updated++;
 
@@ -246,11 +279,18 @@ class HarvestGeocodeService {
     return GeocodeResult(updated: updated, skipped: skipped, errors: errors);
   }
 
-  Future<GeocodeResult> geocodeMissingHarvestPlaces({bool runImport = false}) async {
+  Future<GeocodeResult> geocodeMissingHarvestPlaces({
+    bool runImport = false,
+  }) async {
     if (runImport) {
       // Ensure fruits/vegetables/other per month are loaded before geocoding.
       await importFromAssetWithMonths();
     }
+    if (!GoogleServicesConfig.enableGoogleGeocoding) {
+      debugPrint('ℹ️ Google Geocoding paused: skipping harvest geocoding.');
+      return GeocodeResult(updated: 0, skipped: 0, errors: 0);
+    }
+
     final firestore = FirebaseFirestore.instance;
     // Firestore doesn't support "field missing OR null", so fetch all and filter.
     final snapshot = await firestore.collection(_collection).get();
@@ -265,7 +305,8 @@ class HarvestGeocodeService {
       final latVal = data['latitude'];
       final lngVal = data['longitude'];
       final placeholder = data['coords_placeholder'] == true;
-      final hasLatLng = latVal != null &&
+      final hasLatLng =
+          latVal != null &&
           lngVal != null &&
           !(latVal == 0.0 && lngVal == 0.0) &&
           !placeholder;
@@ -304,7 +345,8 @@ class HarvestGeocodeService {
           if (logCount < 10) {
             // ignore: avoid_print
             debugPrint(
-                'UPDATE ${doc.id} name="$name" pc=$postcode state=$state status=${res.status.name}');
+              'UPDATE ${doc.id} name="$name" pc=$postcode state=$state status=${res.status.name}',
+            );
             logCount++;
           }
           updated++;
@@ -316,7 +358,11 @@ class HarvestGeocodeService {
             debugPrint('FAIL ${doc.id} REQUEST_DENIED');
           }
           errors++;
-          return GeocodeResult(updated: updated, skipped: skipped, errors: errors);
+          return GeocodeResult(
+            updated: updated,
+            skipped: skipped,
+            errors: errors,
+          );
         } else if (res.status == _GeoStatus.overLimit) {
           await Future.delayed(const Duration(seconds: 2));
           continue;
@@ -324,17 +370,16 @@ class HarvestGeocodeService {
         await Future.delayed(const Duration(milliseconds: 120));
       }
       if (!success) {
-        await doc.reference.set(
-          {
-            'geocode_failed': true,
-            'geocode_failed_reason': 'NO_RESULTS',
-            'geocoded_at': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
+        await doc.reference.set({
+          'geocode_failed': true,
+          'geocode_failed_reason': 'NO_RESULTS',
+          'geocoded_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
         if (logCount < 10) {
           // ignore: avoid_print
-          debugPrint('FAIL ${doc.id} pc=$postcode state=$state status=NO_RESULTS');
+          debugPrint(
+            'FAIL ${doc.id} pc=$postcode state=$state status=NO_RESULTS',
+          );
           logCount++;
         }
         errors++;
@@ -345,6 +390,11 @@ class HarvestGeocodeService {
   }
 
   Future<_GeoResponse> _geocode(_GeoQuery q) async {
+    if (!GoogleServicesConfig.enableGoogleGeocoding) {
+      debugPrint('ℹ️ Google Geocoding paused: skipping "${q.raw}".');
+      return _GeoResponse(status: _GeoStatus.error);
+    }
+
     final uri = q.isComponents
         ? Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
             'components': q.raw,
@@ -423,8 +473,14 @@ class _GeoQuery {
   final String raw;
   final bool isComponents;
   _GeoQuery._(this.raw, this.isComponents);
-  factory _GeoQuery.components({required String postcode, required String state}) {
-    return _GeoQuery._('country:AU|postal_code:$postcode|administrative_area:$state', true);
+  factory _GeoQuery.components({
+    required String postcode,
+    required String state,
+  }) {
+    return _GeoQuery._(
+      'country:AU|postal_code:$postcode|administrative_area:$state',
+      true,
+    );
   }
 
   factory _GeoQuery.address(String address) {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/google_services_config.dart';
 import 'email_extractor.dart';
 import 'careers_extractor.dart';
 import 'facebook_extractor.dart';
@@ -25,6 +26,13 @@ class GooglePlacesService {
     int postcode, {
     int maxToSave = 2,
   }) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint(
+        'ℹ️ Google Places paused: skipping restaurant import for postcode $postcode.',
+      );
+      return <Map<String, dynamic>>[];
+    }
+
     final startedAt = DateTime.now();
     final postcodeDisplay = postcode.toString().padLeft(4, '0');
     debugPrint('🔍 Iniciant cerca per postcode $postcodeDisplay');
@@ -45,9 +53,13 @@ class GooglePlacesService {
     ];
 
     // 🔹 Cache local per aquesta importació
-    final existingKeys =
-        await _firestoreHelper.loadExistingKeysForPostcode(postcodeDisplay);
-    final seenPlaceIds = <String>{..._sessionPlaceIds, ...existingKeys.placeIds};
+    final existingKeys = await _firestoreHelper.loadExistingKeysForPostcode(
+      postcodeDisplay,
+    );
+    final seenPlaceIds = <String>{
+      ..._sessionPlaceIds,
+      ...existingKeys.placeIds,
+    };
     final seenAltKeys = <String>{..._sessionAltKeys, ...existingKeys.altKeys};
 
     final saved = <Map<String, dynamic>>[];
@@ -81,8 +93,9 @@ class GooglePlacesService {
           continue;
         }
 
-        final displayName =
-            (place['displayName']?['text'] ?? '').toString().trim();
+        final displayName = (place['displayName']?['text'] ?? '')
+            .toString()
+            .trim();
         final lat = place['location']?['latitude'];
         final lng = place['location']?['longitude'];
         final altKey = _buildAltKey(
@@ -165,15 +178,25 @@ class GooglePlacesService {
   // 🔧 Helpers
   // -------------------------------
 
-  Future<Map<String, dynamic>?> _getPlaceDetailsWithRetry(String placeId) async {
+  Future<Map<String, dynamic>?> _getPlaceDetailsWithRetry(
+    String placeId,
+  ) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint('ℹ️ Google Places paused: skipping place details request.');
+      return null;
+    }
+
     final url = Uri.parse('https://places.googleapis.com/v1/places/$placeId');
     final resp = await _retryHttp(() {
-      return ioClient.get(url, headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': _apiKey,
-        'X-Goog-FieldMask':
-            'displayName,location,formattedAddress,internationalPhoneNumber,websiteUri',
-      });
+      return ioClient.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _apiKey,
+          'X-Goog-FieldMask':
+              'displayName,location,formattedAddress,internationalPhoneNumber,websiteUri',
+        },
+      );
     });
     if (resp == null || resp.statusCode != 200) return null;
     return jsonDecode(resp.body);
@@ -230,7 +253,9 @@ class GooglePlacesService {
       'login',
       'l.php',
     };
-    final last = uri.pathSegments.isNotEmpty ? uri.pathSegments.last.toLowerCase() : '';
+    final last = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last.toLowerCase()
+        : '';
     if (badLastSegments.contains(last)) return false;
 
     if (uri.path == '/profile.php') {
@@ -251,7 +276,14 @@ class GooglePlacesService {
   Future<List<Map<String, dynamic>>> _searchPlacesWithRetry({
     required String query,
   }) async {
-    final searchUrl = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint('ℹ️ Google Places paused: skipping search "$query".');
+      return <Map<String, dynamic>>[];
+    }
+
+    final searchUrl = Uri.parse(
+      'https://places.googleapis.com/v1/places:searchText',
+    );
     final resp = await _retryHttp(() {
       return ioClient.post(
         searchUrl,
@@ -261,10 +293,7 @@ class GooglePlacesService {
           'X-Goog-FieldMask':
               'places.id,places.displayName,places.location,places.formattedAddress',
         },
-        body: jsonEncode({
-          'textQuery': query,
-          'maxResultCount': 10,
-        }),
+        body: jsonEncode({'textQuery': query, 'maxResultCount': 10}),
       );
     });
 
@@ -295,12 +324,14 @@ class GooglePlacesService {
           return null;
         }
 
-        final name =
-            (details['displayName']?['text'] ?? 'Unnamed').toString().trim();
+        final name = (details['displayName']?['text'] ?? 'Unnamed')
+            .toString()
+            .trim();
         if (name.isEmpty || triedNames.contains(name)) return null;
         triedNames.add(name);
 
-        final address = details['formattedAddress'] ?? candidate['address'] ?? '';
+        final address =
+            details['formattedAddress'] ?? candidate['address'] ?? '';
         if (!_matchesPostcode(address, postcode.toString().padLeft(4, '0'))) {
           return null;
         }
@@ -329,7 +360,9 @@ class GooglePlacesService {
             address: address,
             phone: details['internationalPhoneNumber'] ?? '',
           );
-          final candidateFb = fbResult != null ? fbResult['link'] as String? : null;
+          final candidateFb = fbResult != null
+              ? fbResult['link'] as String?
+              : null;
           facebookUrl = _isValidFacebookPage(candidateFb) ? candidateFb : null;
 
           if (host.contains('instagram.com')) {

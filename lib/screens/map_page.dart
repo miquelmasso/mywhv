@@ -2,18 +2,20 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../config/google_services_config.dart';
 import '../widgets/map_place_popup.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
 import '../services/map_markers_service.dart';
 import '../services/harvest_places_service.dart';
+import '../services/donation_service.dart';
 import '../services/email_sender_service.dart';
+import '../services/external_link_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/review_service.dart';
 import '../widgets/harvest_months_radial_overlay.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -393,6 +395,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   void _showProfilePopup() {
+    final parentContext = context;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -413,6 +416,10 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                 onFavorites: () {
                   Navigator.of(context).pop();
                   _openFavorites();
+                },
+                onSupport: () {
+                  Navigator.of(context).pop();
+                  DonationService.instance.showSupportPopup(parentContext);
                 },
                 onAdmin: () {
                   Navigator.of(context).pop();
@@ -1017,20 +1024,14 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   }
 
   Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    final canOpen = await canLaunchUrl(uri);
+    final opened = await ExternalLinkService.open(context, url);
     if (!mounted) return;
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened) {
       unawaited(
         _handlePositiveReviewAction(
           ReviewService.actionContactOrExternalLinkTapped,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
     }
   }
 
@@ -1192,6 +1193,20 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (!GoogleServicesConfig.enableGoogleMapsSdk) {
+      return const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Google Maps està pausat temporalment.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -1457,12 +1472,14 @@ class ProfilePopupMenu extends StatelessWidget {
     super.key,
     required this.onMail,
     required this.onFavorites,
+    required this.onSupport,
     required this.onAdmin,
     required this.showAdmin,
   });
 
   final VoidCallback onMail;
   final VoidCallback onFavorites;
+  final VoidCallback onSupport;
   final VoidCallback onAdmin;
   final bool showAdmin;
 
@@ -1502,6 +1519,14 @@ class ProfilePopupMenu extends StatelessWidget {
               iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
               text: 'Favourites',
               onTap: onFavorites,
+            ),
+            const SizedBox(height: 14),
+            _ProfileTile(
+              icon: Icons.local_cafe_outlined,
+              iconColor: const Color(0xFFB2872B),
+              iconBg: const Color(0xFFFFF3C4),
+              text: 'Buy me a coffe',
+              onTap: onSupport,
             ),
             if (showAdmin) ...[
               const SizedBox(height: 14),

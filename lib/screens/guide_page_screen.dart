@@ -1,19 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
+import '../services/affiliate_links_service.dart';
+import '../services/external_link_service.dart';
 import '../services/main_tabs_controller.dart';
 import '../services/overlay_helper.dart';
 import '../services/postcode_eligibility_service.dart';
+import '../utils/guide_section_theme.dart';
+import '../widgets/guide_back_button.dart';
 import 'mail_setup_page.dart';
 import 'guide_section_screen.dart';
+import 'international_banks_screen.dart';
+import 'travel_insurance_screen.dart';
 
-const String _insuranceAffiliateUrl =
-    'https://www.yomeanimo.com/seguros-de-viaje-working-holiday?r=AdbiQKqt';
-const String _insuranceDiscountCode = 'MIQ5OFF';
+const Color _guideInlineIconColor = Color(0xFFA35D4F);
+
+IconData? _guideIconForDecoratedTitle(String title) {
+  final trimmed = title.trimLeft();
+  if (trimmed.startsWith('📌')) return Icons.push_pin_outlined;
+  if (trimmed.startsWith('✔️') || trimmed.startsWith('✔')) {
+    return Icons.check_circle_outline_rounded;
+  }
+  if (trimmed.startsWith('🔁')) return Icons.sync_alt_rounded;
+  if (trimmed.startsWith('⚠️') || trimmed.startsWith('⚠')) {
+    return Icons.warning_amber_rounded;
+  }
+  if (trimmed.startsWith('💡')) return Icons.lightbulb_outline_rounded;
+  if (trimmed.startsWith('🧾')) return Icons.receipt_long_outlined;
+  if (trimmed.startsWith('🔧')) return Icons.build_outlined;
+  if (trimmed.startsWith('🆘')) return Icons.health_and_safety_outlined;
+  if (trimmed.startsWith('ℹ️') || trimmed.startsWith('ℹ')) {
+    return Icons.info_outline_rounded;
+  }
+  return null;
+}
+
+String _cleanGuideTitle(String title) {
+  var clean = title.trimLeft();
+  const prefixes = <String>[
+    '📌',
+    '✔️',
+    '✔',
+    '🔁',
+    '⚠️',
+    '⚠',
+    '💡',
+    '🧾',
+    '🔧',
+    '🆘',
+    'ℹ️',
+    'ℹ',
+  ];
+  for (final prefix in prefixes) {
+    if (clean.startsWith(prefix)) {
+      clean = clean.substring(prefix.length).trimLeft();
+      break;
+    }
+  }
+  return clean;
+}
 
 class GuidePageScreen extends StatefulWidget {
   const GuidePageScreen({
@@ -201,6 +249,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
   @override
   Widget build(BuildContext context) {
     final cta = widget.page.cta;
+    final sectionTheme = GuideSectionTheme.forSection(widget.sectionId);
     final isFindWorkPage = widget.page.id == 'find_work_online';
     final isFaceToFacePage = widget.page.id == 'work_face_to_face';
     final isContractsPage = widget.page.id == 'contracts_and_pay';
@@ -258,17 +307,31 @@ class _GuidePageScreenState extends State<GuidePageScreen>
     final resolvedTitle = _resolver(widget.page.title);
     final tabBar = TabBar(
       controller: _controller,
-      labelColor: Theme.of(context).colorScheme.primary,
+      labelColor: sectionTheme.buttonText,
       unselectedLabelColor: Colors.black54,
       isScrollable: false,
       labelPadding: EdgeInsets.zero,
       indicatorSize: TabBarIndicatorSize.tab,
+      indicatorColor: sectionTheme.accent,
+      dividerColor: sectionTheme.softAccent,
       labelStyle: const TextStyle(fontWeight: FontWeight.w600),
       unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
       tabs: tabs,
     );
     return Scaffold(
-      appBar: AppBar(title: Text(resolvedTitle), bottom: tabBar),
+      backgroundColor: sectionTheme.pageBackground,
+      appBar: AppBar(
+        backgroundColor: sectionTheme.pageBackground,
+        surfaceTintColor: sectionTheme.pageBackground,
+        centerTitle: true,
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GuideBackButton(onTap: () => Navigator.of(context).pop()),
+        ),
+        title: Text(resolvedTitle),
+        bottom: tabBar,
+      ),
       body: isFindWorkPage
           ? Column(
               children: [
@@ -290,6 +353,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           );
                         },
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _FindWorkTabContent(
                         section: _findSectionById('webs'),
@@ -304,6 +368,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           );
                         },
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _FindWorkTabContent(
                         section: _findSectionById('map'),
@@ -319,6 +384,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                           );
                         },
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                     ],
                   ),
@@ -342,6 +408,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         blocks: widget.page.blocks,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _CvTab(t: _t),
                     ],
@@ -368,6 +435,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _SectionBlocksView(
                         section: _findSectionById('apply_steps_tab'),
@@ -375,6 +443,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                     ],
                   ),
@@ -400,6 +469,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _SectionBlocksView(
                         section: _findSectionById('lodging_tab'),
@@ -407,6 +477,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _SectionBlocksView(
                         section: _findSectionById('money_tab'),
@@ -414,6 +485,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       _SectionBlocksView(
                         section: _findSectionById('cv_tab'),
@@ -421,6 +493,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         onNavigateToTab: widget.onNavigateToTab,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                     ],
                   ),
@@ -463,6 +536,7 @@ class _GuidePageScreenState extends State<GuidePageScreen>
                         blocks: widget.page.blocks,
                         t: _t,
                         resolve: _resolver,
+                        sectionTheme: sectionTheme,
                       ),
                       if (hasChecklistTab)
                         _ChecklistTab(
@@ -494,6 +568,7 @@ class _FindWorkTabContent extends StatelessWidget {
     required this.goToMap,
     required this.goToMailSetup,
     required this.resolve,
+    required this.sectionTheme,
   });
 
   final GuidePageSection? section;
@@ -503,6 +578,7 @@ class _FindWorkTabContent extends StatelessWidget {
   final VoidCallback goToMap;
   final VoidCallback goToMailSetup;
   final String Function(dynamic value) resolve;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -522,6 +598,7 @@ class _FindWorkTabContent extends StatelessWidget {
               : resolve('ui.copy'),
           t: (k) => k,
           resolve: (v) => resolve(v),
+          sectionTheme: sectionTheme,
         ),
       ),
     ];
@@ -529,15 +606,18 @@ class _FindWorkTabContent extends StatelessWidget {
     if (isFacebook) {
       widgets.add(
         ElevatedButton.icon(
-          onPressed: () =>
-              _launchExternal(Uri.parse('https://www.facebook.com/groups')),
+          onPressed: () => _launchExternal(
+            context,
+            Uri.parse('https://www.facebook.com/groups'),
+          ),
           icon: const Icon(Icons.open_in_new),
           label: Text(resolve('ui.open_facebook_groups')),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            backgroundColor: sectionTheme.buttonBackground,
+            foregroundColor: sectionTheme.buttonText,
+            elevation: 0,
+            shape: const StadiumBorder(),
           ),
         ),
       );
@@ -554,9 +634,10 @@ class _FindWorkTabContent extends StatelessWidget {
                 label: Text(resolve('ui.edit_email')),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  backgroundColor: sectionTheme.buttonBackground,
+                  foregroundColor: sectionTheme.buttonText,
+                  elevation: 0,
+                  shape: const StadiumBorder(),
                 ),
               ),
             ),
@@ -568,9 +649,10 @@ class _FindWorkTabContent extends StatelessWidget {
                 label: Text(resolve('ui.go_to_map')),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  backgroundColor: sectionTheme.buttonBackground,
+                  foregroundColor: sectionTheme.buttonText,
+                  elevation: 0,
+                  shape: const StadiumBorder(),
                 ),
               ),
             ),
@@ -596,6 +678,7 @@ class _SectionBlocksView extends StatelessWidget {
     this.onNavigateToTab,
     required this.t,
     required this.resolve,
+    required this.sectionTheme,
   });
 
   final GuidePageSection? section;
@@ -603,6 +686,7 @@ class _SectionBlocksView extends StatelessWidget {
   final void Function(int index)? onNavigateToTab;
   final String Function(String key) t;
   final String Function(dynamic value) resolve;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -611,6 +695,7 @@ class _SectionBlocksView extends StatelessWidget {
     }
     final widgets = <Widget>[];
     var insertedPreparationInsurance = false;
+    var insertedHostelsAffiliate = false;
     for (final block in section!.blocks) {
       widgets.add(
         _buildBlockWidget(
@@ -620,16 +705,48 @@ class _SectionBlocksView extends StatelessWidget {
           onNavigateToTab: onNavigateToTab,
           t: t,
           resolve: resolve,
+          sectionTheme: sectionTheme,
         ),
       );
       if (section!.id == 'preparation_tab' &&
           block.title == '@before.prep.season_title') {
-        widgets.add(_BeforeArrivalInsuranceAffiliateCard(resolve: resolve));
+        widgets.add(
+          _BeforeArrivalInsuranceAffiliateCard(
+            resolve: resolve,
+            sectionTheme: sectionTheme,
+          ),
+        );
+        widgets.add(
+          _BeforeArrivalFlightsAffiliateCard(sectionTheme: sectionTheme),
+        );
         insertedPreparationInsurance = true;
+      }
+      if (section!.id == 'lodging_tab' &&
+          block.title == '@before.lodging.hostel_title') {
+        widgets.add(
+          _BeforeArrivalHostelsAffiliateCard(sectionTheme: sectionTheme),
+        );
+        insertedHostelsAffiliate = true;
       }
     }
     if (section!.id == 'preparation_tab' && !insertedPreparationInsurance) {
-      widgets.add(_BeforeArrivalInsuranceAffiliateCard(resolve: resolve));
+      widgets.add(
+        _BeforeArrivalInsuranceAffiliateCard(
+          resolve: resolve,
+          sectionTheme: sectionTheme,
+        ),
+      );
+      widgets.add(
+        _BeforeArrivalFlightsAffiliateCard(sectionTheme: sectionTheme),
+      );
+    }
+    if (section!.id == 'money_tab') {
+      widgets.add(_SuggestedInternationalBanksCard(sectionTheme: sectionTheme));
+    }
+    if (section!.id == 'lodging_tab' && !insertedHostelsAffiliate) {
+      widgets.add(
+        _BeforeArrivalHostelsAffiliateCard(sectionTheme: sectionTheme),
+      );
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -646,11 +763,13 @@ class _InfoTab extends StatelessWidget {
     required this.blocks,
     required this.t,
     required this.resolve,
+    required this.sectionTheme,
   });
 
   final List<GuideBlock> blocks;
   final String Function(String key) t;
   final String Function(dynamic value) resolve;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -665,6 +784,7 @@ class _InfoTab extends StatelessWidget {
           blocks[index],
           t: t,
           resolve: resolve,
+          sectionTheme: sectionTheme,
         );
       },
     );
@@ -742,10 +862,7 @@ class _CvTab extends StatelessWidget {
         _InfoCard(
           title: t('ui.tip'),
           color: Colors.orange.shade50,
-          leading: Icon(
-            Icons.lightbulb_outline,
-            color: Colors.orange.shade700,
-          ),
+          leading: Icon(Icons.lightbulb_outline, color: Colors.orange.shade700),
           child: Text(t('ui.cv.tip')),
         ),
       ],
@@ -823,6 +940,7 @@ class _ContractsTab extends StatelessWidget {
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => _launchExternal(
+            context,
             Uri.parse(
               'https://www.fairwork.gov.au/employment-conditions/awards',
             ),
@@ -928,8 +1046,8 @@ class _BulletText extends StatelessWidget {
   }
 }
 
-Future<void> _launchExternal(Uri uri) async {
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
+Future<void> _launchExternal(BuildContext context, Uri uri) async {
+  await ExternalLinkService.open(context, uri.toString());
 }
 
 Future<void> _openGuidePage(
@@ -1000,6 +1118,7 @@ Widget _buildBlockWidget(
   void Function(int index)? onNavigateToTab,
   required String Function(String key) t,
   required String Function(dynamic value) resolve,
+  GuideSectionTheme sectionTheme = GuideSectionTheme.fallback,
 }) {
   Widget actionButton({
     required Widget label,
@@ -1012,19 +1131,21 @@ Widget _buildBlockWidget(
             icon: Icon(icon),
             label: label,
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              backgroundColor: sectionTheme.buttonBackground,
+              foregroundColor: sectionTheme.buttonText,
+              elevation: 0,
+              shape: const StadiumBorder(),
             ),
           )
         : ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              backgroundColor: sectionTheme.buttonBackground,
+              foregroundColor: sectionTheme.buttonText,
+              elevation: 0,
+              shape: const StadiumBorder(),
             ),
             child: label,
           );
@@ -1047,25 +1168,58 @@ Widget _buildBlockWidget(
         child: InlinePostcodeChecker(t: t),
       );
     }
-    if (isCompactMapButton) {
+    if (isAction && block.buttonUrl!.contains('travel_insurance')) {
       return Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Center(
+        padding: const EdgeInsets.only(top: 10),
+        child: SizedBox(
+          width: double.infinity,
           child: Material(
-            color: const Color(0xFFF8EDEA),
-            borderRadius: BorderRadius.circular(14),
+            color: sectionTheme.buttonBackground,
+            shape: const StadiumBorder(),
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () async => _launchExternal(Uri.parse(block.buttonUrl!)),
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => showTravelInsuranceDialog(context),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 18,
                   vertical: 10,
                 ),
                 child: Text(
                   resolve(block.buttonLabel),
-                  style: const TextStyle(
-                    color: Color(0xFF8A4A3A),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: sectionTheme.buttonText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (isCompactMapButton) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: sectionTheme.buttonBackground,
+            shape: const StadiumBorder(),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () async =>
+                  _launchExternal(context, Uri.parse(block.buttonUrl!)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                child: Text(
+                  resolve(block.buttonLabel),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: sectionTheme.buttonText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1077,55 +1231,60 @@ Widget _buildBlockWidget(
     }
     return Padding(
       padding: const EdgeInsets.only(top: 10),
-      child: ElevatedButton(
-        onPressed: () async {
-          if (isCopyAction) {
-            final textToCopy = block.content?.isNotEmpty == true
-                ? block.content!
-                : block.items.join('\n');
-            if (textToCopy.isNotEmpty) {
-              await Clipboard.setData(ClipboardData(text: textToCopy));
-              if (!context.mounted) return;
-              if (vsync != null) {
-                await OverlayHelper.showCopiedOverlay(
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () async {
+            if (isCopyAction) {
+              final textToCopy = block.content?.isNotEmpty == true
+                  ? block.content!
+                  : block.items.join('\n');
+              if (textToCopy.isNotEmpty) {
+                await Clipboard.setData(ClipboardData(text: textToCopy));
+                if (!context.mounted) return;
+                if (vsync != null) {
+                  await OverlayHelper.showCopiedOverlay(
+                    context,
+                    vsync,
+                    resolve(block.buttonLabel ?? 'ui.copy'),
+                  );
+                }
+              }
+              return;
+            }
+            if (isGuideNavigation) {
+              final raw = block.buttonUrl!.substring('guide:'.length);
+              final parts = raw.split('#');
+              final targetPageId = parts.first;
+              int? tabIndex;
+              if (parts.length > 1 && parts[1].startsWith('tab=')) {
+                tabIndex = int.tryParse(parts[1].substring(4));
+              }
+              if (targetPageId.isNotEmpty) {
+                await _openGuidePage(
                   context,
-                  vsync,
-                  resolve(block.buttonLabel ?? 'ui.copy'),
+                  targetPageId,
+                  onNavigateToTab: onNavigateToTab,
+                  initialTabIndex: tabIndex,
                 );
               }
+              return;
             }
-            return;
-          }
-          if (isGuideNavigation) {
-            final raw = block.buttonUrl!.substring('guide:'.length);
-            final parts = raw.split('#');
-            final targetPageId = parts.first;
-            int? tabIndex;
-            if (parts.length > 1 && parts[1].startsWith('tab=')) {
-              tabIndex = int.tryParse(parts[1].substring(4));
-            }
-            if (targetPageId.isNotEmpty) {
-              await _openGuidePage(
-                context,
-                targetPageId,
-                onNavigateToTab: onNavigateToTab,
-                initialTabIndex: tabIndex,
-              );
-            }
-            return;
-          }
-          await _launchExternal(Uri.parse(block.buttonUrl!));
-        },
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          backgroundColor: const Color(0xFFF8EDEA),
-          foregroundColor: const Color(0xFF8A4A3A),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            await _launchExternal(context, Uri.parse(block.buttonUrl!));
+          },
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            backgroundColor: sectionTheme.buttonBackground,
+            foregroundColor: sectionTheme.buttonText,
+            elevation: 0,
+            shape: const StadiumBorder(),
+          ),
+          child: Text(
+            resolve(block.buttonLabel),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
-        child: Text(resolve(block.buttonLabel)),
       ),
     );
   }
@@ -1236,7 +1395,7 @@ Widget _buildBlockWidget(
   Widget textWithLinks(dynamic textValue, String Function(dynamic) resolve) {
     final resolved = resolve(textValue);
     if (resolved.isEmpty) return const SizedBox.shrink();
-    final spans = _parseLinkTextSpans(resolved);
+    final spans = _parseLinkTextSpans(context, resolved);
     if (spans.length == 1 &&
         spans.first is TextSpan &&
         (spans.first as TextSpan).recognizer == null) {
@@ -1288,7 +1447,7 @@ Widget _buildBlockWidget(
             }
             return;
           }
-          await _launchExternal(Uri.parse(block.buttonUrl!));
+          await _launchExternal(context, Uri.parse(block.buttonUrl!));
         }
 
         if (isAction && block.buttonUrl!.contains('check_postcode')) {
@@ -1305,13 +1464,13 @@ Widget _buildBlockWidget(
 
       Color? cardColor;
       if (block.variant == 'warning') {
-        cardColor = Colors.orange.shade50;
+        cardColor = sectionTheme.calloutBackground;
       } else if (block.variant == 'success') {
-        cardColor = Colors.orange.shade50;
+        cardColor = sectionTheme.calloutBackground;
       } else if (block.variant == 'info') {
-        cardColor = Colors.blue.shade50;
+        cardColor = sectionTheme.softAccent;
       } else if (block.variant == 'milestone') {
-        cardColor = Colors.orange.shade50;
+        cardColor = sectionTheme.softAccent;
       }
       IconData? iconFromString(String? name) {
         switch (name) {
@@ -1326,10 +1485,23 @@ Widget _buildBlockWidget(
         }
       }
       final leadingIcon = iconFromString(block.icon);
+      final variantIcon = block.variant == 'warning'
+          ? Icons.warning_amber_rounded
+          : block.variant == 'success'
+          ? Icons.lightbulb_outline_rounded
+          : block.variant == 'info'
+          ? Icons.info_outline_rounded
+          : null;
+      final effectiveLeadingIcon = leadingIcon ?? variantIcon;
+      final effectiveLeadingColor =
+          block.variant == 'warning' || block.variant == 'success'
+          ? sectionTheme.warningIcon
+          : sectionTheme.accent;
 
       final resolvedTitle = resolve(block.title ?? '');
       final isProcessingCard =
           block.title == '@visa.requirements.processing_title';
+      final isBeforeLandingCard = block.title == '@arrival.sim.before_title';
       if (block.variant == 'milestone') {
         final lines = resolve(block.content ?? '').split('\n');
         final value = lines.isNotEmpty ? lines.first : '';
@@ -1343,7 +1515,7 @@ Widget _buildBlockWidget(
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(Icons.flag, color: Colors.deepOrange, size: 20),
+                  Icon(Icons.flag, color: sectionTheme.accent, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1365,7 +1537,7 @@ Widget _buildBlockWidget(
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Colors.deepOrange.shade700,
+                        color: sectionTheme.buttonText,
                       ),
                     ),
                   ),
@@ -1385,8 +1557,8 @@ Widget _buildBlockWidget(
       return _InfoCard(
         title: resolvedTitle,
         color: cardColor,
-        leading: leadingIcon != null
-            ? Icon(leadingIcon, color: Colors.brown.shade400)
+        leading: effectiveLeadingIcon != null
+            ? Icon(effectiveLeadingIcon, color: effectiveLeadingColor)
             : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1401,6 +1573,15 @@ Widget _buildBlockWidget(
                   style: const TextStyle(color: Colors.black54, fontSize: 13),
                 ),
               ),
+            if (isBeforeLandingCard) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'Otherwise get an e-sim that will work as soon as you land.',
+                style: TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              _PopularESimsButton(sectionTheme: sectionTheme),
+            ],
             if (isProcessingCard) Text(resolve('@visa.processing.simple')),
             if (block.chips.isNotEmpty)
               Padding(
@@ -1427,6 +1608,7 @@ Widget _buildBlockWidget(
                         resolve: resolve,
                         appendAffiliateAfterVisaInsuranceItem:
                             block.title == '@visa.requirements.title',
+                        sectionTheme: sectionTheme,
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1452,16 +1634,16 @@ Widget _buildBlockWidget(
       );
     case 'callout':
       final resolvedTitle = resolve(block.title ?? '');
-      Color bg = Colors.blue.shade50;
-      Color iconColor = Colors.blue.shade700;
+      Color bg = sectionTheme.softAccent;
+      Color iconColor = sectionTheme.accent;
       IconData icon = Icons.info_outline;
       if (block.variant == 'warning') {
-        bg = Colors.orange.shade50;
-        iconColor = Colors.orange.shade700;
+        bg = sectionTheme.calloutBackground;
+        iconColor = sectionTheme.warningIcon;
         icon = Icons.warning_amber_rounded;
       } else if (block.variant == 'success') {
-        bg = Colors.orange.shade50;
-        iconColor = Colors.orange.shade700;
+        bg = sectionTheme.calloutBackground;
+        iconColor = sectionTheme.warningIcon;
         icon = Icons.lightbulb_outline;
       }
       final hasItems = block.items.isNotEmpty;
@@ -1471,14 +1653,14 @@ Widget _buildBlockWidget(
           return Icon(
             Icons.cancel_outlined,
             size: 18,
-            color: Colors.red.shade700,
+            color: sectionTheme.warningIcon,
           );
         }
         if (block.variant == 'success') {
           return Icon(
             Icons.check_circle_outline,
             size: 18,
-            color: Colors.orange.shade700,
+            color: sectionTheme.warningIcon,
           );
         }
         return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
@@ -1631,13 +1813,13 @@ Widget _buildBlockWidget(
             }
             return;
           }
-          await _launchExternal(Uri.parse(block.buttonUrl!));
+          await _launchExternal(context, Uri.parse(block.buttonUrl!));
         }
 
         return SizedBox(
           width: double.infinity,
           child: Material(
-            color: const Color(0xFFF8EDEA),
+            color: sectionTheme.buttonBackground,
             shape: const StadiumBorder(),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
@@ -1652,8 +1834,8 @@ Widget _buildBlockWidget(
                 child: Text(
                   resolve(block.buttonLabel),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF8A4A3A),
+                  style: TextStyle(
+                    color: sectionTheme.buttonText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1829,7 +2011,7 @@ Widget? _buildForumButton({
   );
 }
 
-List<InlineSpan> _parseLinkTextSpans(String text) {
+List<InlineSpan> _parseLinkTextSpans(BuildContext context, String text) {
   final spans = <InlineSpan>[];
   final regex = RegExp(r'\[\[(.+?)\|(.+?)\]\]');
   int start = 0;
@@ -1849,7 +2031,7 @@ List<InlineSpan> _parseLinkTextSpans(String text) {
         ),
         recognizer: TapGestureRecognizer()
           ..onTap = () {
-            _launchExternal(Uri.parse(url));
+            _launchExternal(context, Uri.parse(url));
           },
       ),
     );
@@ -1880,6 +2062,20 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final decoratedTitle = title;
+    final displayTitle = decoratedTitle == null
+        ? null
+        : _cleanGuideTitle(decoratedTitle);
+    final resolvedLeading =
+        leading ??
+        (decoratedTitle == null
+            ? null
+            : _guideIconForDecoratedTitle(decoratedTitle) == null
+            ? null
+            : Icon(
+                _guideIconForDecoratedTitle(decoratedTitle),
+                color: _guideInlineIconColor,
+              ));
     return Container(
       padding: padding,
       decoration: BoxDecoration(
@@ -1896,14 +2092,17 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (leading != null) ...[leading!, const SizedBox(width: 10)],
+          if (resolvedLeading != null) ...[
+            resolvedLeading,
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (title != null && title!.isNotEmpty) ...[
+                if (displayTitle != null && displayTitle.isNotEmpty) ...[
                   Text(
-                    title!,
+                    displayTitle,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -1926,11 +2125,13 @@ class _OrderedBlockItems extends StatelessWidget {
     required this.items,
     required this.resolve,
     this.appendAffiliateAfterVisaInsuranceItem = false,
+    this.sectionTheme = GuideSectionTheme.fallback,
   });
 
   final List<dynamic> items;
   final String Function(dynamic value) resolve;
   final bool appendAffiliateAfterVisaInsuranceItem;
+  final GuideSectionTheme sectionTheme;
 
   bool _isVisaInsuranceItem(dynamic item) {
     return item == '@visa.requirements.item_4' ||
@@ -1960,7 +2161,10 @@ class _OrderedBlockItems extends StatelessWidget {
       if (appendAffiliateAfterVisaInsuranceItem &&
           _isVisaInsuranceItem(entry.value)) {
         children.add(
-          _VisaRequirementsInsuranceAffiliatePanel(resolve: resolve),
+          _VisaRequirementsInsuranceAffiliatePanel(
+            resolve: resolve,
+            sectionTheme: sectionTheme,
+          ),
         );
       }
     }
@@ -1972,28 +2176,24 @@ class _OrderedBlockItems extends StatelessWidget {
 }
 
 class _VisaRequirementsInsuranceAffiliatePanel extends StatelessWidget {
-  const _VisaRequirementsInsuranceAffiliatePanel({required this.resolve});
+  const _VisaRequirementsInsuranceAffiliatePanel({
+    required this.resolve,
+    required this.sectionTheme,
+  });
 
   final String Function(dynamic value) resolve;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10, bottom: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7F5),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _GuideAffiliateCtaButton(
             label: resolve('@insurance.affiliate.recommended_button'),
-          ),
-          const SizedBox(height: 8),
-          _GuideAffiliateDiscountNote(
-            label: resolve('@insurance.affiliate.discount_code_label'),
+            sectionTheme: sectionTheme,
           ),
         ],
       ),
@@ -2002,18 +2202,22 @@ class _VisaRequirementsInsuranceAffiliatePanel extends StatelessWidget {
 }
 
 class _BeforeArrivalInsuranceAffiliateCard extends StatelessWidget {
-  const _BeforeArrivalInsuranceAffiliateCard({required this.resolve});
+  const _BeforeArrivalInsuranceAffiliateCard({
+    required this.resolve,
+    required this.sectionTheme,
+  });
 
   final String Function(dynamic value) resolve;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
     return _InfoCard(
       title: resolve('@before.insurance.title'),
-      color: const Color(0xFFFFF7F5),
+      color: sectionTheme.softAccent,
       leading: Icon(
         Icons.health_and_safety_outlined,
-        color: Colors.brown.shade400,
+        color: sectionTheme.accent,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2025,10 +2229,7 @@ class _BeforeArrivalInsuranceAffiliateCard extends StatelessWidget {
           const SizedBox(height: 12),
           _GuideAffiliateCtaButton(
             label: resolve('@insurance.affiliate.compare_button'),
-          ),
-          const SizedBox(height: 8),
-          _GuideAffiliateDiscountNote(
-            label: resolve('@insurance.affiliate.discount_code_label'),
+            sectionTheme: sectionTheme,
           ),
         ],
       ),
@@ -2036,50 +2237,464 @@ class _BeforeArrivalInsuranceAffiliateCard extends StatelessWidget {
   }
 }
 
-class _GuideAffiliateDiscountNote extends StatelessWidget {
-  const _GuideAffiliateDiscountNote({required this.label});
+class _SuggestedInternationalBanksCard extends StatelessWidget {
+  const _SuggestedInternationalBanksCard({required this.sectionTheme});
 
-  final String label;
+  final GuideSectionTheme sectionTheme;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '$label: $_insuranceDiscountCode',
-      style: const TextStyle(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w600,
-        color: Colors.black54,
+    return _InfoCard(
+      title: 'Suggested international banks',
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: sectionTheme.buttonBackground,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => showInternationalBanksDialog(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.account_balance_outlined,
+                    size: 20,
+                    color: sectionTheme.buttonText,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'International banks',
+                    style: TextStyle(
+                      color: sectionTheme.buttonText,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15.5,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _GuideAffiliateCtaButton extends StatelessWidget {
-  const _GuideAffiliateCtaButton({this.label = 'Compare WHV insurance'});
+class _BeforeArrivalFlightsAffiliateCard extends StatelessWidget {
+  const _BeforeArrivalFlightsAffiliateCard({required this.sectionTheme});
 
-  final String label;
+  final GuideSectionTheme sectionTheme;
 
-  Future<void> _openAffiliate() async {
-    await _launchExternal(Uri.parse(_insuranceAffiliateUrl));
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      title: 'Flights',
+      color: sectionTheme.softAccent,
+      leading: Icon(Icons.flight_takeoff_outlined, color: sectionTheme.accent),
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: sectionTheme.buttonBackground,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _showFlightsDialog(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              child: Text(
+                'Buy your flights',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: sectionTheme.buttonText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
+
+  Future<void> _showFlightsDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Buy your flights',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF151922),
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _FlightProviderButton(
+                label: 'Kiwi',
+                asset: 'assets/Kiwi.com logo.png',
+                fallbackIcon: Icons.flight_takeoff_outlined,
+                onTap: () {
+                  _openKiwiLink(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _FlightProviderButton(
+                label: 'Trip',
+                asset: 'assets/trip logo.png',
+                fallbackIcon: Icons.travel_explore_outlined,
+                onTap: () {
+                  _openUrl(
+                    context,
+                    'https://www.trip.com/?Allianceid=8388962&SID=315592467&trip_sub1=&trip_sub3=D17431528',
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openKiwiLink(BuildContext context) async {
+    var link = await AffiliateLinksService.instance.getLink('Kiwi_link');
+    if (link.isEmpty) {
+      link = await AffiliateLinksService.instance.getLink('kiwi_link');
+    }
+    if (!context.mounted) return;
+
+    if (link.isEmpty) {
+      await ExternalLinkService.showBrokenLinkDialog(context);
+      return;
+    }
+
+    await _openUrl(context, link);
+  }
+
+  Future<void> _openUrl(BuildContext context, String link) async {
+    await ExternalLinkService.open(context, link);
+  }
+}
+
+class _BeforeArrivalHostelsAffiliateCard extends StatelessWidget {
+  const _BeforeArrivalHostelsAffiliateCard({required this.sectionTheme});
+
+  final GuideSectionTheme sectionTheme;
+
+  static const String _tripHostelsUrl =
+      'https://www.trip.com/hotels/w/home?Allianceid=8388962&SID=315592467&trip_sub1=&trip_sub3=D17431528';
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: const Color(0xFFF8EDEA),
+        color: sectionTheme.buttonBackground,
         shape: const StadiumBorder(),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: _openAffiliate,
+          onTap: () => _showHostelsDialog(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Text(
+              'Where to book hostels',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: sectionTheme.buttonText,
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showHostelsDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Where to book hostels',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF151922),
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: _FlightProviderButton(
+            label: 'Trip',
+            asset: 'assets/trip logo.png',
+            fallbackIcon: Icons.hotel_outlined,
+            onTap: () {
+              _openUrl(context, _tripHostelsUrl);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openUrl(BuildContext context, String link) async {
+    await ExternalLinkService.open(context, link);
+  }
+}
+
+class _FlightProviderButton extends StatelessWidget {
+  const _FlightProviderButton({
+    required this.label,
+    required this.asset,
+    required this.fallbackIcon,
+    required this.onTap,
+  });
+
+  final String label;
+  final String asset;
+  final IconData fallbackIcon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF7F5),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  asset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Icon(
+                    fallbackIcon,
+                    color: const Color(0xFF9B6A5D),
+                    size: 23,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF8A4A3A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF9B6A5D)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PopularESimsButton extends StatelessWidget {
+  const _PopularESimsButton({required this.sectionTheme});
+
+  final GuideSectionTheme sectionTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: sectionTheme.buttonBackground,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showESimsDialog(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Text(
+              'Popular e-sims',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: sectionTheme.buttonText,
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showESimsDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Popular e-sims',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF151922),
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ESimProviderButton(
+                label: 'Airalo',
+                asset: 'assets/Airalo logo.png',
+                onTap: () => _openCachedESimLink(context, const [
+                  'airalo_link',
+                  'Airalo_link',
+                  'airaloLink',
+                ]),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Holafly',
+                asset: 'assets/Holafly logo .png',
+                onTap: () => _openDirectESimLink(
+                  context,
+                  'https://holafly.sjv.io/B5P7B9',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Sally e-sim',
+                asset: 'assets/sally e-sim logo.png',
+                onTap: () => _openCachedESimLink(context, const [
+                  'sally_esim_link',
+                  'sally_e_sim_link',
+                  'sally_link',
+                  'Sally_link',
+                  'sallyesim_link',
+                ]),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Yesim',
+                asset: 'assets/Yesim logo.png',
+                onTap: () => _openDirectESimLink(
+                  context,
+                  'https://yesim.tpo.lv/x3ZNhigi',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openCachedESimLink(
+    BuildContext context,
+    List<String> keys,
+  ) async {
+    var link = '';
+    for (final key in keys) {
+      link = await AffiliateLinksService.instance.getLink(key);
+      if (link.isNotEmpty) break;
+    }
+    if (!context.mounted) return;
+    if (link.isEmpty) {
+      await ExternalLinkService.showBrokenLinkDialog(context);
+      return;
+    }
+    await _openESimUrl(context, link);
+  }
+
+  Future<void> _openDirectESimLink(BuildContext context, String link) async {
+    await _openESimUrl(context, link);
+  }
+
+  Future<void> _openESimUrl(BuildContext context, String link) async {
+    await ExternalLinkService.open(context, link);
+  }
+}
+
+class _ESimProviderButton extends StatelessWidget {
+  const _ESimProviderButton({
+    required this.label,
+    required this.asset,
+    required this.onTap,
+  });
+
+  final String label;
+  final String asset;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FlightProviderButton(
+      label: label,
+      asset: asset,
+      fallbackIcon: Icons.sim_card_outlined,
+      onTap: onTap,
+    );
+  }
+}
+
+class _GuideAffiliateCtaButton extends StatelessWidget {
+  const _GuideAffiliateCtaButton({
+    this.label = 'Compare WHV insurance',
+    this.sectionTheme = GuideSectionTheme.fallback,
+  });
+
+  final String label;
+  final GuideSectionTheme sectionTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: sectionTheme.buttonBackground,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => showTravelInsuranceDialog(context),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             child: Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF8A4A3A),
+                color: sectionTheme.buttonText,
                 fontWeight: FontWeight.w600,
               ),
             ),

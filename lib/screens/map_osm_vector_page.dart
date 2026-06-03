@@ -11,7 +11,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
@@ -19,6 +18,8 @@ import 'package:path_provider/path_provider.dart';
 import '../config/osm_vector_map_config.dart';
 import '../widgets/map_place_popup.dart';
 import '../services/harvest_places_service.dart';
+import '../services/donation_service.dart';
+import '../services/external_link_service.dart';
 import '../services/local_vector_style_service.dart';
 import '../services/location_settings_service.dart';
 import '../services/map_markers_service.dart';
@@ -28,6 +29,7 @@ import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../utils/australia_map_viewport.dart';
 import '../services/email_sender_service.dart';
+import '../widgets/broken_link_popup_test_button.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/profile_button_icon.dart';
@@ -1094,6 +1096,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   void _showProfilePopup() {
     final isAdmin = isAdminSession;
+    final parentContext = context;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -1114,6 +1117,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                 onReports: () {
                   Navigator.of(context).pop();
                   _openReports();
+                },
+                onSupport: () {
+                  Navigator.of(context).pop();
+                  DonationService.instance.showSupportPopup(parentContext);
                 },
                 onFavorites: () {
                   Navigator.of(context).pop();
@@ -1140,21 +1147,14 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   Future<void> _openUrl(String url) async {
-    if (url.isEmpty) return;
-    final uri = Uri.parse(url);
-    final canOpen = await canLaunchUrl(uri);
+    final opened = await ExternalLinkService.open(context, url);
     if (!mounted) return;
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened) {
       unawaited(
         _handlePositiveReviewAction(
           ReviewService.actionContactOrExternalLinkTapped,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
     }
   }
 
@@ -2297,6 +2297,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                               child: _ProfilePopupMenu(
                                 onMail: () {},
                                 onReports: () {},
+                                onSupport: () {},
                                 onFavorites: () {},
                                 onAdmin: () {},
                                 showAdmin: false,
@@ -2355,6 +2356,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                       left: 16,
                       child: SafeArea(child: _buildDebugZoomControls()),
                     ),
+                  // Temporary QA button for previewing the broken-link dialog.
+                  const Positioned(
+                    left: 16,
+                    bottom: 112,
+                    child: SafeArea(child: BrokenLinkPopupTestButton()),
+                  ),
                 ],
               ),
             );
@@ -2744,6 +2751,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   const _ProfilePopupMenu({
     required this.onMail,
     required this.onReports,
+    required this.onSupport,
     required this.onFavorites,
     required this.onAdmin,
     required this.showAdmin,
@@ -2752,6 +2760,7 @@ class _ProfilePopupMenu extends StatelessWidget {
 
   final VoidCallback onMail;
   final VoidCallback onReports;
+  final VoidCallback onSupport;
   final VoidCallback onFavorites;
   final VoidCallback onAdmin;
   final bool showAdmin;
@@ -2807,6 +2816,14 @@ class _ProfilePopupMenu extends StatelessWidget {
                   iconBg: const Color(0xFFFDEBD3),
                   text: 'Send report',
                   onTap: onReports,
+                ),
+                const SizedBox(height: 14),
+                _ProfileTile(
+                  icon: Icons.local_cafe_outlined,
+                  iconColor: const Color(0xFFB2872B),
+                  iconBg: const Color(0xFFFFF3C4),
+                  text: 'Buy me a coffe',
+                  onTap: onSupport,
                 ),
                 if (showSoftUpdateMessage) ...[
                   const SizedBox(height: 10),

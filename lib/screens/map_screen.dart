@@ -11,10 +11,11 @@ import 'package:latlong2/latlong.dart' as latlng;
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supercluster/supercluster.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../config/admin_config.dart';
 import '../services/email_sender_service.dart';
+import '../services/donation_service.dart';
+import '../services/external_link_service.dart';
 import '../services/favorites_service.dart';
 import '../services/location_settings_service.dart';
 import '../services/map_markers_service.dart';
@@ -23,6 +24,7 @@ import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../services/runtime_device_service.dart';
 import '../utils/australia_map_viewport.dart';
+import '../widgets/broken_link_popup_test_button.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/map_place_popup.dart';
@@ -95,7 +97,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const String _cafeMarkerImageName = 'workyday-marker-cafe-pastel';
   static const String _cafeSelectedMarkerImageName =
       'workyday-marker-cafe-selected-pastel';
-  static const String _standardMarkerImageName = 'workyday-marker-standard-pastel';
+  static const String _standardMarkerImageName =
+      'workyday-marker-standard-pastel';
   static const String _standardSelectedMarkerImageName =
       'workyday-marker-standard-selected-pastel';
   static const String _seenInitialKangarooHintKey =
@@ -1549,6 +1552,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _showProfilePopup() {
     final showAdmin = isAdminSession;
+    final parentContext = context;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -1569,6 +1573,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 onReports: () {
                   Navigator.of(context).pop();
                   _openReports();
+                },
+                onSupport: () {
+                  Navigator.of(context).pop();
+                  DonationService.instance.showSupportPopup(parentContext);
                 },
                 onFavorites: () {
                   Navigator.of(context).pop();
@@ -1595,21 +1603,14 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openUrl(String url) async {
-    if (url.isEmpty) return;
-    final uri = Uri.parse(url);
-    final canOpen = await canLaunchUrl(uri);
+    final opened = await ExternalLinkService.open(context, url);
     if (!mounted) return;
-    if (canOpen) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened) {
       unawaited(
         _handlePositiveReviewAction(
           ReviewService.actionContactOrExternalLinkTapped,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
     }
   }
 
@@ -2437,6 +2438,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                           child: _ProfilePopupMenu(
                             onMail: () {},
                             onReports: () {},
+                            onSupport: () {},
                             onFavorites: () {},
                             onAdmin: () {},
                             showAdmin: false,
@@ -2491,6 +2493,12 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   left: 16,
                   child: SafeArea(child: _buildDebugZoomControls()),
                 ),
+              // Temporary QA button for previewing the broken-link dialog.
+              const Positioned(
+                left: 16,
+                bottom: 112,
+                child: SafeArea(child: BrokenLinkPopupTestButton()),
+              ),
             ],
           ),
         );
@@ -2875,6 +2883,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   const _ProfilePopupMenu({
     required this.onMail,
     required this.onReports,
+    required this.onSupport,
     required this.onFavorites,
     required this.onAdmin,
     required this.showAdmin,
@@ -2883,6 +2892,7 @@ class _ProfilePopupMenu extends StatelessWidget {
 
   final VoidCallback onMail;
   final VoidCallback onReports;
+  final VoidCallback onSupport;
   final VoidCallback onFavorites;
   final VoidCallback onAdmin;
   final bool showAdmin;
@@ -2938,6 +2948,14 @@ class _ProfilePopupMenu extends StatelessWidget {
                   iconBg: const Color(0xFFFDEBD3),
                   text: 'Send report',
                   onTap: onReports,
+                ),
+                const SizedBox(height: 14),
+                _ProfileTile(
+                  icon: Icons.local_cafe_outlined,
+                  iconColor: const Color(0xFFB2872B),
+                  iconBg: const Color(0xFFFFF3C4),
+                  text: 'Buy me a coffe',
+                  onTap: onSupport,
                 ),
                 if (showSoftUpdateMessage) ...[
                   const SizedBox(height: 10),

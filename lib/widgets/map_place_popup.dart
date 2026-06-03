@@ -95,15 +95,16 @@ class MapRestaurantPopup extends StatelessWidget {
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.person, color: Colors.grey),
+                    _SmallCircleIconButton(
+                      icon: Icons.person,
+                      iconColor: Colors.grey,
                       tooltip: 'I worked here',
                       onPressed: onWorkedHere,
                     ),
                     if (workedCount > 0)
                       Positioned(
-                        right: 8,
-                        top: 8,
+                        right: 1,
+                        top: 1,
                         child: Container(
                           padding: const EdgeInsets.all(3),
                           decoration: const BoxDecoration(
@@ -158,18 +159,49 @@ class MapRestaurantPopup extends StatelessWidget {
                     onPressed: onInstagram,
                   ),
                 const Spacer(),
-                IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.red : Colors.grey,
-                    size: 28,
-                  ),
+                _SmallCircleIconButton(
+                  icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+                  iconColor: isFavorite ? Colors.red : Colors.grey,
                   tooltip: 'Preferit',
                   onPressed: onFavorite,
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallCircleIconButton extends StatelessWidget {
+  const _SmallCircleIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.iconColor = Colors.grey,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.grey.shade100,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Tooltip(
+            message: tooltip,
+            child: Icon(icon, color: iconColor, size: 23),
+          ),
         ),
       ),
     );

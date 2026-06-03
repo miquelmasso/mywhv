@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/google_services_config.dart';
 import 'email_extractor.dart';
 import 'careers_extractor.dart';
 import 'facebook_extractor.dart';
@@ -62,6 +63,13 @@ class FarmPlacesService {
     int maxToSave = 0,
     required bool isRemote462,
   }) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint(
+        'ℹ️ Google Places paused: skipping farm import for postcode $postcode.',
+      );
+      return <Map<String, dynamic>>[];
+    }
+
     final startedAt = DateTime.now();
     final postcodeDisplay = postcode.toString().padLeft(4, '0');
     debugPrint('🌾 Iniciant cerca de farms per postcode $postcodeDisplay');
@@ -200,6 +208,13 @@ class FarmPlacesService {
     String stateCode, {
     required Set<String> allowedPostcodes,
   }) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint(
+        'ℹ️ Google Places paused: skipping farm import for state $stateCode.',
+      );
+      return <Map<String, dynamic>>[];
+    }
+
     final startedAt = DateTime.now();
     final pivots = _ruralPivots[stateCode.toUpperCase()];
     if (pivots == null || pivots.isEmpty) {
@@ -381,6 +396,13 @@ class FarmPlacesService {
   Future<Map<String, dynamic>?> _getPlaceDetailsWithRetry(
     String placeId,
   ) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint(
+        'ℹ️ Google Places paused: skipping farm place details request.',
+      );
+      return null;
+    }
+
     final url = Uri.parse('https://places.googleapis.com/v1/places/$placeId');
     final resp = await _retryHttp(() {
       return ioClient.get(
@@ -400,6 +422,11 @@ class FarmPlacesService {
   Future<List<Map<String, dynamic>>> _searchPlacesWithRetry({
     required String query,
   }) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint('ℹ️ Google Places paused: skipping farm search "$query".');
+      return <Map<String, dynamic>>[];
+    }
+
     final searchUrl = Uri.parse(
       'https://places.googleapis.com/v1/places:searchText',
     );
@@ -431,6 +458,13 @@ class FarmPlacesService {
     required double lng,
     required String query,
   }) async {
+    if (!GoogleServicesConfig.enableGooglePlaces) {
+      debugPrint(
+        'ℹ️ Google Places paused: skipping nearby farm search "$query".',
+      );
+      return <Map<String, dynamic>>[];
+    }
+
     final int radius = _searchRadiusMeters.clamp(1, 50000).toInt();
     final results = <Map<String, dynamic>>[];
     String? pageToken;

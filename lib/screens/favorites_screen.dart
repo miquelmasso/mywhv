@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../config/google_services_config.dart';
+import '../services/external_link_service.dart';
 import '../services/favorites_service.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -37,20 +38,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _openUrl(String url) async {
-    if (url.trim().isEmpty) return;
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No s’ha pogut obrir l’enllaç.')),
-      );
-    }
+    await ExternalLinkService.open(context, url);
   }
 
   Future<void> _call(String phone) async => _openUrl('tel:$phone');
   Future<void> _email(String mail) async => _openUrl('mailto:$mail');
   Future<void> _openDirections(String address) async {
     if (address.trim().isEmpty) return;
+    if (!GoogleServicesConfig.enableExternalGoogleMapsLinks) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Maps està pausat temporalment.')),
+      );
+      return;
+    }
+
     final uri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}',
     );

@@ -2,13 +2,23 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/google_services_config.dart';
 
 class RestaurantFetcher {
   static const String _apiKey = "AIzaSyCq0y5wPxOt9oZR6Z0-b0fR5fmQq3BiivI";
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// 🔍 Obté 10 restaurants dins TOT el codi postal (malla 3x3)
-  static Future<List<Map<String, dynamic>>> _fetchRestaurants(int postcode) async {
+  static Future<List<Map<String, dynamic>>> _fetchRestaurants(
+    int postcode,
+  ) async {
+    if (!GoogleServicesConfig.enableLegacyGoogleImports) {
+      debugPrint(
+        'ℹ️ Legacy Google imports paused: skipping restaurant fetch for $postcode.',
+      );
+      return <Map<String, dynamic>>[];
+    }
+
     try {
       final geoUrl = Uri.parse(
         "https://maps.googleapis.com/maps/api/geocode/json?"
@@ -82,18 +92,27 @@ class RestaurantFetcher {
 
   /// 🔄 Evita duplicats i guarda als dos col·leccions (417 i 462)
   static Future<void> populateRestaurantsForVisas() async {
+    if (!GoogleServicesConfig.enableLegacyGoogleImports) {
+      debugPrint(
+        'ℹ️ Legacy Google imports paused: skipping visa restaurant import.',
+      );
+      return;
+    }
+
     final snap417 = await _firestore
         .collection('visa_417_postcodes')
-        .where('industry',
-            isEqualTo:
-                'Tourism and Hospitality (Remote & Very Remote Australia)')
+        .where(
+          'industry',
+          isEqualTo: 'Tourism and Hospitality (Remote & Very Remote Australia)',
+        )
         .get();
 
     final snap462 = await _firestore
         .collection('visa_462_postcodes')
-        .where('industry',
-            isEqualTo:
-                'Tourism and Hospitality (Remote & Very Remote Australia)')
+        .where(
+          'industry',
+          isEqualTo: 'Tourism and Hospitality (Remote & Very Remote Australia)',
+        )
         .get();
 
     // Combina i elimina codis repetits

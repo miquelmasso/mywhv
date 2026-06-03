@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/search_service.dart';
+import 'australia_journey_guide_screen.dart';
 import 'guide_page_screen.dart';
+import 'visa_type_selection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'guide_section_screen.dart';
 
@@ -100,7 +102,8 @@ class _GuideScreenState extends State<GuideScreen> {
 
   Future<GuideManual> _loadManualWithSavedLocale() async {
     final prefs = await SharedPreferences.getInstance();
-    final systemLang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    final systemLang =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     final saved = prefs.getString('guide_lang');
     final chosen = saved ?? (systemLang.isNotEmpty ? systemLang : 'en');
     _langCode = chosen;
@@ -121,10 +124,24 @@ class _GuideScreenState extends State<GuideScreen> {
   ) {
     _clearSearch();
     _clearSearch();
-    // Per a seccions que només tenen una pàgina (ex: visa, abans d'arribar), salta directament al contingut.
+    if (section.id == 'visa_requirements' && section.pages.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VisaTypeSelectionScreen(
+            sectionId: section.id,
+            whvPage: section.pages.first,
+            onNavigateToTab: widget.onNavigateToTab,
+            initialStrings: strings,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Per a seccions que només tenen una pàgina (ex: abans d'arribar), salta directament al contingut.
     final shouldOpenDirectly =
-        (section.id == 'visa_requirements' || section.id == 'before_arrival') &&
-            section.pages.isNotEmpty;
+        section.id == 'before_arrival' && section.pages.isNotEmpty;
     if (shouldOpenDirectly) {
       Navigator.push(
         context,
@@ -208,7 +225,11 @@ class _GuideScreenState extends State<GuideScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Select language', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+              Text(
+                'Select language',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 12,
@@ -258,10 +279,7 @@ class _GuideScreenState extends State<GuideScreen> {
           ),
         ),
         alignment: Alignment.center,
-        child: Text(
-          flag,
-          style: const TextStyle(fontSize: 28),
-        ),
+        child: Text(flag, style: const TextStyle(fontSize: 28)),
       ),
     );
   }
@@ -311,16 +329,19 @@ class _GuideScreenState extends State<GuideScreen> {
         final result = _results[index];
         return InkWell(
           borderRadius: BorderRadius.circular(12),
-            onTap: () async {
-              FocusScope.of(context).unfocus();
-              await _searchService.navigateToResult(result, context,
-                  onNavigateToTab: onNavigateToTab);
-              setState(() {
-                _query = '';
-                _results = [];
-                _searchController.clear();
-              });
-            },
+          onTap: () async {
+            FocusScope.of(context).unfocus();
+            await _searchService.navigateToResult(
+              result,
+              context,
+              onNavigateToTab: onNavigateToTab,
+            );
+            setState(() {
+              _query = '';
+              _results = [];
+              _searchController.clear();
+            });
+          },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -356,10 +377,44 @@ class _GuideScreenState extends State<GuideScreen> {
     );
   }
 
+  Future<void> _openJourneyGuide() async {
+    _clearSearch();
+    final manual = await _future;
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AustraliaJourneyGuideScreen(
+          manual: manual,
+          onNavigateToTab: widget.onNavigateToTab,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 78,
+        leadingWidth: 104,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18, top: 8),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: _openJourneyGuide,
+            child: SizedBox(
+              width: 82,
+              height: 82,
+              child: Image.asset(
+                'assets/ kangaroo_icon.png',
+                width: 82,
+                height: 82,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ),
         title: const Text('Australia Guide'),
         centerTitle: true,
         actions: [
@@ -373,169 +428,186 @@ class _GuideScreenState extends State<GuideScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchController,
-              onChanged: _onQueryChanged,
-              decoration: InputDecoration(
-                hintText: 'Search anything',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _query.isNotEmpty
-                    ? IconButton(
-                        tooltip: 'Clear',
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: _clearSearch,
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Colors.grey.withValues(alpha: 0.2),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: _onQueryChanged,
+                  decoration: InputDecoration(
+                    hintText: 'Search anything',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            tooltip: 'Clear',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: _clearSearch,
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey.withValues(alpha: 0.2),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: FutureBuilder<GuideManual>(
-                future: _future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError || snapshot.data == null) {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Error carregant la guia.'),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _future = GuideManualRepository().loadFromAssets();
-                            });
-                          },
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    );
-                  }
-                  if (_query.trim().isNotEmpty) {
-                    return _buildResultsList(widget.onNavigateToTab);
-                  }
-
-                  final strings = snapshot.data!.strings;
-                  String resolve(dynamic value) {
-                    if (value == null) return '';
-                    if (value is Map && value['key'] is String) {
-                      final key = value['key'] as String;
-                      return strings[key] ?? key;
-                    }
-                    if (value is String) {
-                      if (value.startsWith('@')) {
-                        final key = value.substring(1);
-                        return strings[key] ?? key;
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FutureBuilder<GuideManual>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-                      return value;
-                    }
-                    if (value is Iterable) {
-                      return value.map(resolve).join('\n');
-                    }
-                    return value.toString();
-                  }
+                      if (snapshot.hasError || snapshot.data == null) {
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Error carregant la guia.'),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _future = GuideManualRepository()
+                                      .loadFromAssets();
+                                });
+                              },
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        );
+                      }
+                      if (_query.trim().isNotEmpty) {
+                        return _buildResultsList(widget.onNavigateToTab);
+                      }
 
-                  final sections = _filterSections(snapshot.data!.sections);
-                  if (sections.isEmpty) {
-                    return const Center(child: Text('No s’han trobat seccions.'));
-                  }
-                  return GridView.builder(
-                    itemCount: sections.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 1.35,
-                    ),
-                    itemBuilder: (context, index) {
-                      final section = sections[index];
-                      final categoryStyle =
-                          _categoryStyles[section.id] ??
-                          const _GuideCategoryStyle(
-                            background: Color(0xFFD9EAF7),
-                            icon: Color(0xFF5B8DB8),
-                          );
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _openSection(context, section, snapshot.data!.strings),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
+                      final strings = snapshot.data!.strings;
+                      String resolve(dynamic value) {
+                        if (value == null) return '';
+                        if (value is Map && value['key'] is String) {
+                          final key = value['key'] as String;
+                          return strings[key] ?? key;
+                        }
+                        if (value is String) {
+                          if (value.startsWith('@')) {
+                            final key = value.substring(1);
+                            return strings[key] ?? key;
+                          }
+                          return value;
+                        }
+                        if (value is Iterable) {
+                          return value.map(resolve).join('\n');
+                        }
+                        return value.toString();
+                      }
+
+                      final sections = _filterSections(snapshot.data!.sections);
+                      if (sections.isEmpty) {
+                        return const Center(
+                          child: Text('No s’han trobat seccions.'),
+                        );
+                      }
+                      return GridView.builder(
+                        itemCount: sections.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 1.35,
+                            ),
+                        itemBuilder: (context, index) {
+                          final section = sections[index];
+                          final categoryStyle =
+                              _categoryStyles[section.id] ??
+                              const _GuideCategoryStyle(
+                                background: Color(0xFFD9EAF7),
+                                icon: Color(0xFF5B8DB8),
+                              );
+                          return InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                            onTap: () => _openSection(
+                              context,
+                              section,
+                              snapshot.data!.strings,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: categoryStyle.background,
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: categoryStyle.icon.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      blurRadius: 10,
-                                      spreadRadius: -3,
-                                      offset: const Offset(0, 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: categoryStyle.background,
+                                      borderRadius: BorderRadius.circular(18),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: categoryStyle.icon.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          blurRadius: 10,
+                                          spreadRadius: -3,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  _iconForSection(section.icon),
-                                  size: 22,
-                                  color: categoryStyle.icon,
-                                ),
+                                    child: Icon(
+                                      _iconForSection(section.icon),
+                                      size: 22,
+                                      color: categoryStyle.icon,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    resolve(section.title),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                resolve(section.title),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13.5,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

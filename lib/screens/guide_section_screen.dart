@@ -1,16 +1,66 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 import '../models/guide_manual/guide_manual.dart';
+import '../services/affiliate_links_service.dart';
+import '../services/external_link_service.dart';
 import '../services/main_tabs_controller.dart';
 import 'guide_page_screen.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/overlay_helper.dart';
 import '../services/postcode_eligibility_service.dart';
+import '../utils/guide_section_theme.dart';
+import '../widgets/guide_back_button.dart';
 
-Future<void> _launchExternal(Uri uri) async {
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
+const Color _guideInlineIconColor = Color(0xFFA35D4F);
+
+IconData? _guideIconForDecoratedTitle(String title) {
+  final trimmed = title.trimLeft();
+  if (trimmed.startsWith('📌')) return Icons.push_pin_outlined;
+  if (trimmed.startsWith('✔️') || trimmed.startsWith('✔')) {
+    return Icons.check_circle_outline_rounded;
+  }
+  if (trimmed.startsWith('🔁')) return Icons.sync_alt_rounded;
+  if (trimmed.startsWith('⚠️') || trimmed.startsWith('⚠')) {
+    return Icons.warning_amber_rounded;
+  }
+  if (trimmed.startsWith('💡')) return Icons.lightbulb_outline_rounded;
+  if (trimmed.startsWith('🧾')) return Icons.receipt_long_outlined;
+  if (trimmed.startsWith('🔧')) return Icons.build_outlined;
+  if (trimmed.startsWith('🆘')) return Icons.health_and_safety_outlined;
+  if (trimmed.startsWith('ℹ️') || trimmed.startsWith('ℹ')) {
+    return Icons.info_outline_rounded;
+  }
+  return null;
+}
+
+String _cleanGuideTitle(String title) {
+  var clean = title.trimLeft();
+  const prefixes = <String>[
+    '📌',
+    '✔️',
+    '✔',
+    '🔁',
+    '⚠️',
+    '⚠',
+    '💡',
+    '🧾',
+    '🔧',
+    '🆘',
+    'ℹ️',
+    'ℹ',
+  ];
+  for (final prefix in prefixes) {
+    if (clean.startsWith(prefix)) {
+      clean = clean.substring(prefix.length).trimLeft();
+      break;
+    }
+  }
+  return clean;
+}
+
+Future<void> _launchExternal(BuildContext context, Uri uri) async {
+  await ExternalLinkService.open(context, uri.toString());
 }
 
 Future<void> _openGuidePage(
@@ -217,6 +267,7 @@ class GuideSectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sectionTheme = GuideSectionTheme.forSection(section.id);
     if (_isTabbedSection) {
       final tabs = section.pages
           .map((p) => Tab(text: _tabLabelForPage(p)))
@@ -230,14 +281,27 @@ class GuideSectionScreen extends StatelessWidget {
           builder: (context) {
             final controller = DefaultTabController.of(context);
             return Scaffold(
+              backgroundColor: sectionTheme.pageBackground,
               appBar: AppBar(
+                backgroundColor: sectionTheme.pageBackground,
+                surfaceTintColor: sectionTheme.pageBackground,
+                centerTitle: true,
+                leadingWidth: 72,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: GuideBackButton(
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
                 title: Text(_resolve(section.title)),
                 bottom: TabBar(
                   isScrollable: false,
                   labelPadding: EdgeInsets.zero,
                   indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: Theme.of(context).colorScheme.primary,
+                  labelColor: sectionTheme.buttonText,
                   unselectedLabelColor: Colors.black54,
+                  indicatorColor: sectionTheme.accent,
+                  dividerColor: sectionTheme.softAccent,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w600),
                   unselectedLabelStyle: const TextStyle(
                     fontWeight: FontWeight.w400,
@@ -256,6 +320,7 @@ class GuideSectionScreen extends StatelessWidget {
                               sectionId: section.id,
                               strings: strings,
                               onNavigateToTab: onNavigateToTab,
+                              sectionTheme: sectionTheme,
                             ),
                           )
                           .toList(),
@@ -294,7 +359,16 @@ class GuideSectionScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      backgroundColor: sectionTheme.pageBackground,
       appBar: AppBar(
+        backgroundColor: sectionTheme.pageBackground,
+        surfaceTintColor: sectionTheme.pageBackground,
+        centerTitle: true,
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GuideBackButton(onTap: () => Navigator.of(context).pop()),
+        ),
         title: Text(_resolve(section.title)),
         // No search icon for section pages (ex: work/feina).
       ),
@@ -359,10 +433,10 @@ class GuideSectionScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.08),
+                              color: sectionTheme.softAccent,
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(pageIcon(), color: Colors.blue),
+                            child: Icon(pageIcon(), color: sectionTheme.accent),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -411,12 +485,14 @@ class _PageBlocksView extends StatefulWidget {
     required this.sectionId,
     this.onNavigateToTab,
     required this.strings,
+    required this.sectionTheme,
   });
 
   final GuidePage page;
   final String sectionId;
   final void Function(int index)? onNavigateToTab;
   final Map<String, String> strings;
+  final GuideSectionTheme sectionTheme;
 
   @override
   State<_PageBlocksView> createState() => _PageBlocksViewState();
@@ -456,6 +532,7 @@ class _PageBlocksViewState extends State<_PageBlocksView>
         sectionId: widget.sectionId,
         pageId: widget.page.id,
         vsync: this,
+        sectionTheme: widget.sectionTheme,
       ),
     );
   }
@@ -468,6 +545,7 @@ class _BlockCard extends StatelessWidget {
     required this.resolve,
     required this.sectionId,
     required this.pageId,
+    required this.sectionTheme,
     this.vsync,
   });
 
@@ -476,19 +554,20 @@ class _BlockCard extends StatelessWidget {
   final String Function(dynamic value) resolve;
   final String sectionId;
   final String pageId;
+  final GuideSectionTheme sectionTheme;
   final TickerProvider? vsync;
 
   Widget _callout({required String variant, required BuildContext context}) {
-    Color bg = Colors.blue.shade50;
-    Color iconColor = Colors.blue.shade700;
+    Color bg = sectionTheme.softAccent;
+    Color iconColor = sectionTheme.accent;
     IconData icon = Icons.info_outline;
     if (variant == 'warning') {
-      bg = Colors.orange.shade50;
-      iconColor = Colors.orange.shade700;
+      bg = sectionTheme.calloutBackground;
+      iconColor = sectionTheme.warningIcon;
       icon = Icons.warning_amber_rounded;
     } else if (variant == 'success') {
-      bg = Colors.orange.shade50;
-      iconColor = Colors.orange.shade700;
+      bg = sectionTheme.calloutBackground;
+      iconColor = sectionTheme.warningIcon;
       icon = Icons.lightbulb_outline;
     }
     debugPrint(
@@ -500,14 +579,14 @@ class _BlockCard extends StatelessWidget {
         return Icon(
           Icons.cancel_outlined,
           size: 18,
-          color: Colors.red.shade700,
+          color: sectionTheme.warningIcon,
         );
       }
       if (variant == 'success') {
         return Icon(
           Icons.check_circle_outline,
           size: 18,
-          color: Colors.orange.shade700,
+          color: sectionTheme.warningIcon,
         );
       }
       return Icon(Icons.circle, size: 10, color: Colors.grey.shade700);
@@ -591,6 +670,9 @@ class _BlockCard extends StatelessWidget {
     final hasTitle = block.title != null && block.title!.isNotEmpty;
     final hasContent = block.content != null && block.content!.isNotEmpty;
     final hasItems = block.items.isNotEmpty;
+    final isBeforeLandingCard =
+        block.title == '@arrival.sim.before_title' ||
+        resolve(block.title) == 'Before landing';
     IconData? iconFromString(String? name) {
       switch (name) {
         case 'local_florist':
@@ -606,13 +688,13 @@ class _BlockCard extends StatelessWidget {
 
     Color? cardColor;
     if (block.variant == 'warning') {
-      cardColor = Colors.orange.shade50;
+      cardColor = sectionTheme.calloutBackground;
     } else if (block.variant == 'success') {
-      cardColor = Colors.orange.shade50;
+      cardColor = sectionTheme.calloutBackground;
     } else if (block.variant == 'info') {
-      cardColor = Colors.blue.shade50;
+      cardColor = sectionTheme.softAccent;
     } else if (block.variant == 'milestone') {
-      cardColor = Colors.orange.shade50;
+      cardColor = sectionTheme.softAccent;
     }
     if (hasButton && !hasTitle && !hasContent && !hasItems) {
       final isCopyAction = block.buttonUrl!.startsWith('copy:');
@@ -645,20 +727,25 @@ class _BlockCard extends StatelessWidget {
           }
           return;
         }
-        await _launchExternal(Uri.parse(block.buttonUrl!));
+        await _launchExternal(context, Uri.parse(block.buttonUrl!));
       }
 
-      return Align(
-        alignment: Alignment.centerLeft,
+      return SizedBox(
+        width: double.infinity,
         child: ElevatedButton(
           onPressed: handleTap,
           style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            backgroundColor: sectionTheme.buttonBackground,
+            foregroundColor: sectionTheme.buttonText,
+            elevation: 0,
+            shape: const StadiumBorder(),
           ),
-          child: Text(resolve(block.buttonLabel)),
+          child: Text(
+            resolve(block.buttonLabel),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
       );
     }
@@ -736,7 +823,7 @@ class _BlockCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(leadingIcon, color: Colors.deepOrange, size: 20),
+                    Icon(leadingIcon, color: sectionTheme.accent, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -758,7 +845,7 @@ class _BlockCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.deepOrange.shade700,
+                          color: sectionTheme.buttonText,
                         ),
                       ),
                     ),
@@ -776,11 +863,23 @@ class _BlockCard extends StatelessWidget {
           );
         }
         final leadingIcon = iconFromString(block.icon);
+        final variantIcon = block.variant == 'warning'
+            ? Icons.warning_amber_rounded
+            : block.variant == 'success'
+            ? Icons.lightbulb_outline_rounded
+            : block.variant == 'info'
+            ? Icons.info_outline_rounded
+            : null;
+        final effectiveLeadingIcon = leadingIcon ?? variantIcon;
+        final effectiveLeadingColor =
+            block.variant == 'warning' || block.variant == 'success'
+            ? sectionTheme.warningIcon
+            : sectionTheme.accent;
         return _InfoCard(
           title: resolve(block.title),
           color: cardColor,
-          leading: leadingIcon != null
-              ? Icon(leadingIcon, color: Colors.brown.shade400)
+          leading: effectiveLeadingIcon != null
+              ? Icon(effectiveLeadingIcon, color: effectiveLeadingColor)
               : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,6 +892,15 @@ class _BlockCard extends StatelessWidget {
                     style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                 ),
+              if (isBeforeLandingCard) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Otherwise get an e-sim that will work as soon as you land.',
+                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                _PopularESimsButton(sectionTheme: sectionTheme),
+              ],
               if (block.chips.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
@@ -853,12 +961,13 @@ class _BlockCard extends StatelessWidget {
                       )),
               if (hasButton) const SizedBox(height: 10),
               if (hasButton)
-                Center(
+                SizedBox(
+                  width: double.infinity,
                   child: Material(
-                    color: const Color(0xFFF8EDEA),
-                    borderRadius: BorderRadius.circular(14),
+                    color: sectionTheme.buttonBackground,
+                    shape: const StadiumBorder(),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () async {
                         if (block.buttonUrl == null) return;
                         if (block.buttonUrl!.startsWith('guide:')) {
@@ -874,7 +983,10 @@ class _BlockCard extends StatelessWidget {
                           }
                           return;
                         }
-                        await _launchExternal(Uri.parse(block.buttonUrl!));
+                        await _launchExternal(
+                          context,
+                          Uri.parse(block.buttonUrl!),
+                        );
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -883,8 +995,9 @@ class _BlockCard extends StatelessWidget {
                         ),
                         child: Text(
                           resolve(block.buttonLabel),
-                          style: const TextStyle(
-                            color: Color(0xFF8A4A3A),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: sectionTheme.buttonText,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -896,6 +1009,192 @@ class _BlockCard extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+class _PopularESimsButton extends StatelessWidget {
+  const _PopularESimsButton({required this.sectionTheme});
+
+  final GuideSectionTheme sectionTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: sectionTheme.buttonBackground,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showESimsDialog(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Text(
+              'Popular e-sims',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: sectionTheme.buttonText,
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showESimsDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Popular e-sims',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF151922),
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ESimProviderButton(
+                label: 'Airalo',
+                asset: 'assets/Airalo logo.png',
+                onTap: () => _openCachedESimLink(context, const [
+                  'airalo_link',
+                  'Airalo_link',
+                  'airaloLink',
+                ]),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Holafly',
+                asset: 'assets/Holafly logo .png',
+                onTap: () => _openDirectESimLink(
+                  context,
+                  'https://holafly.sjv.io/B5P7B9',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Sally e-sim',
+                asset: 'assets/sally e-sim logo.png',
+                onTap: () => _openCachedESimLink(context, const [
+                  'sally_esim_link',
+                  'sally_e_sim_link',
+                  'sally_link',
+                  'Sally_link',
+                  'sallyesim_link',
+                ]),
+              ),
+              const SizedBox(height: 12),
+              _ESimProviderButton(
+                label: 'Yesim',
+                asset: 'assets/Yesim logo.png',
+                onTap: () => _openDirectESimLink(
+                  context,
+                  'https://yesim.tpo.lv/x3ZNhigi',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openCachedESimLink(
+    BuildContext context,
+    List<String> keys,
+  ) async {
+    var link = '';
+    for (final key in keys) {
+      link = await AffiliateLinksService.instance.getLink(key);
+      if (link.isNotEmpty) break;
+    }
+    if (!context.mounted) return;
+    if (link.isEmpty) {
+      await ExternalLinkService.showBrokenLinkDialog(context);
+      return;
+    }
+    await _openESimUrl(context, link);
+  }
+
+  Future<void> _openDirectESimLink(BuildContext context, String link) async {
+    await _openESimUrl(context, link);
+  }
+
+  Future<void> _openESimUrl(BuildContext context, String link) async {
+    await ExternalLinkService.open(context, link);
+  }
+}
+
+class _ESimProviderButton extends StatelessWidget {
+  const _ESimProviderButton({
+    required this.label,
+    required this.asset,
+    required this.onTap,
+  });
+
+  final String label;
+  final String asset;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF7F5),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  asset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.sim_card_outlined,
+                    color: Color(0xFF9B6A5D),
+                    size: 23,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF8A4A3A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF9B6A5D)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -936,6 +1235,20 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final decoratedTitle = title;
+    final displayTitle = decoratedTitle == null
+        ? null
+        : _cleanGuideTitle(decoratedTitle);
+    final resolvedLeading =
+        leading ??
+        (decoratedTitle == null
+            ? null
+            : _guideIconForDecoratedTitle(decoratedTitle) == null
+            ? null
+            : Icon(
+                _guideIconForDecoratedTitle(decoratedTitle),
+                color: _guideInlineIconColor,
+              ));
     return Container(
       padding: padding,
       decoration: BoxDecoration(
@@ -952,14 +1265,17 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (leading != null) ...[leading!, const SizedBox(width: 10)],
+          if (resolvedLeading != null) ...[
+            resolvedLeading,
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (title != null && title!.isNotEmpty) ...[
+                if (displayTitle != null && displayTitle.isNotEmpty) ...[
                   Text(
-                    title!,
+                    displayTitle,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
