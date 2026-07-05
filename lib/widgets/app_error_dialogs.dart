@@ -19,7 +19,7 @@ class AppErrorDialogs {
       message: 'Something went wrong. Please try again.',
       helperTitle: 'Next step',
       helperText: 'Try again later or report it.',
-      imageAsset: 'assets/kangaroo_sad.png',
+      imageAsset: 'assets/icons/kangaroo_sad.png',
     );
   }
 
@@ -30,7 +30,7 @@ class AppErrorDialogs {
       message: 'We could not open your email app.',
       helperTitle: 'Next step',
       helperText: 'Check Mail setup or report it.',
-      imageAsset: 'assets/kangaroo_sad.png',
+      imageAsset: 'assets/icons/kangaroo_sad.png',
     );
   }
 

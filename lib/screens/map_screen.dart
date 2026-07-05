@@ -14,6 +14,7 @@ import 'package:supercluster/supercluster.dart';
 
 import '../config/admin_config.dart';
 import '../services/email_sender_service.dart';
+import '../services/admin_button_visibility_service.dart';
 import '../services/donation_service.dart';
 import '../services/external_link_service.dart';
 import '../services/favorites_service.dart';
@@ -104,6 +105,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const String _seenProfileTooltipKey = 'seen_map_profile_tooltip';
   static const String _dismissedLocationFabBadgeKey =
       'dismissed_map_location_fab_badge';
+  static const String _hospitalityCameraPrefix = 'map_hospitality_last';
+  static const String _harvestCameraPrefix = 'map_harvest_last';
   static const LatLng _australiaCenter = LatLng(-25.0, 133.0);
   static final LatLngBounds _defaultSearchBounds = LatLngBounds(
     southwest: const LatLng(
@@ -163,6 +166,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   double _initialZoom = _defaultZoom;
   LatLng _currentCenter = _australiaCenter;
   double _currentZoom = _defaultZoom;
+  LatLng _hospitalityCenter = _australiaCenter;
+  double _hospitalityZoom = _defaultZoom;
+  LatLng _harvestCenter = _australiaCenter;
+  double _harvestZoom = _defaultZoom;
 
   bool _isStyleLoaded = false;
   bool _isLoadingData = true;
@@ -406,23 +413,46 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _loadLastMapPosition() async {
     final prefs = await SharedPreferences.getInstance();
-    final lat = prefs.getDouble('map_last_lat');
-    final lng = prefs.getDouble('map_last_lng');
-    final zoom = prefs.getDouble('map_last_zoom');
-
-    if (lat == null || lng == null || zoom == null) {
-      return;
-    }
-
-    final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
-    final center = _clampToAustraliaBounds(LatLng(lat, lng));
+    final hospitalityCamera = _readSavedCamera(
+      prefs,
+      _hospitalityCameraPrefix,
+      fallbackLat: prefs.getDouble('map_last_lat'),
+      fallbackLng: prefs.getDouble('map_last_lng'),
+      fallbackZoom: prefs.getDouble('map_last_zoom'),
+    );
+    final harvestCamera = _readSavedCamera(prefs, _harvestCameraPrefix);
     if (!mounted) return;
     setState(() {
-      _initialCenter = center;
-      _initialZoom = clampedZoom;
-      _currentCenter = center;
-      _currentZoom = clampedZoom;
+      if (hospitalityCamera != null) {
+        _hospitalityCenter = hospitalityCamera.$1;
+        _hospitalityZoom = hospitalityCamera.$2;
+      }
+      if (harvestCamera != null) {
+        _harvestCenter = harvestCamera.$1;
+        _harvestZoom = harvestCamera.$2;
+      }
+      _initialCenter = _hospitalityCenter;
+      _initialZoom = _hospitalityZoom;
+      _currentCenter = _hospitalityCenter;
+      _currentZoom = _hospitalityZoom;
     });
+  }
+
+  (LatLng, double)? _readSavedCamera(
+    SharedPreferences prefs,
+    String prefix, {
+    double? fallbackLat,
+    double? fallbackLng,
+    double? fallbackZoom,
+  }) {
+    final lat = prefs.getDouble('${prefix}_lat') ?? fallbackLat;
+    final lng = prefs.getDouble('${prefix}_lng') ?? fallbackLng;
+    final zoom = prefs.getDouble('${prefix}_zoom') ?? fallbackZoom;
+    if (lat == null || lng == null || zoom == null) return null;
+    return (
+      _clampToAustraliaBounds(LatLng(lat, lng)),
+      zoom.clamp(6.0, 12.0).toDouble(),
+    );
   }
 
   Future<void> _loadLocationFabBadgeState() async {
@@ -447,13 +477,20 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     await prefs.setBool(_dismissedLocationFabBadgeKey, true);
   }
 
-  Future<void> _saveLastMapPosition(LatLng center, double zoom) async {
+  Future<void> _saveLastMapPosition(
+    LatLng center,
+    double zoom, {
+    required bool hospitality,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
     final clampedCenter = _clampToAustraliaBounds(center);
-    await prefs.setDouble('map_last_lat', clampedCenter.latitude);
-    await prefs.setDouble('map_last_lng', clampedCenter.longitude);
-    await prefs.setDouble('map_last_zoom', clampedZoom);
+    final prefix = hospitality
+        ? _hospitalityCameraPrefix
+        : _harvestCameraPrefix;
+    await prefs.setDouble('${prefix}_lat', clampedCenter.latitude);
+    await prefs.setDouble('${prefix}_lng', clampedCenter.longitude);
+    await prefs.setDouble('${prefix}_zoom', clampedZoom);
   }
 
   LatLng _clampToAustraliaCoreBounds(LatLng center) {
@@ -1125,12 +1162,28 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void _handleCameraMove(CameraPosition cameraPosition) {
     _currentCenter = cameraPosition.target;
     _currentZoom = cameraPosition.zoom;
+    if (_isHospitality) {
+      _hospitalityCenter = _currentCenter;
+      _hospitalityZoom = _currentZoom;
+    } else {
+      _harvestCenter = _currentCenter;
+      _harvestZoom = _currentZoom;
+    }
   }
 
   void _handleCameraIdle() {
+    final hospitality = _isHospitality;
+    final centerToPersist = _currentCenter;
+    final zoomToPersist = _currentZoom;
     _persistDebounce?.cancel();
     _persistDebounce = Timer(const Duration(milliseconds: 350), () {
-      unawaited(_saveLastMapPosition(_currentCenter, _currentZoom));
+      unawaited(
+        _saveLastMapPosition(
+          centerToPersist,
+          zoomToPersist,
+          hospitality: hospitality,
+        ),
+      );
     });
     unawaited(_scheduleAnnotationRefresh());
   }
@@ -1400,8 +1453,19 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   void _toggleCategory(bool hospitality) {
     if (_isHospitality == hospitality) return;
+    if (_isHospitality) {
+      _hospitalityCenter = _currentCenter;
+      _hospitalityZoom = _currentZoom;
+    } else {
+      _harvestCenter = _currentCenter;
+      _harvestZoom = _currentZoom;
+    }
+    final targetCenter = hospitality ? _hospitalityCenter : _harvestCenter;
+    final targetZoom = hospitality ? _hospitalityZoom : _harvestZoom;
     setState(() {
       _isHospitality = hospitality;
+      _currentCenter = targetCenter;
+      _currentZoom = targetZoom;
       _selectedRestaurant = null;
     });
     _setSelectedRestaurantId(null);
@@ -1410,6 +1474,15 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       unawaited(_scheduleAnnotationRefresh());
     } else {
       unawaited(_mapController?.clearSymbols() ?? Future<void>.value());
+    }
+    final controller = _mapController;
+    if (controller != null) {
+      unawaited(
+        controller.animateCamera(
+          CameraUpdate.newLatLngZoom(targetCenter, targetZoom),
+          duration: const Duration(milliseconds: 250),
+        ),
+      );
     }
   }
 
@@ -1549,7 +1622,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _showProfilePopup() {
-    final showAdmin = isAdminSession;
+    final showAdmin =
+        isAdminSession || AdminButtonVisibilityService.instance.enabled.value;
     final parentContext = context;
     showGeneralDialog(
       context: context,
@@ -2206,7 +2280,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       height: size,
       width: size,
       child: Image.asset(
-        'assets/source.gif',
+        'assets/icons/source.gif',
         fit: BoxFit.contain,
         gaplessPlayback: false,
       ),
@@ -2508,9 +2582,7 @@ class CompactCategorySwitch extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? category == Category.hospitality
-                          ? _hospitalityAccentColor
-                          : Colors.blueAccent
+                    ? _hospitalityAccentColor
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
@@ -2623,7 +2695,7 @@ class FarmPlaceholderView extends StatelessWidget {
       children: [
         Positioned.fill(
           child: Image.asset(
-            'assets/farm_placeholder_map.png',
+            'assets/icons/farm_placeholder_map.png',
             fit: BoxFit.cover,
           ),
         ),

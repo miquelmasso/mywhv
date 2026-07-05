@@ -11,6 +11,20 @@ import 'restaurant_sqlite_store.dart';
 import 'offline_bootstrap_service.dart';
 import 'offline_state.dart';
 
+class RestaurantsFirebaseSyncResult {
+  const RestaurantsFirebaseSyncResult({
+    required this.remoteCount,
+    required this.localCount,
+    required this.mergedCount,
+    required this.didRun,
+  });
+
+  final int remoteCount;
+  final int localCount;
+  final int mergedCount;
+  final bool didRun;
+}
+
 class MapMarkersService {
   static const _cacheKeyJson = 'restaurants_cache_json';
   static const _cacheKeySynced = 'restaurants_cache_synced';
@@ -64,6 +78,15 @@ class MapMarkersService {
         cachedJson != null &&
         cachedJson.isNotEmpty &&
         !needsVersionRefresh;
+
+    if (needsVersionRefresh) {
+      await _refreshRestaurantsFromBundledSeed(
+        prefs,
+        sqliteStore,
+        currentAppVersion: currentAppVersion,
+        localWorkedHereMinCounts: localWorkedHereMinCounts,
+      );
+    }
 
     try {
       final sqliteRestaurants = lightweight
@@ -265,6 +288,191 @@ class MapMarkersService {
     );
   }
 
+  static Future<void> _refreshRestaurantsFromBundledSeed(
+    SharedPreferences prefs,
+    RestaurantSqliteStore store, {
+    required String? currentAppVersion,
+    required Map<String, int> localWorkedHereMinCounts,
+  }) async {
+    try {
+      final seedRestaurants = await store.loadSeedAssetRestaurants();
+      if (seedRestaurants.isEmpty) {
+        debugPrint('⚠️ Bundled restaurants seed is empty; keeping local data');
+        return;
+      }
+
+      await _persistRestaurantsCache(
+        prefs,
+        seedRestaurants,
+        appVersion: currentAppVersion,
+        localWorkedHereMinCounts: localWorkedHereMinCounts,
+      );
+      debugPrint(
+        '📦 Bundled restaurants refreshed for app version $currentAppVersion: ${seedRestaurants.length}',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Bundled restaurants refresh skipped: $e');
+    }
+  }
+
+  static Future<RestaurantsFirebaseSyncResult>
+  syncRestaurantsFromFirebaseIfNeeded({bool force = false}) async {
+    if (!force) {
+      final store = RestaurantSqliteStore.instance;
+      await store.init();
+      final localCount = await store.count();
+      return RestaurantsFirebaseSyncResult(
+        remoteCount: 0,
+        localCount: localCount,
+        mergedCount: localCount,
+        didRun: false,
+      );
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final currentAppVersion = await _readCurrentAppVersion();
+    final store = RestaurantSqliteStore.instance;
+    await store.init();
+    if (!await store.hasData) {
+      await OfflineBootstrapService.instance.init();
+    }
+
+    final localRestaurants = await store.getAll();
+    final remoteRestaurants = await _loadRestaurantsFromFirebase();
+    final merged = mergeRestaurantLists(
+      localRestaurants,
+      remoteRestaurants,
+      incomingWins: true,
+    );
+
+    await _persistRestaurantsCache(
+      prefs,
+      merged,
+      appVersion: currentAppVersion,
+    );
+
+    debugPrint(
+      '☁️ Restaurants Firebase sync: remote ${remoteRestaurants.length}, local ${localRestaurants.length}, merged ${merged.length}',
+    );
+
+    return RestaurantsFirebaseSyncResult(
+      remoteCount: remoteRestaurants.length,
+      localCount: localRestaurants.length,
+      mergedCount: merged.length,
+      didRun: true,
+    );
+  }
+
+  static Future<void> upsertRestaurantsToFirebase(
+    List<Map<String, dynamic>> restaurants,
+  ) async {
+    final rows = restaurants
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((item) => _firebaseDocIdForRestaurant(item).isNotEmpty)
+        .toList(growable: false);
+    if (rows.isEmpty) return;
+
+    for (var start = 0; start < rows.length; start += 450) {
+      final end = math.min(start + 450, rows.length);
+      final batch = _firestore.batch();
+      for (final row in rows.sublist(start, end)) {
+        final docId = _firebaseDocIdForRestaurant(row);
+        if (docId.isEmpty) continue;
+        final data = _sanitizeForJson(row);
+        data.removeWhere(
+          (key, value) =>
+              value is String &&
+              value.trim().isEmpty &&
+              key != 'id' &&
+              key != 'docId',
+        );
+        data['id'] = docId;
+        data['docId'] = docId;
+        data['updated_at'] = FieldValue.serverTimestamp();
+        data['synced_from'] = (data['source'] ?? '').toString().isEmpty
+            ? 'app'
+            : data['source'];
+        batch.set(
+          _firestore.collection('restaurants').doc(docId),
+          data,
+          SetOptions(merge: true),
+        );
+      }
+      await batch.commit();
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>>
+  _loadRestaurantsFromFirebase() async {
+    final snapshot = await _firestore.collection('restaurants').get();
+    return snapshot.docs
+        .map((doc) {
+          final data = Map<String, dynamic>.from(doc.data());
+          data['id'] = (data['id'] ?? doc.id).toString();
+          data['docId'] = doc.id;
+          return _sanitizeForJson(data);
+        })
+        .toList(growable: false);
+  }
+
+  static List<Map<String, dynamic>> mergeRestaurantLists(
+    List<Map<String, dynamic>> base,
+    List<Map<String, dynamic>> incoming, {
+    bool incomingWins = false,
+  }) {
+    final merged = base
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((item) => _localIdForRestaurant(item).isNotEmpty)
+        .toList(growable: true);
+    final indexById = <String, int>{};
+    final indexBySource = <String, int>{};
+
+    for (var i = 0; i < merged.length; i++) {
+      final id = _localIdForRestaurant(merged[i]);
+      if (id.isNotEmpty) indexById[id] = i;
+      final sourceId = (merged[i]['source_place_id'] ?? '').toString();
+      if (sourceId.isNotEmpty) indexBySource[sourceId] = i;
+    }
+
+    for (final row in incoming) {
+      final normalized = Map<String, dynamic>.from(row);
+      final incomingId = _localIdForRestaurant(normalized);
+      if (incomingId.isNotEmpty) {
+        normalized['id'] = incomingId;
+        normalized['docId'] = incomingId;
+      }
+      final sourceId = (normalized['source_place_id'] ?? '').toString();
+      final existingIndex =
+          (sourceId.isNotEmpty ? indexBySource[sourceId] : null) ??
+          (incomingId.isNotEmpty ? indexById[incomingId] : null) ??
+          _findNearbyDuplicateIndex(merged, normalized);
+
+      if (existingIndex != null) {
+        merged[existingIndex] = _mergeRestaurantRecord(
+          merged[existingIndex],
+          normalized,
+          incomingWins: incomingWins,
+        );
+        final mergedId = _localIdForRestaurant(merged[existingIndex]);
+        if (mergedId.isNotEmpty) indexById[mergedId] = existingIndex;
+        final mergedSourceId = (merged[existingIndex]['source_place_id'] ?? '')
+            .toString();
+        if (mergedSourceId.isNotEmpty) {
+          indexBySource[mergedSourceId] = existingIndex;
+        }
+        continue;
+      }
+
+      if (incomingId.isEmpty) continue;
+      final nextIndex = merged.length;
+      merged.add(normalized);
+      indexById[incomingId] = nextIndex;
+      if (sourceId.isNotEmpty) indexBySource[sourceId] = nextIndex;
+    }
+
+    return merged;
+  }
+
   static List<Map<String, dynamic>> _decodeCachedList(String cachedJson) {
     final decoded = jsonDecode(cachedJson) as List<dynamic>;
     return decoded
@@ -398,6 +606,7 @@ class MapMarkersService {
             'instagram_url': (restaurant['instagram_url'] ?? '').toString(),
             'careers_page': (restaurant['careers_page'] ?? '').toString(),
             'website': (restaurant['website'] ?? '').toString(),
+            'source_place_id': (restaurant['source_place_id'] ?? '').toString(),
             'blocked':
                 restaurant['blocked'] == true ||
                 _asInt(restaurant['blocked']) > 0,
@@ -501,6 +710,138 @@ class MapMarkersService {
     } catch (_) {
       return <String, int>{};
     }
+  }
+
+  static String _firebaseDocIdForRestaurant(Map<String, dynamic> restaurant) {
+    final preferred = _localIdForRestaurant(restaurant);
+    final raw = preferred.isNotEmpty
+        ? preferred
+        : (restaurant['name'] ?? '').toString();
+    return raw
+        .trim()
+        .replaceAll(RegExp(r'[\/.#\$\[\]]'), '-')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'_{2,}'), '_');
+  }
+
+  static String _localIdForRestaurant(Map<String, dynamic> restaurant) {
+    return (restaurant['docId'] ?? restaurant['id'] ?? '').toString().trim();
+  }
+
+  static Map<String, dynamic> _mergeRestaurantRecord(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> incoming, {
+    required bool incomingWins,
+  }) {
+    final merged = Map<String, dynamic>.from(existing);
+    incoming.forEach((key, value) {
+      if (key == 'id' || key == 'docId') {
+        if (_localIdForRestaurant(merged).isEmpty && _isUsefulValue(value)) {
+          merged[key] = value;
+        }
+        return;
+      }
+
+      if (key == 'worked_here_count') {
+        merged[key] = math.max(_asInt(merged[key]), _asInt(value));
+        return;
+      }
+
+      final current = merged[key];
+      final incomingIsUseful = _isUsefulValue(value);
+      if (!incomingIsUseful) return;
+
+      final currentIsEmpty = !_isUsefulValue(current);
+      final shouldReplace =
+          incomingWins ||
+          currentIsEmpty ||
+          _shouldReplaceWeakValue(key, current);
+      if (shouldReplace) {
+        merged[key] = value;
+      }
+    });
+
+    final id = _localIdForRestaurant(merged);
+    if (id.isNotEmpty) {
+      merged['id'] = id;
+      merged['docId'] = id;
+    }
+    return merged;
+  }
+
+  static bool _isUsefulValue(dynamic value) {
+    if (value == null) return false;
+    if (value is String) return value.trim().isNotEmpty;
+    if (value is Iterable) return value.isNotEmpty;
+    if (value is Map) return value.isNotEmpty;
+    return true;
+  }
+
+  static bool _shouldReplaceWeakValue(String key, dynamic current) {
+    if (key != 'website' || current is! String) return false;
+    final lower = current.toLowerCase();
+    return lower.contains('facebook.com') ||
+        lower.contains('instagram.com') ||
+        lower.contains('tripadvisor.') ||
+        lower.contains('ubereats.') ||
+        lower.contains('doordash.') ||
+        lower.contains('menulog.') ||
+        lower.contains('yellowpages.') ||
+        lower.contains('restaurantguru.');
+  }
+
+  static int? _findNearbyDuplicateIndex(
+    List<Map<String, dynamic>> existing,
+    Map<String, dynamic> candidate,
+  ) {
+    final candidateName = _normalizeRestaurantName(candidate['name']);
+    final candidatePostcode =
+        (candidate['postcode_display'] ?? candidate['postcode'] ?? '')
+            .toString()
+            .padLeft(4, '0');
+    final candidateLat = _asDouble(candidate['latitude'] ?? candidate['lat']);
+    final candidateLng = _asDouble(candidate['longitude'] ?? candidate['lng']);
+    if (candidateName.isEmpty || candidateLat == null || candidateLng == null) {
+      return null;
+    }
+
+    for (var index = 0; index < existing.length; index++) {
+      final row = existing[index];
+      if (_normalizeRestaurantName(row['name']) != candidateName) continue;
+      final rowPostcode = (row['postcode_display'] ?? row['postcode'] ?? '')
+          .toString()
+          .padLeft(4, '0');
+      if (rowPostcode != candidatePostcode) continue;
+      final rowLat = _asDouble(row['latitude'] ?? row['lat']);
+      final rowLng = _asDouble(row['longitude'] ?? row['lng']);
+      if (rowLat == null || rowLng == null) continue;
+      if (_distanceMeters(candidateLat, candidateLng, rowLat, rowLng) <= 120) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  static String _normalizeRestaurantName(dynamic name) {
+    return name.toString().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  static double _distanceMeters(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
+    const earthRadiusMeters = 6371000.0;
+    final latDelta = (lat2 - lat1) * math.pi / 180;
+    final lngDelta = (lng2 - lng1) * math.pi / 180;
+    final a =
+        math.sin(latDelta / 2) * math.sin(latDelta / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(lngDelta / 2) *
+            math.sin(lngDelta / 2);
+    return earthRadiusMeters * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   static Future<String?> _readCurrentAppVersion() async {

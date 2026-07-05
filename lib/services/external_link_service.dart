@@ -6,7 +6,7 @@ import '../screens/report_message_page.dart';
 class ExternalLinkService {
   const ExternalLinkService._();
 
-  static const String _brokenLinkAsset = 'assets/Enllaç trencat cangur .png';
+  static const String _brokenLinkAsset = 'assets/icons/Enllaç trencat cangur .png';
 
   static Future<bool> open(
     BuildContext context,

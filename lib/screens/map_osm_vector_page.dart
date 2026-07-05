@@ -30,6 +30,7 @@ import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../utils/australia_map_viewport.dart';
 import '../services/email_sender_service.dart';
+import '../services/admin_button_visibility_service.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/profile_button_icon.dart';
@@ -82,6 +83,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   static const String _styleAssetCacheKey = 'osm_vector_self_hosted';
   static const String _dismissedLocationFabBadgeKey =
       'dismissed_map_location_fab_badge';
+  static const String _hospitalityCameraPrefix = 'map_hospitality_last';
+  static const String _harvestCameraPrefix = 'map_harvest_last';
   static final LatLngBounds _australiaViewportBounds = LatLngBounds(
     const LatLng(
       AustraliaMapViewport.viewportSouth,
@@ -96,12 +99,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   final MapController _mapController = MapController();
   late LatLng _initialCenter;
   late double _initialZoom;
-  final bool _showAllRestaurants = false;
-  bool _farmMapEnabled = false;
+  bool _farmMapEnabled = true;
 
   List<Map<String, Object?>> _restaurantLocations = [];
   List<Map<String, Object?>> _visibleRestaurantLocations = [];
-  final List<Map<String, Object?>> _harvestLocations = [];
+  List<Map<String, Object?>> _harvestLocations = [];
   List<Marker> _markers = [];
   bool _isHospitality = true;
   bool _isLoadingData = true;
@@ -110,6 +112,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   DateTime? _tileLoadingStartedAt;
   late LatLng _currentCenter;
   late double _currentZoom;
+  late LatLng _hospitalityCenter;
+  late double _hospitalityZoom;
+  late LatLng _harvestCenter;
+  late double _harvestZoom;
   bool _mapReady = false;
   LatLng? _pendingCenter;
   double? _pendingZoom;
@@ -314,6 +320,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _initialZoom = widget.initialZoom;
     _currentCenter = widget.initialCenter;
     _currentZoom = widget.initialZoom;
+    _hospitalityCenter = widget.initialCenter;
+    _hospitalityZoom = widget.initialZoom;
+    _harvestCenter = widget.initialCenter;
+    _harvestZoom = widget.initialZoom;
     _kangarooController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -427,7 +437,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       height: size,
       width: size,
       child: Image.asset(
-        'assets/source.gif',
+        'assets/icons/source.gif',
         fit: BoxFit.contain,
         gaplessPlayback: false,
       ),
@@ -508,27 +518,57 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   Future<void> _loadLastMapPosition() async {
     final prefs = await SharedPreferences.getInstance();
-    final lat = prefs.getDouble('map_last_lat');
-    final lng = prefs.getDouble('map_last_lng');
-    final zoom = prefs.getDouble('map_last_zoom');
+    final legacyLat = prefs.getDouble('map_last_lat');
+    final legacyLng = prefs.getDouble('map_last_lng');
+    final legacyZoom = prefs.getDouble('map_last_zoom');
+    final hospitalityCamera = _readSavedCamera(
+      prefs,
+      _hospitalityCameraPrefix,
+      fallbackLat: legacyLat,
+      fallbackLng: legacyLng,
+      fallbackZoom: legacyZoom,
+    );
+    final harvestCamera = _readSavedCamera(prefs, _harvestCameraPrefix);
 
-    if (lat != null && lng != null && zoom != null) {
-      final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
-      final center = _clampToAustraliaBounds(LatLng(lat, lng));
-      setState(() {
-        _initialCenter = center;
-        _initialZoom = clampedZoom;
-        _currentCenter = center;
-        _currentZoom = clampedZoom;
-        _pendingCenter = center;
-        _pendingZoom = clampedZoom;
-      });
-      if (_mapReady) {
-        _mapController.move(center, clampedZoom);
-        _pendingCenter = null;
-        _pendingZoom = null;
+    if (!mounted) return;
+    setState(() {
+      if (hospitalityCamera != null) {
+        _hospitalityCenter = hospitalityCamera.$1;
+        _hospitalityZoom = hospitalityCamera.$2;
       }
+      if (harvestCamera != null) {
+        _harvestCenter = harvestCamera.$1;
+        _harvestZoom = harvestCamera.$2;
+      }
+      _initialCenter = _hospitalityCenter;
+      _initialZoom = _hospitalityZoom;
+      _currentCenter = _hospitalityCenter;
+      _currentZoom = _hospitalityZoom;
+      _pendingCenter = _hospitalityCenter;
+      _pendingZoom = _hospitalityZoom;
+    });
+    if (_mapReady) {
+      _mapController.move(_hospitalityCenter, _hospitalityZoom);
+      _pendingCenter = null;
+      _pendingZoom = null;
     }
+  }
+
+  (LatLng, double)? _readSavedCamera(
+    SharedPreferences prefs,
+    String prefix, {
+    double? fallbackLat,
+    double? fallbackLng,
+    double? fallbackZoom,
+  }) {
+    final lat = prefs.getDouble('${prefix}_lat') ?? fallbackLat;
+    final lng = prefs.getDouble('${prefix}_lng') ?? fallbackLng;
+    final zoom = prefs.getDouble('${prefix}_zoom') ?? fallbackZoom;
+    if (lat == null || lng == null || zoom == null) return null;
+    return (
+      _clampToAustraliaBounds(LatLng(lat, lng)),
+      zoom.clamp(6.0, 12.0).toDouble(),
+    );
   }
 
   Future<void> _loadLocationFabBadgeState() async {
@@ -551,13 +591,20 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     await prefs.setBool(_dismissedLocationFabBadgeKey, true);
   }
 
-  Future<void> _saveLastMapPosition(LatLng center, double zoom) async {
+  Future<void> _saveLastMapPosition(
+    LatLng center,
+    double zoom, {
+    required bool hospitality,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final clampedZoom = zoom.clamp(6.0, 12.0).toDouble();
     final clampedCenter = _clampToAustraliaBounds(center);
-    await prefs.setDouble('map_last_lat', clampedCenter.latitude);
-    await prefs.setDouble('map_last_lng', clampedCenter.longitude);
-    await prefs.setDouble('map_last_zoom', clampedZoom);
+    final prefix = hospitality
+        ? _hospitalityCameraPrefix
+        : _harvestCameraPrefix;
+    await prefs.setDouble('${prefix}_lat', clampedCenter.latitude);
+    await prefs.setDouble('${prefix}_lng', clampedCenter.longitude);
+    await prefs.setDouble('${prefix}_zoom', clampedZoom);
   }
 
   LatLng _clampToAustraliaCoreBounds(LatLng center) {
@@ -625,7 +672,13 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       debugPrint('❌ Error restaurants OSM vector: $e');
     }
 
-    // Harvest loading paused
+    try {
+      final harvestPlaces =
+          await HarvestPlacesService.loadCompleteHarvestPlaces();
+      _harvestLocations = _buildHarvestLocations(harvestPlaces);
+    } catch (e) {
+      debugPrint('❌ Error harvest OSM vector: $e');
+    }
 
     _recomputeVisibleRestaurants();
     _updateMarkers();
@@ -649,7 +702,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
-      if (!_showAllRestaurants && !hasData) continue;
+      if (!hasData) continue;
 
       locations.add({
         'id': docId,
@@ -662,6 +715,26 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       });
     }
     return locations;
+  }
+
+  List<Map<String, Object?>> _buildHarvestLocations(List<HarvestPlace> places) {
+    return places
+        .where(
+          (place) =>
+              place.id.isNotEmpty &&
+              place.latitude != 0 &&
+              place.longitude != 0,
+        )
+        .map(
+          (place) => <String, Object?>{
+            'id': place.id,
+            'lat': place.latitude,
+            'lng': place.longitude,
+            'data': place,
+            'worked_here_count': 0,
+          },
+        )
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _loadSeedRestaurantsFromAsset() async {
@@ -777,7 +850,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void activateMapView() {
-    if (!_isHospitality || !mounted) return;
+    if (!mounted) return;
 
     final targetCenter = _pendingCenter ?? _currentCenter;
     final targetZoom = _pendingZoom ?? _currentZoom;
@@ -969,14 +1042,32 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   void _toggleCategory(bool hospitality) {
     if (_isHospitality == hospitality) return;
     _zoomPrefetchDebounce?.cancel();
+    if (_isHospitality) {
+      _hospitalityCenter = _currentCenter;
+      _hospitalityZoom = _currentZoom;
+    } else {
+      _harvestCenter = _currentCenter;
+      _harvestZoom = _currentZoom;
+    }
+    final targetCenter = hospitality ? _hospitalityCenter : _harvestCenter;
+    final targetZoom = hospitality ? _hospitalityZoom : _harvestZoom;
     setState(() {
       _isHospitality = hospitality;
+      _currentCenter = targetCenter;
+      _currentZoom = targetZoom;
+      _pendingCenter = targetCenter;
+      _pendingZoom = targetZoom;
       _selectedRestaurant = null;
       _selectedHarvest = null;
     });
     _setSelectedRestaurantId(null);
     _closeFilterOverlay();
     _updateMarkers();
+    if (_mapReady) {
+      _mapController.move(targetCenter, targetZoom);
+      _pendingCenter = null;
+      _pendingZoom = null;
+    }
   }
 
   void setFarmMapEnabled(bool enabled) {
@@ -1094,7 +1185,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _showProfilePopup() {
-    final isAdmin = isAdminSession;
+    final isAdmin =
+        isAdminSession || AdminButtonVisibilityService.instance.enabled.value;
     final parentContext = context;
     showGeneralDialog(
       context: context,
@@ -1765,6 +1857,9 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       postcode: data.postcode,
       state: data.state,
       description: data.description,
+      activeMonths: data.activeMonths,
+      crops: data.crops,
+      cropsByMonth: data.cropsByMonth,
       bottomOffset: kMapPopupDockOffset,
       onClose: () {
         setState(() => _selectedHarvest = null);
@@ -2008,10 +2103,6 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         final style = snapshot.data!;
         final tileProviders = _optimizedTileProviders(style);
 
-        if (!_isHospitality) {
-          return const Scaffold(appBar: null, body: FarmPlaceholderView());
-        }
-
         return LayoutBuilder(
           builder: (context, constraints) {
             final minimumVisibleZoom = _minimumVisibleAustraliaZoom(
@@ -2081,15 +2172,26 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                             _setTileLoading(true);
                           }
                           _currentZoom = newZoom;
+                          if (_isHospitality) {
+                            _hospitalityCenter = _currentCenter;
+                            _hospitalityZoom = _currentZoom;
+                          } else {
+                            _harvestCenter = _currentCenter;
+                            _harvestZoom = _currentZoom;
+                          }
                           _pendingCenter = _currentCenter;
                           _pendingZoom = _currentZoom;
+                          final hospitality = _isHospitality;
+                          final centerToPersist = _currentCenter;
+                          final zoomToPersist = _currentZoom;
                           _persistDebounce?.cancel();
                           _persistDebounce = Timer(
                             const Duration(milliseconds: 500),
                             () {
                               _saveLastMapPosition(
-                                _currentCenter,
-                                _currentZoom,
+                                centerToPersist,
+                                zoomToPersist,
+                                hospitality: hospitality,
                               );
                             },
                           );
@@ -2256,8 +2358,6 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                     ),
                   if (_isLoadingData)
                     const Center(child: CircularProgressIndicator()),
-                  _buildRestaurantPopup(),
-                  _buildHarvestPopup(),
                   if (_isHospitality && _showInitialKangarooHint)
                     Positioned(
                       bottom: _initialKangarooBottomOffset,
@@ -2266,24 +2366,23 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                         child: _kangarooLoader(size: 56, animate: true),
                       ),
                     ),
-                  if (_isHospitality)
-                    Positioned(
-                      bottom: _locationFabBottom,
-                      right: 16,
-                      child: FloatingActionButton(
-                        onPressed: _isLocating
-                            ? null
-                            : _handleLocationFabPressed,
-                        heroTag: 'fab_location',
-                        shape: const CircleBorder(),
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.blueGrey.shade700,
-                        child: LocationFabIcon(
-                          showBadge: _showLocationFabBadge,
-                          isLoading: _isLocating,
-                        ),
+                  Positioned(
+                    bottom: _locationFabBottom,
+                    right: 16,
+                    child: FloatingActionButton(
+                      onPressed: _isLocating ? null : _handleLocationFabPressed,
+                      heroTag: 'fab_location',
+                      shape: const CircleBorder(),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.blueGrey.shade700,
+                      child: LocationFabIcon(
+                        showBadge: _showLocationFabBadge,
+                        isLoading: _isLocating,
                       ),
                     ),
+                  ),
+                  _buildRestaurantPopup(),
+                  _buildHarvestPopup(),
                   if (_isHospitality && _showZoomOutButton)
                     Positioned(
                       bottom: 180,
@@ -2345,9 +2444,7 @@ class CompactCategorySwitch extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? category == Category.hospitality
-                          ? _hospitalityAccentColor
-                          : Colors.blueAccent
+                    ? _hospitalityAccentColor
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
@@ -2437,8 +2534,7 @@ class CompactCategorySwitch extends StatelessWidget {
                   ),
                   buildSegment(
                     category: Category.farm,
-                    label: 'Farm',
-                    badge: 'SOON',
+                    label: 'Harvest',
                     enabled: farmEnabled,
                   ),
                 ],
@@ -2460,7 +2556,7 @@ class FarmPlaceholderView extends StatelessWidget {
       children: [
         Positioned.fill(
           child: Image.asset(
-            'assets/farm_placeholder_map.png',
+            'assets/icons/farm_placeholder_map.png',
             fit: BoxFit.cover,
           ),
         ),

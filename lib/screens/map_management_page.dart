@@ -23,7 +23,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Mapa actualitzat. ${result.count} restaurants sincronitzats.',
+            'restaurants.json generat. ${result.count} restaurants sincronitzats.',
           ),
         ),
       );
@@ -32,7 +32,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'We could not update the map data right now. Please try again.',
+            'We could not generate restaurants.json right now. Please try again.',
           ),
           backgroundColor: Colors.redAccent,
         ),
@@ -134,8 +134,8 @@ class _MapManagementPageState extends State<MapManagementPage> {
                       : const Icon(Icons.download_for_offline_outlined),
                   label: Text(
                     _isRefreshingRestaurants
-                        ? 'Actualitzant mapa...'
-                        : 'Actualitzar mapa',
+                        ? 'Generant restaurants.json...'
+                        : 'Generar restaurants.json',
                   ),
                 ),
               ),

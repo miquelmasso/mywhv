@@ -1372,7 +1372,7 @@ class _RecommendedResourceCard extends StatelessWidget {
           providers: [
             _ResourceProvider(
               label: 'Kiwi',
-              asset: 'assets/Kiwi.com logo.png',
+              asset: 'assets/icons/Kiwi.com logo.png',
               fallbackIcon: Icons.flight_takeoff_outlined,
               onTap: () async {
                 var link = await AffiliateLinksService.instance.getLink(
@@ -1388,7 +1388,7 @@ class _RecommendedResourceCard extends StatelessWidget {
             ),
             _ResourceProvider(
               label: 'Trip',
-              asset: 'assets/trip logo.png',
+              asset: 'assets/icons/trip logo.png',
               fallbackIcon: Icons.travel_explore_outlined,
               directLink:
                   'https://www.trip.com/?Allianceid=8388962&SID=315592467&trip_sub1=&trip_sub3=D17431528',
@@ -1402,7 +1402,7 @@ class _RecommendedResourceCard extends StatelessWidget {
           providers: [
             _ResourceProvider(
               label: 'Trip',
-              asset: 'assets/trip logo.png',
+              asset: 'assets/icons/trip logo.png',
               fallbackIcon: Icons.hotel_outlined,
               directLink:
                   'https://www.trip.com/hotels/w/home?Allianceid=8388962&SID=315592467&trip_sub1=&trip_sub3=D17431528',
@@ -1418,19 +1418,19 @@ class _RecommendedResourceCard extends StatelessWidget {
           providers: [
             _ResourceProvider(
               label: 'Airalo',
-              asset: 'assets/Airalo logo.png',
+              asset: 'assets/icons/Airalo logo.png',
               fallbackIcon: Icons.sim_card_outlined,
               linkKeys: const ['airalo_link', 'Airalo_link', 'airaloLink'],
             ),
             _ResourceProvider(
               label: 'Holafly',
-              asset: 'assets/Holafly logo .png',
+              asset: 'assets/icons/Holafly logo .png',
               fallbackIcon: Icons.sim_card_outlined,
               directLink: 'https://holafly.sjv.io/B5P7B9',
             ),
             _ResourceProvider(
               label: 'Sally e-sim',
-              asset: 'assets/sally e-sim logo.png',
+              asset: 'assets/icons/sally e-sim logo.png',
               fallbackIcon: Icons.sim_card_outlined,
               linkKeys: const [
                 'sally_esim_link',
@@ -1443,7 +1443,7 @@ class _RecommendedResourceCard extends StatelessWidget {
             ),
             _ResourceProvider(
               label: 'Yesim',
-              asset: 'assets/Yesim logo.png',
+              asset: 'assets/icons/Yesim logo.png',
               fallbackIcon: Icons.sim_card_outlined,
               directLink: 'https://yesim.tpo.lv/x3ZNhigi',
             ),
@@ -1733,8 +1733,8 @@ class _JourneyResourceData {
 class _MascotAssets {
   const _MascotAssets._();
 
-  static const String happy = 'assets/kangaroo_happy.png';
-  static const String thinking = 'assets/kangaroo_thinking.png';
-  static const String excited = 'assets/kangaroo_excited.png';
-  static const String proud = 'assets/kangaroo_proud.png';
+  static const String happy = 'assets/icons/kangaroo_happy.png';
+  static const String thinking = 'assets/icons/kangaroo_thinking.png';
+  static const String excited = 'assets/icons/kangaroo_excited.png';
+  static const String proud = 'assets/icons/kangaroo_proud.png';
 }

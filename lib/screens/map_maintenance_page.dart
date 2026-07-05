@@ -36,7 +36,7 @@ class MapMaintenancePage extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(22),
                           child: Image.asset(
-                            'assets/kangaroo_manteniment.png',
+                            'assets/icons/kangaroo_manteniment.png',
                             fit: BoxFit.cover,
                           ),
                         ),

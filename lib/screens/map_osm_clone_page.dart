@@ -21,6 +21,7 @@ import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/review_service.dart';
 import '../services/email_sender_service.dart';
+import '../services/admin_button_visibility_service.dart';
 import '../services/tile_cache_service.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
@@ -68,7 +69,6 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   static const double _defaultZoom = 4.5;
   LatLng _initialCenter = _defaultCenter;
   double _initialZoom = _defaultZoom;
-  final bool _showAllRestaurants = false;
   bool _farmMapEnabled = false;
 
   List<Map<String, Object?>> _restaurantLocations = [];
@@ -322,7 +322,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
       height: size,
       width: size,
       child: Image.asset(
-        'assets/source.gif',
+        'assets/icons/source.gif',
         fit: BoxFit.contain,
         gaplessPlayback: false,
       ),
@@ -458,7 +458,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
-      if (!_showAllRestaurants && !hasData) continue;
+      if (!hasData) continue;
 
       locations.add({
         'id': docId,
@@ -925,7 +925,8 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
   }
 
   void _showProfilePopup() {
-    final isAdmin = isAdminSession;
+    final isAdmin =
+        isAdminSession || AdminButtonVisibilityService.instance.enabled.value;
     final parentContext = context;
     showGeneralDialog(
       context: context,
@@ -2060,7 +2061,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.asset(
-                              'assets/kangaroo_manteniment.png',
+                              'assets/icons/kangaroo_manteniment.png',
                               width: 46,
                               height: 46,
                               fit: BoxFit.cover,
@@ -2138,9 +2139,7 @@ class CompactCategorySwitch extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? category == Category.hospitality
-                          ? _hospitalityAccentColor
-                          : Colors.blueAccent
+                    ? _hospitalityAccentColor
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
@@ -2253,7 +2252,7 @@ class FarmPlaceholderView extends StatelessWidget {
       children: [
         Positioned.fill(
           child: Image.asset(
-            'assets/farm_placeholder_map.png',
+            'assets/icons/farm_placeholder_map.png',
             fit: BoxFit.cover,
           ),
         ),

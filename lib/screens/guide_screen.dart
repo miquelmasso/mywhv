@@ -427,7 +427,7 @@ class _GuideScreenState extends State<GuideScreen> {
                 children: [
                   Center(
                     child: Image.asset(
-                      'assets/ kangaroo_icon.png',
+                      'assets/icons/ kangaroo_icon.png',
                       width: 82,
                       height: 82,
                       fit: BoxFit.contain,

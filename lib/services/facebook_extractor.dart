@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/io_client.dart';
+
+import 'contact_html_fetcher.dart';
 
 class FacebookExtractor {
   static const bool _verboseLogs = false;
@@ -67,6 +67,13 @@ class FacebookExtractor {
     }
 
     if (found.isEmpty) {
+      for (final url in await _discoverRelevantSitemapUrls(cleanedBase)) {
+        await checkUrl(url);
+        if (found.isNotEmpty) break;
+      }
+    }
+
+    if (found.isEmpty) {
       _log('⚠️ Cap Facebook trobat per $baseUrl');
       return null;
     }
@@ -84,22 +91,103 @@ class FacebookExtractor {
   // ---------------- Helpers ----------------
 
   Future<String?> _fetchHtmlUnsafe(String url) async {
-    try {
-      final client = HttpClient()..badCertificateCallback = (_, _, _) => true;
-      final ioClient = IOClient(client);
-      final response = await ioClient
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return response.body;
-      _log('⚠️ HTTP ${response.statusCode} per $url');
-    } catch (e) {
-      _log('⚠️ Error descarregant $url → $e');
+    final html = await ContactHtmlFetcher.fetch(url);
+    if (html == null) _log('⚠️ Error descarregant $url');
+    return html;
+  }
+
+  Future<List<String>> _discoverRelevantSitemapUrls(String baseUrl) async {
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || base.host.isEmpty) return const <String>[];
+    final sitemapUrls = <String>{
+      _combineBasePath(base, '/sitemap.xml'),
+      _combineBasePath(base, '/sitemap_index.xml'),
+    };
+    final found = <String, int>{};
+    for (final sitemapUrl in sitemapUrls) {
+      final xml = await _fetchHtmlUnsafe(sitemapUrl);
+      if (xml == null || xml.isEmpty) continue;
+      for (final match in RegExp(
+        r'<loc>\s*([^<]+)\s*</loc>',
+        caseSensitive: false,
+      ).allMatches(xml)) {
+        final raw = match.group(1)?.trim();
+        if (raw == null || raw.isEmpty) continue;
+        if (raw.toLowerCase().endsWith('.xml')) {
+          final nested = await _fetchHtmlUnsafe(raw);
+          if (nested == null || nested.isEmpty) continue;
+          for (final nestedMatch in RegExp(
+            r'<loc>\s*([^<]+)\s*</loc>',
+            caseSensitive: false,
+          ).allMatches(nested)) {
+            _addRelevantSitemapCandidate(base, nestedMatch.group(1), found);
+          }
+          continue;
+        }
+        _addRelevantSitemapCandidate(base, raw, found);
+      }
     }
-    return null;
+    final sorted = found.entries.toList()
+      ..sort((a, b) {
+        final byScore = b.value.compareTo(a.value);
+        if (byScore != 0) return byScore;
+        return a.key.length.compareTo(b.key.length);
+      });
+    return sorted.map((entry) => entry.key).take(6).toList(growable: false);
+  }
+
+  void _addRelevantSitemapCandidate(
+    Uri base,
+    String? raw,
+    Map<String, int> found,
+  ) {
+    if (raw == null || raw.trim().isEmpty) return;
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null) return;
+    final resolved = uri.hasScheme ? uri : base.resolveUri(uri);
+    if (resolved.host.toLowerCase().replaceFirst('www.', '') !=
+        base.host.toLowerCase().replaceFirst('www.', '')) {
+      return;
+    }
+    final url = resolved.replace(fragment: '', query: '').toString();
+    final score = _scoreRelevantSitemapUrl(url);
+    if (score <= 0) return;
+    final previous = found[url];
+    if (previous == null || score > previous) found[url] = score;
+  }
+
+  int _scoreRelevantSitemapUrl(String url) {
+    final lower = url.toLowerCase();
+    var score = 0;
+    const strong = ['contact', 'about', 'connect', 'social', 'visit'];
+    const medium = ['team', 'location', 'venue', 'events', 'functions'];
+    for (final keyword in strong) {
+      if (lower.contains(keyword)) score += 30;
+    }
+    for (final keyword in medium) {
+      if (lower.contains(keyword)) score += 10;
+    }
+    if (lower.contains('/blog') ||
+        lower.contains('/news') ||
+        lower.contains('/privacy') ||
+        lower.contains('/menu')) {
+      score -= 30;
+    }
+    return score;
+  }
+
+  String _combineBasePath(Uri base, String path) {
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: path,
+    ).toString();
   }
 
   Set<String> _extractFacebookLinks(String html) {
     final links = <String>{};
+    final normalizedHtml = _normalizeHtmlForSocialExtraction(html);
 
     final patterns = [
       // href="https://facebook.com/..."
@@ -143,7 +231,7 @@ class FacebookExtractor {
     ];
 
     for (final reg in patterns) {
-      for (final match in reg.allMatches(html)) {
+      for (final match in reg.allMatches(normalizedHtml)) {
         final url = match.group(1)?.trim();
         if (url != null && !_isBad(url) && _isValidFacebookPage(url)) {
           links.add(_clean(url));
@@ -153,13 +241,26 @@ class FacebookExtractor {
     return links;
   }
 
+  String _normalizeHtmlForSocialExtraction(String html) => html
+      .replaceAll(r'\/', '/')
+      .replaceAll(r'\u002f', '/')
+      .replaceAll(r'\u002F', '/')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&#x2F;', '/')
+      .replaceAll('&#47;', '/');
+
   bool _isBad(String url) {
     final l = url.toLowerCase();
     return l.contains('plugin') ||
         l.contains('share.php') ||
         l.contains('dialog') ||
         l.contains('pixel') ||
-        l.contains('login');
+        l.contains('login') ||
+        l.contains('/2008/fbml') ||
+        l.contains('/search/') ||
+        l.contains('/photo') ||
+        l.contains('/watch') ||
+        l.contains('/tr');
   }
 
   String _clean(String url) {
@@ -188,8 +289,15 @@ class FacebookExtractor {
         .toList();
     if (segments.isEmpty) return false;
 
-    const badLastSegments = {
+    const badSegments = {
+      '2008',
+      'fbml',
       'tr',
+      'photo',
+      'photos',
+      'watch',
+      'search',
+      'top',
       'sharer.php',
       'sharer',
       'plugins',
@@ -200,9 +308,41 @@ class FacebookExtractor {
       'logout',
       'l.php',
       'policy',
+      'privacy',
+      'terms',
+      'marketplace',
+      'groups',
+      'hashtag',
+      'permalink.php',
+      'story.php',
+      'reel',
+      'reels',
     };
-    final lastSegment = segments.last.toLowerCase();
-    if (badLastSegments.contains(lastSegment)) return false;
+    final lowerSegments = segments
+        .map((segment) => segment.toLowerCase())
+        .toList();
+    if (lowerSegments.any(badSegments.contains)) return false;
+
+    const blockedPageSlugs = {
+      'wix',
+      'bitly',
+      'exploreuluru',
+      'localsearchau',
+      'wordpresscom',
+      'wordpress',
+      'meta',
+      'facebook',
+      'facebookapp',
+      'developers',
+      'business',
+      'pages',
+    };
+    final cleanedSegments = lowerSegments
+        .map((segment) => segment.replaceAll(RegExp(r'[^a-z0-9]'), ''))
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    if (cleanedSegments.any(blockedPageSlugs.contains)) return false;
+
     if (segments.length >= 2 &&
         segments[0].toLowerCase() == 'pages' &&
         segments[1].toLowerCase() == 'category') {
@@ -251,6 +391,7 @@ class FacebookExtractor {
       if (uri == null) continue;
       if (!_isValidFacebookPage(link)) continue;
       final score = _scoreFacebookLink(uri, businessName);
+      if (score < 35) continue;
       scored.add({'url': link, 'score': score, 'pathLen': uri.path.length});
     }
 
@@ -288,10 +429,19 @@ class FacebookExtractor {
       '',
     );
     final candidateSlug = _extractSlugFromPath(pathSegments);
-    if (normalizedBiz.isNotEmpty &&
-        candidateSlug.isNotEmpty &&
-        candidateSlug.contains(normalizedBiz)) {
-      score += 60;
+    if (normalizedBiz.isNotEmpty && candidateSlug.isNotEmpty) {
+      if (candidateSlug == normalizedBiz) {
+        score += 90;
+      } else if (candidateSlug.contains(normalizedBiz) ||
+          normalizedBiz.contains(candidateSlug)) {
+        score += 65;
+      } else {
+        final tokenScore = _businessTokenMatchScore(
+          businessName,
+          candidateSlug,
+        );
+        score += tokenScore;
+      }
     }
 
     // depth penalty
@@ -302,6 +452,21 @@ class FacebookExtractor {
     if (queryCount > 3) score -= (queryCount - 3) * 5;
 
     return score;
+  }
+
+  int _businessTokenMatchScore(String businessName, String candidateSlug) {
+    final tokens = businessName
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((token) => token.length >= 3)
+        .toList(growable: false);
+    if (tokens.isEmpty || candidateSlug.isEmpty) return 0;
+    var score = 0;
+    for (final token in tokens) {
+      if (candidateSlug.contains(token)) score += 25;
+    }
+    if (score == 0) return 0;
+    return score + (tokens.length > 1 ? 10 : 0);
   }
 
   String _extractSlugFromPath(List<String> segments) {

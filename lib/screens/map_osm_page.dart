@@ -39,9 +39,6 @@ class _MapPageOSMState extends State<MapPageOSM>
   final MapController _mapController = MapController();
   static const LatLng _initialCenter = LatLng(-25.0, 133.0);
   static const double _initialZoom = 4.5;
-  final bool _showAllRestaurants =
-      false; // mantenir mateix filtre que al MapPage
-
   List<Map<String, Object?>> _restaurantLocations = [];
   final List<Map<String, Object?>> _harvestLocations = [];
   List<Marker> _markers = [];
@@ -191,7 +188,7 @@ class _MapPageOSMState extends State<MapPageOSM>
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
-      if (!_showAllRestaurants && !hasData) continue;
+      if (!hasData) continue;
 
       locations.add({
         'id': docId,

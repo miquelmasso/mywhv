@@ -12,14 +12,14 @@ class InternationalBanksScreen extends StatelessWidget {
   static const List<_BankOption> _banks = [
     _BankOption(
       name: 'Revolut',
-      asset: 'assets/Revolut Logo .svg',
+      asset: 'assets/icons/Revolut Logo .svg',
       affiliateLinkKey: 'revolut_link',
       background: Color(0xFFFFFFFF),
       foreground: Color(0xFF151922),
     ),
     _BankOption(
       name: 'Trade Republic',
-      asset: 'assets/Trade-Republic logo.png',
+      asset: 'assets/icons/Trade-Republic logo.png',
       affiliateLinkKey: 'trade_republic_link',
       logoPadding: 5,
       background: Color(0xFFFFFFFF),
@@ -27,14 +27,14 @@ class InternationalBanksScreen extends StatelessWidget {
     ),
     _BankOption(
       name: 'Wise',
-      asset: 'assets/wise logo.png',
+      asset: 'assets/icons/wise logo.png',
       affiliateLinkKey: 'wise_link',
       background: Color(0xFFFFFFFF),
       foreground: Color(0xFF4E8D57),
     ),
     _BankOption(
       name: 'N26',
-      asset: 'assets/n26 logo.png',
+      asset: 'assets/icons/n26 logo.png',
       directLink: 'https://n26.com/r/miquelm1156?cid=CTK&lang=es',
       discountCode: 'miquelm1156',
       discountButtonLabel: 'Go to N26',

@@ -11,6 +11,7 @@ import '../services/map_markers_service.dart';
 import '../services/harvest_places_service.dart';
 import '../services/donation_service.dart';
 import '../services/email_sender_service.dart';
+import '../services/admin_button_visibility_service.dart';
 import '../services/external_link_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
@@ -40,8 +41,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
   Map<String, dynamic>? _selectedRestaurant;
   HarvestPlace? _selectedHarvest;
   double _currentZoom = 4.5;
-  final bool _showAllRestaurants = false; // posar true per mostrar tots
-
   final Set<String> _selectedSources = {}; // buit -> All
   final List<Map<String, dynamic>> _sourceOptions = const [
     {'key': 'gmail', 'label': 'Gmail', 'icon': Icons.email},
@@ -330,7 +329,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
           (data['instagram_url'] ?? '').toString().isNotEmpty ||
           (data['email'] ?? '').toString().isNotEmpty ||
           (data['careers_page'] ?? '').toString().isNotEmpty);
-      if (!_showAllRestaurants && !hasData) continue;
+      if (!hasData) continue;
 
       final marker = Marker(
         markerId: MarkerId(docId),
@@ -425,8 +424,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
                   Navigator.of(context).pop();
                   _openAdmin();
                 },
-                showAdmin:
-                    true, // Mateixa condició que l'accés anterior (ara era sempre visible).
+                showAdmin: AdminButtonVisibilityService.instance.enabled.value,
               ),
             ),
           ),
@@ -1343,7 +1341,6 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
             right: 15,
             child: FilterButton(
               onChanged: (value) {
-                setState(() => _showAllRestaurants = value);
                 _updateMarkers(
                   _currentZoom,
                 ); // 🔄 aplica el filtre automàticament

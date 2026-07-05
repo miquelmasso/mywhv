@@ -14,7 +14,7 @@ class KangarooGuideEntryButton extends StatefulWidget {
 
 class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
     with SingleTickerProviderStateMixin {
-  static const String _kangarooIconAsset = 'assets/ kangaroo_icon.png';
+  static const String _kangarooIconAsset = 'assets/icons/ kangaroo_icon.png';
 
   late final AnimationController _controller;
   late final Animation<double> _scale;

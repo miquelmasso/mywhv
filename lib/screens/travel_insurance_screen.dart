@@ -11,7 +11,7 @@ class TravelInsuranceScreen extends StatelessWidget {
     _InsuranceProvider(
       name: 'YoMeAnimo',
       logoText: 'YMA',
-      imageAsset: 'assets/Yomeanimo icona.png',
+      imageAsset: 'assets/icons/Yomeanimo icona.png',
       url:
           'https://www.yomeanimo.com/seguros-de-viaje-working-holiday?r=AdbiQKqt',
       showDiscountPopup: true,
@@ -21,7 +21,7 @@ class TravelInsuranceScreen extends StatelessWidget {
     _InsuranceProvider(
       name: 'IATI Seguros',
       logoText: 'iati',
-      imageAsset: 'assets/IATI icona.png',
+      imageAsset: 'assets/icons/IATI icona.png',
       url:
           'https://www.iatiseguros.com?r=05683647859528&utm_source=colaboradores&utm_medium=referral',
       background: Color(0xFFFFA22E),
@@ -30,7 +30,7 @@ class TravelInsuranceScreen extends StatelessWidget {
     _InsuranceProvider(
       name: 'Chapka',
       logoText: 'C',
-      imageAsset: 'assets/Chapka icona.png',
+      imageAsset: 'assets/icons/Chapka icona.png',
       url: 'https://www.chapkadirect.es/index.php?app=Maiki',
       keepCircleFrame: true,
       background: Color(0xFFFFFFFF),
@@ -39,7 +39,7 @@ class TravelInsuranceScreen extends StatelessWidget {
     _InsuranceProvider(
       name: 'SafetyWing',
       logoText: 'SW',
-      imageAsset: 'assets/Safety wing icona.png',
+      imageAsset: 'assets/icons/Safety wing icona.png',
       url:
           'https://safetywing.com/?referenceID=26508229&utm_source=26508229&utm_medium=Ambassador',
       background: Color(0xFF66B8AA),

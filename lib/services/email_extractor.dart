@@ -1,10 +1,24 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/io_client.dart';
+
+import 'contact_html_fetcher.dart';
+
+class EmailVerificationResult {
+  const EmailVerificationResult({
+    required this.email,
+    required this.score,
+    required this.origin,
+  });
+
+  final String email;
+  final int score;
+  final String origin;
+}
 
 class EmailExtractor {
   String? lastFacebookUrl;
   static const bool _debugEmailFilterLogs = false;
+  static const int _maxPagesToCheck = 18;
+  static const int _maxPriorityPagesToCheck = 12;
 
   void _logEmail(String msg) {
     if (!_debugEmailFilterLogs) return;
@@ -17,8 +31,21 @@ class EmailExtractor {
     String? businessName,
     String? locationName,
   }) async {
+    final result = await extractVerified(
+      baseUrl,
+      businessName: businessName,
+      locationName: locationName,
+    );
+    return result?.email;
+  }
+
+  Future<EmailVerificationResult?> extractVerified(
+    String baseUrl, {
+    String? businessName,
+    String? locationName,
+  }) async {
     final tried = <String>{};
-    final found = <Map<String, dynamic>>[];
+    final found = <EmailVerificationResult>[];
     final cleanedBase = _cleanBaseUrl(baseUrl);
 
     // 🔹 Funció segura per combinar camins sense duplicar el domini
@@ -33,8 +60,8 @@ class EmailExtractor {
       return base.endsWith('/') ? '$base$path' : '$base/$path';
     }
 
-    // 🔹 Llista d’URLs a comprovar, amb combinació segura
-    final urlsToCheck = <String>{
+    // 🔹 Llista d’URLs a comprovar, en ordre de prioritat.
+    final priorityUrls = <String>[
       cleanedBase,
       safeCombine(cleanedBase, 'contact'),
       safeCombine(cleanedBase, 'contact-us'),
@@ -43,37 +70,53 @@ class EmailExtractor {
       safeCombine(cleanedBase, 'work-with-us'),
       safeCombine(cleanedBase, 'join-us'),
       safeCombine(cleanedBase, 'careers'),
-    };
+    ];
 
-    for (final url in urlsToCheck) {
-      if (!tried.add(url)) continue;
+    final homepageHtml = await _fetchHtmlUnsafe(cleanedBase);
+    if (homepageHtml != null && homepageHtml.isNotEmpty) {
+      priorityUrls.addAll(
+        _extractRelevantInternalUrls(cleanedBase, homepageHtml),
+      );
+    }
 
-      final html = await _fetchHtmlUnsafe(url);
-      if (html == null || html.isEmpty) continue;
+    var checkedPages = 0;
+    Future<void> checkUrls(
+      Iterable<String> urls, {
+      required int maxPages,
+    }) async {
+      for (final url in urls) {
+        if (!tried.add(url)) continue;
+        if (checkedPages >= maxPages) break;
+        checkedPages++;
 
-      final candidates = {
-        ..._emailsFromMailto(html),
-        ..._emailsDirect(html),
-        ..._emailsFromJsonLd(html),
-        ..._emailsDirect(_deobfuscate(html)),
-      };
+        final html = await _fetchHtmlUnsafe(url);
+        if (html == null || html.isEmpty) continue;
 
-      for (final email in candidates) {
-        if (!_isValidEmail(email, _domain(baseUrl), originUrl: url)) {
-          _logEmail('❌ Filtered: $email (invalid)');
-          continue;
+        final candidates = _extractEmailCandidates(html);
+
+        for (final email in candidates) {
+          final verified = verifyCandidate(
+            email,
+            website: baseUrl,
+            businessName: businessName,
+            locationName: locationName,
+            originUrl: url,
+          );
+          if (verified == null) {
+            _logEmail('❌ Filtered: $email (invalid)');
+            continue;
+          }
+          found.add(verified);
         }
-
-        final score = _scoreEmail(
-          email,
-          businessName ?? '',
-          _domain(baseUrl),
-          originUrl: url,
-          locationName: locationName,
-        );
-
-        found.add({'email': email, 'score': score, 'origin': url});
       }
+    }
+
+    await checkUrls(priorityUrls, maxPages: _maxPriorityPagesToCheck);
+    if (checkedPages < _maxPagesToCheck) {
+      await checkUrls(
+        await _discoverRelevantSitemapUrls(cleanedBase),
+        maxPages: _maxPagesToCheck,
+      );
     }
 
     if (found.isEmpty) {
@@ -81,7 +124,7 @@ class EmailExtractor {
       return null;
     }
 
-    found.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+    found.sort((a, b) => b.score.compareTo(a.score));
 
     // debugPrint('📧 Candidats vàlids trobats per $baseUrl:');
     // for (final e in found) {
@@ -89,30 +132,49 @@ class EmailExtractor {
     // }
 
     final best = found.first;
-    if ((best['score'] as int) < 40) {
+    if (best.score < 40) {
       _logEmail('⚠️ No email with enough confidence.');
       return null;
     }
 
-    _logEmail('✅ Millor correu: ${best['email']} (${best['score']}%)');
-    return best['email'] as String;
+    _logEmail('✅ Millor correu: ${best.email} (${best.score}%)');
+    return best;
+  }
+
+  EmailVerificationResult? verifyCandidate(
+    String email, {
+    required String website,
+    String? businessName,
+    String? locationName,
+    String? originUrl,
+  }) {
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty) return null;
+    final domain = _domain(website);
+    if (!_isValidEmail(normalizedEmail, domain, originUrl: originUrl)) {
+      return null;
+    }
+
+    final score = _scoreEmail(
+      normalizedEmail,
+      businessName ?? '',
+      domain,
+      originUrl: originUrl,
+      locationName: locationName,
+    );
+    if (score < 40) return null;
+    return EmailVerificationResult(
+      email: normalizedEmail,
+      score: score,
+      origin: originUrl ?? 'existing',
+    );
   }
 
   // ---------------- HTTP amb SSL relaxat ----------------
   Future<String?> _fetchHtmlUnsafe(String url) async {
-    try {
-      final client = HttpClient()..badCertificateCallback = (_, _, _) => true;
-      final ioClient = IOClient(client);
-      final response = await ioClient
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) return response.body;
-      _logEmail('⚠️ HTTP ${response.statusCode} per $url');
-    } catch (e) {
-      _logEmail('⚠️ Error descarregant $url → $e');
-    }
-    return null;
+    final html = await ContactHtmlFetcher.fetch(url);
+    if (html == null) _logEmail('⚠️ Error descarregant $url');
+    return html;
   }
 
   // ---------------- Extractors ----------------
@@ -131,13 +193,232 @@ class EmailExtractor {
     r'"email"\s*:\s*"([^"]+)"',
   ).allMatches(html).map((m) => m.group(1)!).toSet();
 
-  String _deobfuscate(String html) => html
+  Set<String> _extractEmailCandidates(String html) {
+    final normalized = _normalizeHtmlForContactExtraction(html);
+    return {
+      ..._emailsFromMailto(normalized),
+      ..._emailsDirect(normalized),
+      ..._emailsFromJsonLd(normalized),
+      ..._emailsDirect(_deobfuscate(normalized)),
+    };
+  }
+
+  String _normalizeHtmlForContactExtraction(String html) => html
+      .replaceAll(r'\/', '/')
+      .replaceAll(r'\u0040', '@')
+      .replaceAll(r'\u004f', 'O')
+      .replaceAll(r'\u002e', '.')
+      .replaceAll(r'\u002E', '.')
       .replaceAll('&commat;', '@')
       .replaceAll('&#64;', '@')
+      .replaceAll('&#x40;', '@')
+      .replaceAll('&#X40;', '@')
       .replaceAll('&#46;', '.')
-      .replaceAll('&dot;', '.')
-      .replaceAll(RegExp(r'\s*(?:at|AT)\s*'), '@')
-      .replaceAll(RegExp(r'\s*(?:dot|DOT)\s*'), '.');
+      .replaceAll('&#x2e;', '.')
+      .replaceAll('&#x2E;', '.')
+      .replaceAll('&period;', '.')
+      .replaceAll('&dot;', '.');
+
+  String _deobfuscate(String html) {
+    var text = _stripHtml(html);
+    text = text
+        .replaceAll(
+          RegExp(
+            r'\s*(?:\[|\(|\{)\s*at\s*(?:\]|\)|\})\s*',
+            caseSensitive: false,
+          ),
+          '@',
+        )
+        .replaceAll(RegExp(r'\s+(?:at)\s+', caseSensitive: false), '@')
+        .replaceAll(
+          RegExp(
+            r'\s*(?:\[|\(|\{)\s*dot\s*(?:\]|\)|\})\s*',
+            caseSensitive: false,
+          ),
+          '.',
+        )
+        .replaceAll(RegExp(r'\s+(?:dot)\s+', caseSensitive: false), '.')
+        .replaceAll(RegExp(r'\s+@\s+'), '@')
+        .replaceAll(RegExp(r'\s+\.\s+'), '.');
+    return text;
+  }
+
+  String _stripHtml(String html) {
+    return html
+        .replaceAll(
+          RegExp(
+            r'<script\b[^>]*>.*?</script>',
+            caseSensitive: false,
+            dotAll: true,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'<style\b[^>]*>.*?</style>',
+            caseSensitive: false,
+            dotAll: true,
+          ),
+          ' ',
+        )
+        .replaceAll(RegExp(r'<[^>]+>'), ' ')
+        .replaceAll('&nbsp;', ' ');
+  }
+
+  List<String> _extractRelevantInternalUrls(String baseUrl, String html) {
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || base.host.isEmpty) return const <String>[];
+    final candidates = <String, int>{};
+    final normalized = _normalizeHtmlForContactExtraction(html);
+    final hrefRegex = RegExp(
+      r'''href\s*=\s*["']?([^"'\s>]+)''',
+      caseSensitive: false,
+    );
+    for (final match in hrefRegex.allMatches(normalized)) {
+      final raw = match.group(1);
+      if (raw == null || raw.trim().isEmpty) continue;
+      final resolved = _resolveInternalUrl(base, raw);
+      if (resolved == null) continue;
+      final score = _scoreRelevantUrl(resolved);
+      if (score <= 0) continue;
+      final previous = candidates[resolved];
+      if (previous == null || score > previous) {
+        candidates[resolved] = score;
+      }
+    }
+
+    final sorted = candidates.entries.toList()
+      ..sort((a, b) {
+        final byScore = b.value.compareTo(a.value);
+        if (byScore != 0) return byScore;
+        return a.key.length.compareTo(b.key.length);
+      });
+    return sorted.map((entry) => entry.key).take(8).toList(growable: false);
+  }
+
+  Future<List<String>> _discoverRelevantSitemapUrls(String baseUrl) async {
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || base.host.isEmpty) return const <String>[];
+    final sitemapUrls = <String>{
+      _combineBasePath(base, '/sitemap.xml'),
+      _combineBasePath(base, '/sitemap_index.xml'),
+    };
+    final found = <String, int>{};
+
+    for (final sitemapUrl in sitemapUrls) {
+      final xml = await _fetchHtmlUnsafe(sitemapUrl);
+      if (xml == null || xml.isEmpty) continue;
+      for (final match in RegExp(
+        r'<loc>\s*([^<]+)\s*</loc>',
+        caseSensitive: false,
+      ).allMatches(xml)) {
+        final raw = match.group(1)?.trim();
+        if (raw == null || raw.isEmpty) continue;
+        if (raw.toLowerCase().endsWith('.xml')) {
+          final nested = await _fetchHtmlUnsafe(raw);
+          if (nested == null || nested.isEmpty) continue;
+          for (final nestedMatch in RegExp(
+            r'<loc>\s*([^<]+)\s*</loc>',
+            caseSensitive: false,
+          ).allMatches(nested)) {
+            _addRelevantSitemapCandidate(base, nestedMatch.group(1), found);
+          }
+          continue;
+        }
+        _addRelevantSitemapCandidate(base, raw, found);
+      }
+    }
+
+    final sorted = found.entries.toList()
+      ..sort((a, b) {
+        final byScore = b.value.compareTo(a.value);
+        if (byScore != 0) return byScore;
+        return a.key.length.compareTo(b.key.length);
+      });
+    return sorted.map((entry) => entry.key).take(6).toList(growable: false);
+  }
+
+  void _addRelevantSitemapCandidate(
+    Uri base,
+    String? raw,
+    Map<String, int> found,
+  ) {
+    if (raw == null || raw.trim().isEmpty) return;
+    final resolved = _resolveInternalUrl(base, raw.trim());
+    if (resolved == null) return;
+    final score = _scoreRelevantUrl(resolved);
+    if (score <= 0) return;
+    final previous = found[resolved];
+    if (previous == null || score > previous) found[resolved] = score;
+  }
+
+  String? _resolveInternalUrl(Uri base, String raw) {
+    if (raw.startsWith('mailto:') ||
+        raw.startsWith('tel:') ||
+        raw.startsWith('#') ||
+        raw.startsWith('javascript:')) {
+      return null;
+    }
+    final uri = Uri.tryParse(raw);
+    final resolved = uri == null
+        ? null
+        : (uri.hasScheme ? uri : base.resolveUri(uri));
+    if (resolved == null) return null;
+    if (resolved.host.toLowerCase().replaceFirst('www.', '') !=
+        base.host.toLowerCase().replaceFirst('www.', '')) {
+      return null;
+    }
+    final lower = resolved.toString().toLowerCase();
+    if (RegExp(
+      r'\.(jpg|jpeg|png|gif|webp|svg|pdf|zip|css|js)(\?|$)',
+    ).hasMatch(lower)) {
+      return null;
+    }
+    return resolved.replace(fragment: '', query: '').toString();
+  }
+
+  int _scoreRelevantUrl(String url) {
+    final lower = url.toLowerCase();
+    var score = 0;
+    const strong = [
+      'contact',
+      'contact-us',
+      'enquiries',
+      'reservation',
+      'booking',
+      'bookings',
+      'functions',
+      'events',
+      'careers',
+      'jobs',
+      'work-with-us',
+      'join-us',
+      'join-our-team',
+    ];
+    const medium = ['about', 'team', 'visit', 'location', 'venue'];
+    for (final keyword in strong) {
+      if (lower.contains(keyword)) score += 30;
+    }
+    for (final keyword in medium) {
+      if (lower.contains(keyword)) score += 10;
+    }
+    if (lower.contains('/blog') ||
+        lower.contains('/news') ||
+        lower.contains('/privacy') ||
+        lower.contains('/terms')) {
+      score -= 30;
+    }
+    return score;
+  }
+
+  String _combineBasePath(Uri base, String path) {
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: path,
+    ).toString();
+  }
 
   // ---------------- Helpers ----------------
   String _domain(String url) {
@@ -226,7 +507,7 @@ class EmailExtractor {
 
     // 1️⃣ Patró bàsic correcte
     final baseValid = RegExp(
-      r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(com|com\.au)$',
+      r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)+$',
     ).hasMatch(e);
     if (!baseValid) return false;
 

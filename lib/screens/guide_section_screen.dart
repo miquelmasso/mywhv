@@ -1067,7 +1067,7 @@ class _PopularESimsButton extends StatelessWidget {
             children: [
               _ESimProviderButton(
                 label: 'Airalo',
-                asset: 'assets/Airalo logo.png',
+                asset: 'assets/icons/Airalo logo.png',
                 onTap: () => _openCachedESimLink(context, const [
                   'airalo_link',
                   'Airalo_link',
@@ -1077,7 +1077,7 @@ class _PopularESimsButton extends StatelessWidget {
               const SizedBox(height: 12),
               _ESimProviderButton(
                 label: 'Holafly',
-                asset: 'assets/Holafly logo .png',
+                asset: 'assets/icons/Holafly logo .png',
                 onTap: () => _openDirectESimLink(
                   context,
                   'https://holafly.sjv.io/B5P7B9',
@@ -1086,7 +1086,7 @@ class _PopularESimsButton extends StatelessWidget {
               const SizedBox(height: 12),
               _ESimProviderButton(
                 label: 'Sally e-sim',
-                asset: 'assets/sally e-sim logo.png',
+                asset: 'assets/icons/sally e-sim logo.png',
                 onTap: () => _openCachedESimLink(context, const [
                   'sally_esim_link',
                   'sally_e_sim_link',
@@ -1099,7 +1099,7 @@ class _PopularESimsButton extends StatelessWidget {
               const SizedBox(height: 12),
               _ESimProviderButton(
                 label: 'Yesim',
-                asset: 'assets/Yesim logo.png',
+                asset: 'assets/icons/Yesim logo.png',
                 onTap: () => _openDirectESimLink(
                   context,
                   'https://yesim.tpo.lv/x3ZNhigi',

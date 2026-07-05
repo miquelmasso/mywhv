@@ -19,6 +19,7 @@ import 'screens/tips_random_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/offline_bootstrap_service.dart';
+import 'services/admin_button_visibility_service.dart';
 import 'services/affiliate_links_service.dart';
 import 'services/donation_service.dart';
 import 'services/map_display_settings_service.dart';
@@ -43,6 +44,7 @@ Future<void> main() async {
   debugPrint('✅ Firebase initialized correctly');
 
   await MapDisplaySettingsService.instance.init();
+  await AdminButtonVisibilityService.instance.init();
   await RuntimeDeviceService.instance.init();
   await DonationService.instance.registerAppOpen();
   const initialHomeIndex = 1;

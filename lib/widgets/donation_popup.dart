@@ -65,7 +65,7 @@ class DonationPopup extends StatelessWidget {
                         alignment: Alignment.center,
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/ios_icon.png',
+                            'assets/icons/ios_icon.png',
                             width: 68,
                             height: 68,
                             fit: BoxFit.cover,

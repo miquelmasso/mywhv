@@ -7,7 +7,7 @@ class AppErrorDialogService {
 
   static const Color _accent = Color(0xFF7470C8);
   static const Color _ink = Color(0xFF151922);
-  static const String _sadKangarooAsset = 'assets/kangaroo_sad.png';
+  static const String _sadKangarooAsset = 'assets/icons/kangaroo_sad.png';
 
   static Future<void> showMapAssetErrorDialog(BuildContext context) {
     return showCriticalErrorDialog(

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/google_places_service.dart';
+import '../services/map_markers_service.dart';
+import '../services/osm_restaurant_import_service.dart';
 import '../services/restaurant_import_service.dart';
+import '../services/restaurant_sqlite_store.dart';
 import '../services/visa_postcodes_sqlite_store.dart';
 
 class AddRestaurantsByPostcodePage extends StatefulWidget {
@@ -14,23 +18,161 @@ class AddRestaurantsByPostcodePage extends StatefulWidget {
 
 class _AddRestaurantsByPostcodePageState
     extends State<AddRestaurantsByPostcodePage> {
+  static const _lastOsmImportPostcodeKey = 'last_osm_import_postcode';
+
   final TextEditingController _postcodeController = TextEditingController(
     text: '4802',
   );
   String _result = '';
   String _restaurantName = '';
+  String? _lastOsmImportPostcode;
   bool _loading = false;
+  bool _forceOsmRefresh = false;
+  bool _enrichOsmContacts = true;
 
   final _firestore = FirebaseFirestore.instance;
   final _placesService = GooglePlacesService();
+  final OsmRestaurantImportService _osmImportService =
+      OsmRestaurantImportService();
   final RestaurantImportService _importService = RestaurantImportService();
   final VisaPostcodesSqliteStore _visaStore = VisaPostcodesSqliteStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastOsmImportPostcode();
+  }
+
+  @override
+  void dispose() {
+    _postcodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadLastOsmImportPostcode() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _lastOsmImportPostcode = prefs.getString(_lastOsmImportPostcodeKey);
+    });
+  }
 
   void _showSnack(String text, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(text),
         backgroundColor: color ?? Colors.blueGrey.shade800,
+      ),
+    );
+  }
+
+  Future<void> _showOsmImportSummaryDialog(
+    OsmRestaurantImportResult result,
+  ) async {
+    final summary = result.summary;
+    final emailContacts = summary.emailContacts;
+    final visibleEmailContacts = emailContacts.take(10).toList();
+    final moreEmailContacts =
+        emailContacts.length - visibleEmailContacts.length;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('OSM import summary · ${result.postcode}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _summaryRow('Found in OSM', result.discovered),
+                _summaryRow('Added', result.added),
+                _summaryRow('Updated', result.updated),
+                _summaryRow('Duplicates skipped', result.skippedDuplicates),
+                const Divider(height: 24),
+                _summaryRow('Processed for contacts', summary.processed),
+                _summaryRow('With website', summary.withWebsite),
+                _summaryRow('With phone', summary.withPhone),
+                _summaryRow('With email', summary.withEmail),
+                _summaryRow('With Facebook', summary.withFacebook),
+                _summaryRow('With Instagram', summary.withInstagram),
+                _summaryRow('With jobs/careers', summary.withCareers),
+                const Divider(height: 24),
+                _summaryRow(
+                  'Website searches attempted',
+                  summary.websiteDiscoveryAttempted,
+                ),
+                _summaryRow('Websites from OSM', summary.websiteFromOsm),
+                _summaryRow('Websites discovered', summary.websiteDiscovered),
+                if (summary.websiteDiscovered > 0) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4),
+                    child: Text(
+                      'Wikidata: ${summary.websiteFromWikidata} · '
+                      'brands: ${summary.websiteFromKnownBrand} · '
+                      'domains: ${summary.websiteFromProbableDomain}',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Text(
+                  'Restaurants with email',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                if (visibleEmailContacts.isEmpty)
+                  Text(
+                    'No valid email was found.',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  )
+                else
+                  ...visibleEmailContacts.map(
+                    (contact) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '• ${contact.name}\n  ${contact.email}',
+                        style: const TextStyle(height: 1.25),
+                      ),
+                    ),
+                  ),
+                if (moreEmailContacts > 0)
+                  Text(
+                    '+ $moreEmailContacts more',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _summaryRow(String label, int value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(child: Text(label)),
+          const SizedBox(width: 16),
+          Text(
+            value.toString(),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }
@@ -165,27 +307,65 @@ class _AddRestaurantsByPostcodePageState
     }
   }
 
-  Future<void> _deleteLastRestaurant() async {
+  Future<void> _deleteLastPostcodeRestaurants() async {
+    final fallbackPostcode = _postcodeController.text.trim().padLeft(4, '0');
+    final postcode = (_lastOsmImportPostcode?.trim().isNotEmpty ?? false)
+        ? _lastOsmImportPostcode!.trim().padLeft(4, '0')
+        : fallbackPostcode;
+    if (!RegExp(r'^\d{4}$').hasMatch(postcode)) {
+      _showSnack(
+        'Import a postcode from OpenStreetMap before deleting.',
+        color: Colors.orange,
+      );
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
-      final snapshot = await _firestore
-          .collection('restaurants')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get();
+      final store = RestaurantSqliteStore.instance;
+      await store.init();
+      final restaurants = await store.getAll();
+      var deleted = 0;
+      final remaining = <Map<String, dynamic>>[];
 
-      if (snapshot.docs.isEmpty) {
-        _showSnack('⚠️ No restaurants to delete.', color: Colors.orange);
-      } else {
-        final doc = snapshot.docs.first;
-        final name = doc['name'] ?? 'Unknown';
-        await doc.reference.delete();
-        _showSnack('🗑️ Deleted: $name', color: Colors.redAccent);
+      for (final restaurant in restaurants) {
+        final restaurantPostcode =
+            (restaurant['postcode_display'] ?? restaurant['postcode'] ?? '')
+                .toString()
+                .padLeft(4, '0');
+        final docId = (restaurant['docId'] ?? restaurant['id'] ?? '')
+            .toString();
+        final source = (restaurant['source'] ?? '').toString();
+        final sourcePlaceId = (restaurant['source_place_id'] ?? '').toString();
+        final isOsmRestaurant =
+            source == 'osm' ||
+            sourcePlaceId.startsWith('osm:') ||
+            docId.startsWith('osm_');
+
+        if (restaurantPostcode == postcode && isOsmRestaurant) {
+          deleted++;
+          continue;
+        }
+        remaining.add(restaurant);
       }
+
+      if (deleted == 0) {
+        _showSnack(
+          'No OSM restaurants found to delete for $postcode.',
+          color: Colors.orange,
+        );
+        return;
+      }
+
+      await MapMarkersService.replaceLocalRestaurants(remaining);
+      _showSnack(
+        '🗑️ Deleted $deleted OSM restaurants from postcode $postcode.',
+        color: Colors.redAccent,
+      );
     } catch (e) {
       _showSnack(
-        'We could not delete the restaurant right now. Please try again.',
+        'We could not delete the latest postcode restaurants right now.',
         color: Colors.red,
       );
     } finally {
@@ -283,6 +463,75 @@ class _AddRestaurantsByPostcodePageState
     }
   }
 
+  Future<void> _importRestaurantsFromOsm() async {
+    final input = _postcodeController.text.trim();
+    if (input.isEmpty) {
+      _showSnack('Enter a postcode.', color: Colors.orange);
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final result = await _osmImportService.importForPostcode(
+        input,
+        force: _forceOsmRefresh,
+        enrichWebContacts: _enrichOsmContacts,
+      );
+      if (!mounted) return;
+
+      if (result.skippedByCooldown) {
+        _showSnack(
+          result.message ?? 'This postcode was scanned recently.',
+          color: Colors.orange,
+        );
+        return;
+      }
+      if (result.message != null && result.discovered == 0) {
+        _showSnack(result.message!, color: Colors.orange);
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastOsmImportPostcodeKey, result.postcode);
+      _lastOsmImportPostcode = result.postcode;
+
+      if (mounted) setState(() => _loading = false);
+      await _showOsmImportSummaryDialog(result);
+      if (!mounted) return;
+
+      _showSnack(
+        'OSM ${result.postcode}: ${result.discovered} found, '
+        '${result.added} added, ${result.updated} updated, '
+        '${result.skippedDuplicates} duplicates'
+        '${result.enriched > 0 ? ', ${result.enriched} enriched' : ''}.',
+        color: result.added > 0 || result.updated > 0
+            ? Colors.green.shade700
+            : Colors.blueGrey.shade700,
+      );
+    } catch (error) {
+      debugPrint('OSM restaurant import failed: $error');
+      if (!mounted) return;
+      _showSnack(
+        'OpenStreetMap import failed: ${_shortOsmError(error)}',
+        color: Colors.red,
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _shortOsmError(Object error) {
+    final raw = error.toString();
+    if (raw.contains('All Overpass endpoints failed')) {
+      return 'OSM/Overpass is unavailable. Try Force rescan later.';
+    }
+    if (raw.contains('Nominatim returned')) {
+      return 'postcode location service unavailable.';
+    }
+    if (raw.length <= 120) return raw;
+    return '${raw.substring(0, 120)}...';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -362,6 +611,71 @@ class _AddRestaurantsByPostcodePageState
                   ),
               ],
               const SizedBox(height: 40),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8F5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFD5E5D9)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'OpenStreetMap import',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Uses Nominatim to locate the postcode and Overpass to find hospitality venues. No API key or billing is required.',
+                      style: TextStyle(color: Colors.black54, height: 1.35),
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Force rescan'),
+                      subtitle: const Text(
+                        'Ignore the 30-day postcode scan cache.',
+                      ),
+                      value: _forceOsmRefresh,
+                      onChanged: _loading
+                          ? null
+                          : (value) => setState(() => _forceOsmRefresh = value),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Enrich web contacts'),
+                      subtitle: const Text(
+                        'Uses OSM tags, Wikidata, known brands and validated probable domains, then visits official websites for email, jobs and Facebook.',
+                      ),
+                      value: _enrichOsmContacts,
+                      onChanged: _loading
+                          ? null
+                          : (value) =>
+                                setState(() => _enrichOsmContacts = value),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _loading ? null : _importRestaurantsFromOsm,
+                        icon: const Icon(Icons.public),
+                        label: const Text('Import from OpenStreetMap'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                          backgroundColor: const Color(0xFF4E7D5B),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               Wrap(
                 spacing: 15,
                 runSpacing: 15,
@@ -377,9 +691,9 @@ class _AddRestaurantsByPostcodePageState
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: _deleteLastRestaurant,
+                    onPressed: _deleteLastPostcodeRestaurants,
                     icon: const Icon(Icons.delete_outline),
-                    label: const Text('Delete latest'),
+                    label: const Text('Delete latest postcode'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,

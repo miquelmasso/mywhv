@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/map_markers_service.dart';
+import '../services/map_restaurants_refresh_service.dart';
 import 'add_restaurants_by_postcode_page.dart';
 import 'add_restaurants_by_state_page.dart';
 
@@ -11,40 +11,36 @@ class TipsPage extends StatefulWidget {
 }
 
 class _TipsPageState extends State<TipsPage> {
-  bool _isRefreshing = false;
+  bool _isGeneratingRestaurantsJson = false;
 
-  Future<void> _refreshRestaurants() async {
-    setState(() => _isRefreshing = true);
+  Future<void> _generateRestaurantsJson() async {
+    if (_isGeneratingRestaurantsJson) return;
+    setState(() => _isGeneratingRestaurantsJson = true);
     try {
-      final restaurants = await MapMarkersService.loadRestaurants(
-        fromServer: false,
-      );
+      final result = await MapRestaurantsRefreshService.instance
+          .refreshFromFirebase();
       if (!mounted) return;
-
-      final total = restaurants.length;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            total == 0
-                ? '⚠️ No restaurants found in SQLite.'
-                : '✅ $total restaurants carregats des de SQLite.',
+            'restaurants.json generat. ${result.count} restaurants sincronitzats.',
           ),
-          backgroundColor: total == 0 ? Colors.orange : Colors.green.shade700,
         ),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'We could not refresh the restaurants right now. Please try again.',
-            ),
-            backgroundColor: Colors.redAccent,
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'We could not generate restaurants.json right now. Please try again.',
           ),
-        );
-      }
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } finally {
-      if (mounted) setState(() => _isRefreshing = false);
+      if (mounted) {
+        setState(() => _isGeneratingRestaurantsJson = false);
+      }
     }
   }
 
@@ -117,25 +113,32 @@ class _TipsPageState extends State<TipsPage> {
             ),
             const SizedBox(height: 14),
             ElevatedButton.icon(
-              onPressed: _isRefreshing ? null : _refreshRestaurants,
-              icon: _isRefreshing
+              onPressed: _isGeneratingRestaurantsJson
+                  ? null
+                  : _generateRestaurantsJson,
+              icon: _isGeneratingRestaurantsJson
                   ? const SizedBox(
-                      height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
                     )
-                  : const Icon(Icons.sync),
+                  : const Icon(Icons.download_for_offline_outlined),
               label: Text(
-                _isRefreshing ? 'Actualitzant...' : 'Actualitzar restaurants',
+                _isGeneratingRestaurantsJson
+                    ? 'Generant restaurants.json...'
+                    : 'Generar restaurants.json',
               ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
                 backgroundColor: Colors.orange.shade700,
                 foregroundColor: Colors.white,
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Genera el fitxer intern que anira dins la propera versio de l’app.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
           ],
         ),

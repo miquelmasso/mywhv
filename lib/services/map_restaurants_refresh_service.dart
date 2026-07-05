@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'map_markers_service.dart';
+import 'restaurant_sqlite_store.dart';
 
 class MapRestaurantsRefreshResult {
   const MapRestaurantsRefreshResult({
@@ -34,24 +34,16 @@ class MapRestaurantsRefreshService {
       MapRestaurantsRefreshService._();
 
   Future<MapRestaurantsRefreshResult> refreshFromFirebase() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('restaurants')
-        .get();
-
-    final restaurants = snapshot.docs
-        .map((doc) {
-          final data = Map<String, dynamic>.from(doc.data());
-          data['id'] = doc.id;
-          data['docId'] = doc.id;
-          return data;
-        })
-        .toList(growable: false);
-
+    final result = await MapMarkersService.syncRestaurantsFromFirebaseIfNeeded(
+      force: true,
+    );
+    final store = RestaurantSqliteStore.instance;
+    await store.init();
+    final restaurants = await store.getAll();
     final outputPath = await _writeWorkspaceJson(restaurants);
-    await MapMarkersService.replaceLocalRestaurants(restaurants);
 
     debugPrint(
-      '🗄️ Restaurants refreshed from Firebase: ${restaurants.length} -> $outputPath',
+      '🗄️ Restaurants refreshed from Firebase: remote ${result.remoteCount}, merged ${restaurants.length} -> $outputPath',
     );
 
     return MapRestaurantsRefreshResult(

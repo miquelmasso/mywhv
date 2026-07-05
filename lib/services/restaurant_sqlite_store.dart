@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -66,19 +67,23 @@ class RestaurantSqliteStore {
 
   Future<bool> get hasData async => (await count()) > 0;
 
-  Future<void> importSeedAssetIfEmpty() async {
-    if (await hasData) return;
-
+  Future<List<Map<String, dynamic>>> loadSeedAssetRestaurants() async {
     final rawJson = await rootBundle.loadString(_seedAssetPath);
     final decoded = jsonDecode(rawJson);
     if (decoded is! List) {
       throw const FormatException('restaurants.json must contain a JSON array');
     }
 
-    final restaurants = decoded
+    return decoded
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList(growable: false);
+  }
+
+  Future<void> importSeedAssetIfEmpty() async {
+    if (await hasData) return;
+
+    final restaurants = await loadSeedAssetRestaurants();
 
     if (restaurants.isEmpty) {
       debugPrint('⚠️ restaurants seed asset is empty');
@@ -87,6 +92,18 @@ class RestaurantSqliteStore {
 
     await replaceAll(restaurants);
     debugPrint('🗄️ SQLITE seed imported: ${restaurants.length} restaurants');
+  }
+
+  Future<int> replaceWithSeedAsset() async {
+    final restaurants = await loadSeedAssetRestaurants();
+    if (restaurants.isEmpty) {
+      debugPrint('⚠️ restaurants seed asset is empty');
+      return 0;
+    }
+
+    await replaceAll(restaurants);
+    debugPrint('🗄️ SQLITE seed refreshed: ${restaurants.length} restaurants');
+    return restaurants.length;
   }
 
   Future<void> replaceAll(List<Map<String, dynamic>> restaurants) async {
@@ -148,6 +165,7 @@ class RestaurantSqliteStore {
         'instagram_url',
         'careers_page',
         'website',
+        'source_place_id',
         'blocked',
         'worked_here_count',
         'timestamp',
@@ -179,6 +197,7 @@ class RestaurantSqliteStore {
             'instagram_url': row['instagram_url']?.toString() ?? '',
             'careers_page': row['careers_page']?.toString() ?? '',
             'website': row['website']?.toString() ?? '',
+            'source_place_id': row['source_place_id']?.toString() ?? '',
             'blocked': _asBool(row['blocked']),
             'worked_here_count': _asInt(row['worked_here_count']),
             'timestamp': row['timestamp']?.toString() ?? '',
@@ -340,6 +359,10 @@ class RestaurantSqliteStore {
   }
 
   dynamic _convertValue(dynamic value) {
+    if (value is Timestamp) return value.toDate().toIso8601String();
+    if (value is GeoPoint) {
+      return {'lat': value.latitude, 'lng': value.longitude};
+    }
     if (value is DateTime) return value.toIso8601String();
     if (value is Uint8List) return base64Encode(value);
     if (value is Map) {
