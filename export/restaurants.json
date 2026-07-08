@@ -12638,7 +12638,9 @@
     "state": "QLD",
     "timestamp": "2026-01-20T06:34:47.098",
     "website": "https://www.countrycateringbystacy.com/",
-    "docId": "Country_catering_by_Stacy"
+    "docId": "Country_catering_by_Stacy",
+    "worked_here_updated_at": "2026-07-07T23:35:53.971",
+    "worked_here_count": 1
   },
   {
     "id": "Courty_Hotel",
@@ -33802,8 +33804,8 @@
     "timestamp": "2026-01-21T07:12:07.601",
     "website": "http://www.resacc.com.au/",
     "docId": "Norseman_Hotel_-_Bottlemart_Express",
-    "worked_here_updated_at": "2026-07-03T15:41:04.393",
-    "worked_here_count": 1
+    "worked_here_updated_at": "2026-07-05T09:32:22.178",
+    "worked_here_count": 2
   },
   {
     "id": "North_Bourke_Store",

@@ -28,7 +28,6 @@ class _AddRestaurantsByPostcodePageState
   String? _lastOsmImportPostcode;
   bool _loading = false;
   bool _forceOsmRefresh = false;
-  bool _enrichOsmContacts = true;
 
   final _firestore = FirebaseFirestore.instance;
   final _placesService = GooglePlacesService();
@@ -475,7 +474,8 @@ class _AddRestaurantsByPostcodePageState
       final result = await _osmImportService.importForPostcode(
         input,
         force: _forceOsmRefresh,
-        enrichWebContacts: _enrichOsmContacts,
+        enrichWebContacts: true,
+        uploadChangedToFirebase: false,
       );
       if (!mounted) return;
 
@@ -491,6 +491,26 @@ class _AddRestaurantsByPostcodePageState
         return;
       }
 
+      var firebaseUploaded = 0;
+      if (result.changedRestaurantIds.isNotEmpty) {
+        final store = RestaurantSqliteStore.instance;
+        await store.init();
+        final changedIds = result.changedRestaurantIds.toSet();
+        final changedRestaurants = (await store.getAll())
+            .where((row) {
+              final id = (row['docId'] ?? row['id'] ?? '').toString();
+              return changedIds.contains(id);
+            })
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList(growable: false);
+        if (changedRestaurants.isNotEmpty) {
+          await MapMarkersService.upsertRestaurantsToFirebase(
+            changedRestaurants,
+          );
+          firebaseUploaded = changedRestaurants.length;
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastOsmImportPostcodeKey, result.postcode);
       _lastOsmImportPostcode = result.postcode;
@@ -503,7 +523,8 @@ class _AddRestaurantsByPostcodePageState
         'OSM ${result.postcode}: ${result.discovered} found, '
         '${result.added} added, ${result.updated} updated, '
         '${result.skippedDuplicates} duplicates'
-        '${result.enriched > 0 ? ', ${result.enriched} enriched' : ''}.',
+        '${result.enriched > 0 ? ', ${result.enriched} enriched' : ''}'
+        ', $firebaseUploaded uploaded.',
         color: result.added > 0 || result.updated > 0
             ? Colors.green.shade700
             : Colors.blueGrey.shade700,
@@ -645,18 +666,6 @@ class _AddRestaurantsByPostcodePageState
                       onChanged: _loading
                           ? null
                           : (value) => setState(() => _forceOsmRefresh = value),
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Enrich web contacts'),
-                      subtitle: const Text(
-                        'Uses OSM tags, Wikidata, known brands and validated probable domains, then visits official websites for email, jobs and Facebook.',
-                      ),
-                      value: _enrichOsmContacts,
-                      onChanged: _loading
-                          ? null
-                          : (value) =>
-                                setState(() => _enrichOsmContacts = value),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
