@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
+import 'config/admin_config.dart';
 import 'features/onboarding/onboarding_controller.dart';
 import 'features/onboarding/onboarding_overlay.dart';
 import 'features/onboarding/onboarding_steps.dart';
@@ -47,6 +48,7 @@ Future<void> main() async {
   await AdminButtonVisibilityService.instance.init();
   await RuntimeDeviceService.instance.init();
   await DonationService.instance.registerAppOpen();
+  await loadAdminOverride();
   const initialHomeIndex = 1;
 
   runApp(MyApp(initialHomeIndex: initialHomeIndex));

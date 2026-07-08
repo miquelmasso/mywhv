@@ -9,6 +9,7 @@ import 'guide_page_screen.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/overlay_helper.dart';
 import '../services/postcode_eligibility_service.dart';
+import '../utils/app_i18n.dart';
 import '../utils/guide_section_theme.dart';
 import '../widgets/guide_back_button.dart';
 
@@ -706,6 +707,37 @@ class _BlockCard extends StatelessWidget {
           child: _InlinePostcodeChecker(t: resolve),
         );
       }
+      if (isAction && block.buttonUrl!.contains('local_sims')) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: FractionallySizedBox(
+            widthFactor: 0.84,
+            child: Material(
+              color: sectionTheme.buttonBackground,
+              shape: const StadiumBorder(),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () =>
+                    _showLocalSimsDialog(context, resolve(block.buttonLabel)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  child: Text(
+                    resolve(block.buttonLabel),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: sectionTheme.buttonText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
       Future<void> handleTap() async {
         if (isCopyAction) {
           final textToCopy = block.content?.isNotEmpty == true
@@ -714,6 +746,10 @@ class _BlockCard extends StatelessWidget {
           if (textToCopy.isNotEmpty) {
             await Clipboard.setData(ClipboardData(text: textToCopy));
           }
+          return;
+        }
+        if (isAction && block.buttonUrl!.contains('local_sims')) {
+          await _showLocalSimsDialog(context, resolve(block.buttonLabel));
           return;
         }
         if (isGuideNavigation) {
@@ -1012,6 +1048,63 @@ class _BlockCard extends StatelessWidget {
   }
 }
 
+Future<void> _showLocalSimsDialog(BuildContext context, String title) async {
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF151922),
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LocalSimProviderRow(label: 'Telstra'),
+            Divider(height: 1, color: Color(0xFFF1E7E3)),
+            _LocalSimProviderRow(label: 'Optus'),
+            Divider(height: 1, color: Color(0xFFF1E7E3)),
+            _LocalSimProviderRow(label: 'Vodafone Australia'),
+            Divider(height: 1, color: Color(0xFFF1E7E3)),
+            _LocalSimProviderRow(label: 'Felix Mobile'),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class _LocalSimProviderRow extends StatelessWidget {
+  const _LocalSimProviderRow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 13),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF151922),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PopularESimsButton extends StatelessWidget {
   const _PopularESimsButton({required this.sectionTheme});
 
@@ -1019,32 +1112,46 @@ class _PopularESimsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: sectionTheme.buttonBackground,
-        shape: const StadiumBorder(),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _showESimsDialog(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: Text(
-              'Popular e-sims',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: sectionTheme.buttonText,
-                fontWeight: FontWeight.w700,
-                fontSize: 15.5,
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, snapshot) {
+        final strings = snapshot.data ?? AppI18n.forCode('en');
+        final label = AppI18n.t(strings, 'esims.popular');
+        return SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: sectionTheme.buttonBackground,
+            shape: const StadiumBorder(),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _showESimsDialog(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: sectionTheme.buttonText,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15.5,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Future<void> _showESimsDialog(BuildContext context) async {
+    final strings = await AppI18n.load();
+    final title = AppI18n.t(strings, 'esims.popular');
+    if (!context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -1053,10 +1160,10 @@ class _PopularESimsButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Popular e-sims',
+          title: Text(
+            title,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Color(0xFF151922),
               fontSize: 21,
               fontWeight: FontWeight.w800,
@@ -1065,6 +1172,15 @@ class _PopularESimsButton extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              _ESimProviderButton(
+                label: 'Simify',
+                asset: 'assets/Simify logo .png',
+                onTap: () => _openDirectESimLink(
+                  context,
+                  'https://goto.simify.com/c/7309018/3225896/40724?u=https%3A%2F%2Fsimify.com%2Fsearch',
+                ),
+              ),
+              const SizedBox(height: 12),
               _ESimProviderButton(
                 label: 'Airalo',
                 asset: 'assets/icons/Airalo logo.png',

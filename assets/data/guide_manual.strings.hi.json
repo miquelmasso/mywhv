@@ -417,6 +417,7 @@
     "money.super.lost_text": "कई फंड हैं? TFN से ATO ऑनलाइन पर खोजें और मर्ज करें।",
     "cert.rsa.combo": "RSA: शराब परोसना",
     "cert.white.combo": "White Card: निर्माण",
-    "cert.usi.combo": "USI: कुछ कोर्स/प्रमाणपत्र"
+    "cert.usi.combo": "USI: कुछ कोर्स/प्रमाणपत्र",
+    "arrival.sim.local_sims_button": "स्थानीय SIM"
   }
 }

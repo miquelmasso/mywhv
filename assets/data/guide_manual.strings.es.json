@@ -422,6 +422,7 @@
     "money.super.lost_text": "¿Varios fondos? Encuéntralos en ATO online con TFN y consolídalos.",
     "cert.rsa.combo": "RSA: servir alcohol",
     "cert.white.combo": "White Card: construcción",
-    "cert.usi.combo": "USI: algunos cursos/certificados"
+    "cert.usi.combo": "USI: algunos cursos/certificados",
+    "arrival.sim.local_sims_button": "SIM locales"
   }
 }

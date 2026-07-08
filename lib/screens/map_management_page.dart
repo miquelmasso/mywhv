@@ -48,7 +48,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
   Widget build(BuildContext context) {
     final settings = MapDisplaySettingsService.instance;
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestio de mapa')),
+      appBar: AppBar(title: const Text('Map management')),
       body: ValueListenableBuilder<bool>(
         valueListenable: settings.showMaintenanceScreen,
         builder: (context, isMaintenanceVisible, _) {
@@ -58,7 +58,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
               Card(
                 child: SwitchListTile.adaptive(
                   value: isMaintenanceVisible,
-                  title: const Text('Mostrar pantalla de manteniment'),
+                  title: const Text('Show maintenance screen'),
                   subtitle: Text(
                     isMaintenanceVisible
                         ? 'La primera pestanya del mapa mostra el missatge de manteniment.'

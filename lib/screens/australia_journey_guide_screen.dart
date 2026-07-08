@@ -5,6 +5,7 @@ import '../services/affiliate_links_service.dart';
 import '../services/donation_service.dart';
 import '../services/external_link_service.dart';
 import '../services/journey_guide_progress_service.dart';
+import '../utils/app_i18n.dart';
 import '../utils/guide_section_theme.dart';
 import '../widgets/guide_back_button.dart';
 import 'guide_page_screen.dart';
@@ -244,6 +245,7 @@ class _AustraliaJourneyGuideScreenState
 
   Set<String> _completed = {};
   Map<String, Set<String>> _checkedChecklistItems = {};
+  Map<String, String> _uiStrings = AppI18n.forCode('en');
   bool _loading = true;
   bool _celebrationShown = false;
 
@@ -258,13 +260,17 @@ class _AustraliaJourneyGuideScreenState
         .loadCompletedSteps();
     final checkedChecklistItems = await JourneyGuideProgressService.instance
         .loadChecklistItems(_steps.map((step) => step.id));
+    final uiStrings = await AppI18n.load();
     if (!mounted) return;
     setState(() {
       _completed = completed;
       _checkedChecklistItems = checkedChecklistItems;
+      _uiStrings = uiStrings;
       _loading = false;
     });
   }
+
+  String _ui(String key) => AppI18n.t(_uiStrings, key);
 
   bool get _journeyCompleted => _completed.length >= _steps.length;
 
@@ -326,20 +332,20 @@ class _AustraliaJourneyGuideScreenState
           children: [
             Image.asset(_MascotAssets.proud, height: 126),
             const SizedBox(height: 10),
-            const Text(
-              'Nice! Journey completed',
+            Text(
+              _ui('journey.completed_title'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF151922),
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'You now know where the important WorkyDay guide sections live.',
+            Text(
+              _ui('journey.completed_body'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.black54, height: 1.3),
+              style: const TextStyle(color: Colors.black54, height: 1.3),
             ),
           ],
         ),
@@ -353,7 +359,7 @@ class _AustraliaJourneyGuideScreenState
               padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
             ),
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Done'),
+            child: Text(_ui('journey.done')),
           ),
         ],
       ),
@@ -421,6 +427,7 @@ class _AustraliaJourneyGuideScreenState
           return _JourneyChecklistModal(
             step: step,
             checkedItems: _checkedChecklistItems[step.id] ?? const <String>{},
+            strings: _uiStrings,
             onChanged: (item, checked) async {
               final updated = await JourneyGuideProgressService.instance
                   .setChecklistItem(
@@ -445,6 +452,7 @@ class _AustraliaJourneyGuideScreenState
         return _JourneyStepDetailModal(
           step: step,
           status: status,
+          strings: _uiStrings,
           onOpenFullGuide: () {
             Navigator.of(modalContext).pop();
             _openFullGuide(step);
@@ -477,11 +485,11 @@ class _AustraliaJourneyGuideScreenState
                           GuideBackButton(
                             onTap: () => Navigator.of(context).pop(),
                           ),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Your Australia Journey',
+                              _ui('journey.title'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF151922),
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
@@ -500,14 +508,15 @@ class _AustraliaJourneyGuideScreenState
                           : completedCount,
                       total: checklistMode ? _totalTaskCount : _steps.length,
                       label: checklistMode
-                          ? 'Australia checklist'
-                          : 'Journey progress',
+                          ? _ui('journey.checklist')
+                          : _ui('journey.progress'),
                     ),
                   ),
                   SliverToBoxAdapter(
                     child: _MascotHeader(
                       completedCount: completedCount,
                       checklistMode: checklistMode,
+                      strings: _uiStrings,
                     ),
                   ),
                   SliverList.builder(
@@ -522,6 +531,7 @@ class _AustraliaJourneyGuideScreenState
                         checkedItems:
                             _checkedChecklistItems[step.id]?.length ?? 0,
                         totalItems: step.checklistItems.length,
+                        strings: _uiStrings,
                         isLast: index == _steps.length - 1,
                         onTap: () => _openStepModal(step),
                       );
@@ -615,6 +625,7 @@ class _JourneyStepCard extends StatelessWidget {
     required this.checklistMode,
     required this.checkedItems,
     required this.totalItems,
+    required this.strings,
     required this.isLast,
     required this.onTap,
   });
@@ -625,8 +636,11 @@ class _JourneyStepCard extends StatelessWidget {
   final bool checklistMode;
   final int checkedItems;
   final int totalItems;
+  final Map<String, String> strings;
   final bool isLast;
   final VoidCallback onTap;
+
+  String _ui(String key) => AppI18n.t(strings, key);
 
   @override
   Widget build(BuildContext context) {
@@ -723,7 +737,7 @@ class _JourneyStepCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  step.title,
+                                  step.titleFor(strings),
                                   style: const TextStyle(
                                     color: Color(0xFF151922),
                                     fontSize: 18,
@@ -733,8 +747,8 @@ class _JourneyStepCard extends StatelessWidget {
                                 const SizedBox(height: 6),
                                 Text(
                                   checklistMode
-                                      ? '$checkedItems of $totalItems tasks checked'
-                                      : step.description,
+                                      ? '$checkedItems of $totalItems ${_ui('journey.tasks_checked')}'
+                                      : step.descriptionFor(strings),
                                   style: const TextStyle(
                                     color: Colors.black54,
                                     height: 1.25,
@@ -787,14 +801,18 @@ class _JourneyStepDetailModal extends StatelessWidget {
   const _JourneyStepDetailModal({
     required this.step,
     required this.status,
+    required this.strings,
     required this.onOpenFullGuide,
     required this.onComplete,
   });
 
   final _JourneyStepData step;
   final JourneyStepStatus status;
+  final Map<String, String> strings;
   final VoidCallback onOpenFullGuide;
   final Future<void> Function() onComplete;
+
+  String _ui(String key) => AppI18n.t(strings, key);
 
   @override
   Widget build(BuildContext context) {
@@ -845,7 +863,7 @@ class _JourneyStepDetailModal extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              step.title,
+              step.titleFor(strings),
               style: const TextStyle(
                 color: Color(0xFF151922),
                 fontSize: 26,
@@ -854,7 +872,7 @@ class _JourneyStepDetailModal extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              step.description,
+              step.descriptionFor(strings),
               style: const TextStyle(
                 color: Colors.black54,
                 fontSize: 16,
@@ -862,7 +880,10 @@ class _JourneyStepDetailModal extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            _JourneyBulletList(points: step.bulletPoints, theme: theme),
+            _JourneyBulletList(
+              points: step.bulletPointsFor(strings),
+              theme: theme,
+            ),
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.all(14),
@@ -877,7 +898,7 @@ class _JourneyStepDetailModal extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      step.tip,
+                      step.tipFor(strings),
                       style: const TextStyle(
                         color: Color(0xFF2E2E2E),
                         height: 1.28,
@@ -890,9 +911,9 @@ class _JourneyStepDetailModal extends StatelessWidget {
             ),
             if (step.resources.isNotEmpty) ...[
               const SizedBox(height: 14),
-              const Text(
-                'Useful resources',
-                style: TextStyle(
+              Text(
+                _ui('journey.useful_resources'),
+                style: const TextStyle(
                   color: Colors.black54,
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
@@ -901,7 +922,11 @@ class _JourneyStepDetailModal extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               for (final resource in step.resources) ...[
-                _RecommendedResourceCard(resource: resource, theme: theme),
+                _RecommendedResourceCard(
+                  resource: resource,
+                  theme: theme,
+                  strings: strings,
+                ),
                 const SizedBox(height: 8),
               ],
             ],
@@ -917,9 +942,9 @@ class _JourneyStepDetailModal extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: onOpenFullGuide,
-                child: const Text(
-                  'Go to full guide',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                child: Text(
+                  _ui('journey.go_full_guide'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -951,8 +976,8 @@ class _JourneyStepDetailModal extends StatelessWidget {
                 ),
                 label: Text(
                   status == JourneyStepStatus.completed
-                      ? 'Completed'
-                      : 'Mark as completed',
+                      ? _ui('journey.completed')
+                      : _ui('journey.mark_completed'),
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -965,9 +990,9 @@ class _JourneyStepDetailModal extends StatelessWidget {
 
   String _messageForStatus(JourneyStepStatus status) {
     if (status == JourneyStepStatus.completed) {
-      return 'Nice! One step closer to your Working Holiday adventure.';
+      return _ui('journey.message_completed');
     }
-    return 'Hey mate! Let’s get you ready for Australia 🇦🇺';
+    return _ui('journey.message_start');
   }
 }
 
@@ -975,12 +1000,14 @@ class _JourneyChecklistModal extends StatefulWidget {
   const _JourneyChecklistModal({
     required this.step,
     required this.checkedItems,
+    required this.strings,
     required this.onChanged,
     required this.onOpenFullGuide,
   });
 
   final _JourneyStepData step;
   final Set<String> checkedItems;
+  final Map<String, String> strings;
   final Future<void> Function(String item, bool checked) onChanged;
   final VoidCallback onOpenFullGuide;
 
@@ -990,6 +1017,8 @@ class _JourneyChecklistModal extends StatefulWidget {
 
 class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
   late Set<String> _checkedItems;
+
+  String _ui(String key) => AppI18n.t(widget.strings, key);
 
   @override
   void initState() {
@@ -1058,7 +1087,7 @@ class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        step.title,
+                        step.titleFor(widget.strings),
                         style: const TextStyle(
                           color: Color(0xFF151922),
                           fontSize: 24,
@@ -1067,7 +1096,7 @@ class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$checkedCount of $total tasks done',
+                        '$checkedCount of $total ${_ui('journey.tasks_done')}',
                         style: const TextStyle(
                           color: Colors.black54,
                           fontWeight: FontWeight.w700,
@@ -1092,6 +1121,7 @@ class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
             for (final item in step.checklistItems) ...[
               _ChecklistTile(
                 item: item,
+                label: step.checklistLabelFor(widget.strings, item),
                 checked: _checkedItems.contains(item),
                 theme: theme,
                 onChanged: (checked) => _toggleItem(item, checked),
@@ -1110,9 +1140,9 @@ class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: widget.onOpenFullGuide,
-                child: const Text(
-                  'Open full guide',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                child: Text(
+                  _ui('journey.open_full_guide'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -1126,12 +1156,14 @@ class _JourneyChecklistModalState extends State<_JourneyChecklistModal> {
 class _ChecklistTile extends StatelessWidget {
   const _ChecklistTile({
     required this.item,
+    required this.label,
     required this.checked,
     required this.theme,
     required this.onChanged,
   });
 
   final String item;
+  final String label;
   final bool checked;
   final GuideSectionTheme theme;
   final ValueChanged<bool> onChanged;
@@ -1181,7 +1213,7 @@ class _ChecklistTile extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  item,
+                  label,
                   style: TextStyle(
                     color: checked
                         ? const Color(0xFF151922)
@@ -1259,14 +1291,21 @@ class _JourneyBulletList extends StatelessWidget {
 }
 
 class _RecommendedResourceCard extends StatelessWidget {
-  const _RecommendedResourceCard({required this.resource, required this.theme});
+  const _RecommendedResourceCard({
+    required this.resource,
+    required this.theme,
+    required this.strings,
+  });
 
   final _JourneyResource resource;
   final GuideSectionTheme theme;
+  final Map<String, String> strings;
+
+  String _ui(String key) => AppI18n.t(strings, key);
 
   @override
   Widget build(BuildContext context) {
-    final data = resource.data;
+    final data = resource.data(strings);
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
@@ -1333,7 +1372,7 @@ class _RecommendedResourceCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Open',
+                      _ui('journey.open'),
                       style: TextStyle(
                         color: theme.buttonText,
                         fontSize: 11,
@@ -1368,7 +1407,7 @@ class _RecommendedResourceCard extends StatelessWidget {
       case _JourneyResource.flights:
         await _showSimpleProviderDialog(
           context,
-          title: 'Buy your flights',
+          title: _ui('flights.buy'),
           providers: [
             _ResourceProvider(
               label: 'Kiwi',
@@ -1398,7 +1437,7 @@ class _RecommendedResourceCard extends StatelessWidget {
       case _JourneyResource.hostels:
         await _showSimpleProviderDialog(
           context,
-          title: 'Where to book hostels',
+          title: _ui('hostels.where'),
           providers: [
             _ResourceProvider(
               label: 'Trip',
@@ -1414,8 +1453,15 @@ class _RecommendedResourceCard extends StatelessWidget {
       case _JourneyResource.esims:
         await _showSimpleProviderDialog(
           context,
-          title: 'Popular e-sims',
+          title: _ui('esims.popular'),
           providers: [
+            _ResourceProvider(
+              label: 'Simify',
+              asset: 'assets/Simify logo .png',
+              fallbackIcon: Icons.sim_card_outlined,
+              directLink:
+                  'https://goto.simify.com/c/7309018/3225896/40724?u=https%3A%2F%2Fsimify.com%2Fsearch',
+            ),
             _ResourceProvider(
               label: 'Airalo',
               asset: 'assets/icons/Airalo logo.png',
@@ -1571,18 +1617,22 @@ class _MascotHeader extends StatelessWidget {
   const _MascotHeader({
     required this.completedCount,
     required this.checklistMode,
+    required this.strings,
   });
 
   final int completedCount;
   final bool checklistMode;
+  final Map<String, String> strings;
+
+  String _ui(String key) => AppI18n.t(strings, key);
 
   @override
   Widget build(BuildContext context) {
     final message = checklistMode
-        ? 'Now use this as your Australia checklist. Tick things off as you go.'
+        ? _ui('journey.mascot_checklist')
         : completedCount == 0
-        ? 'First things first: visa, arrival and basic setup.'
-        : 'Nice! One step closer to your Working Holiday adventure.';
+        ? _ui('journey.mascot_start')
+        : _ui('journey.message_completed');
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       child: Row(
@@ -1664,6 +1714,46 @@ class _JourneyStepData {
   final IconData icon;
   final String mascotAsset;
   final List<_JourneyResource> resources;
+
+  String titleFor(Map<String, String> strings) =>
+      _translated(strings, 'journey.step.$id.title', title);
+
+  String descriptionFor(Map<String, String> strings) =>
+      _translated(strings, 'journey.step.$id.description', description);
+
+  String tipFor(Map<String, String> strings) =>
+      _translated(strings, 'journey.step.$id.tip', tip);
+
+  List<String> bulletPointsFor(Map<String, String> strings) {
+    return List<String>.generate(
+      bulletPoints.length,
+      (index) => _translated(
+        strings,
+        'journey.step.$id.bullet.$index',
+        bulletPoints[index],
+      ),
+    );
+  }
+
+  String checklistLabelFor(Map<String, String> strings, String item) {
+    final index = checklistItems.indexOf(item);
+    if (index < 0) return item;
+    return _translated(strings, 'journey.step.$id.check.$index', item);
+  }
+
+  static String _translated(
+    Map<String, String> strings,
+    String key,
+    String fallback,
+  ) {
+    final translated = strings[key];
+    if (translated == null || translated.isEmpty) {
+      return AppI18n.t(AppI18n.forCode('en'), key) == key
+          ? fallback
+          : AppI18n.t(AppI18n.forCode('en'), key);
+    }
+    return translated;
+  }
 }
 
 enum _JourneyResource {
@@ -1676,42 +1766,43 @@ enum _JourneyResource {
 }
 
 extension on _JourneyResource {
-  _JourneyResourceData get data {
+  _JourneyResourceData data(Map<String, String> strings) {
+    String ui(String key) => AppI18n.t(strings, key);
     switch (this) {
       case _JourneyResource.insurance:
-        return const _JourneyResourceData(
-          title: 'Recommended insurances',
-          subtitle: 'Compare useful travel insurance options.',
+        return _JourneyResourceData(
+          title: ui('insurance.recommended'),
+          subtitle: ui('resource.insurance.subtitle'),
           icon: Icons.health_and_safety_outlined,
         );
       case _JourneyResource.youtooProject:
-        return const _JourneyResourceData(
-          title: 'YouTooProject',
-          subtitle: 'Student visa and study support.',
+        return _JourneyResourceData(
+          title: ui('student.support_button'),
+          subtitle: ui('resource.youtoo.subtitle'),
           icon: Icons.school_outlined,
         );
       case _JourneyResource.flights:
-        return const _JourneyResourceData(
-          title: 'Buy your flights',
-          subtitle: 'Useful flight booking partners.',
+        return _JourneyResourceData(
+          title: ui('flights.buy'),
+          subtitle: ui('resource.flights.subtitle'),
           icon: Icons.flight_takeoff_outlined,
         );
       case _JourneyResource.hostels:
-        return const _JourneyResourceData(
-          title: 'Where to book hostels',
-          subtitle: 'Find your first nights in Australia.',
+        return _JourneyResourceData(
+          title: ui('hostels.where'),
+          subtitle: ui('resource.hostels.subtitle'),
           icon: Icons.hotel_outlined,
         );
       case _JourneyResource.banks:
-        return const _JourneyResourceData(
-          title: 'International banks',
-          subtitle: 'Cards and accounts for arrival.',
+        return _JourneyResourceData(
+          title: ui('banks.title'),
+          subtitle: ui('resource.banks.subtitle'),
           icon: Icons.account_balance_outlined,
         );
       case _JourneyResource.esims:
-        return const _JourneyResourceData(
-          title: 'Popular e-sim',
-          subtitle: 'Internet ready when you land.',
+        return _JourneyResourceData(
+          title: ui('esims.popular'),
+          subtitle: ui('resource.esims.subtitle'),
           icon: Icons.sim_card_outlined,
         );
     }

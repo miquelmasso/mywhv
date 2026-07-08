@@ -417,6 +417,7 @@
     "money.super.lost_text": "Multiple funds? Find them on ATO online with TFN and consolidate.",
     "cert.rsa.combo": "RSA: serve alcohol",
     "cert.white.combo": "White Card: construction",
-    "cert.usi.combo": "USI: some courses/certificates"
+    "cert.usi.combo": "USI: some courses/certificates",
+    "arrival.sim.local_sims_button": "Local SIMs"
   }
 }

@@ -37,12 +37,12 @@ class GuideManual {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'lang': lang,
-        'updated_at': updatedAt,
-        'sections': sections.map((s) => s.toJson()).toList(),
-        if (strings.isNotEmpty) 'strings': strings,
-      };
+    'version': version,
+    'lang': lang,
+    'updated_at': updatedAt,
+    'sections': sections.map((s) => s.toJson()).toList(),
+    if (strings.isNotEmpty) 'strings': strings,
+  };
 }
 
 class GuideSection {
@@ -75,12 +75,12 @@ class GuideSection {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'icon': icon,
-        'pages': pages.map((p) => p.toJson()).toList(),
-      };
+    'id': id,
+    'title': title,
+    'description': description,
+    'icon': icon,
+    'pages': pages.map((p) => p.toJson()).toList(),
+  };
 }
 
 class GuidePage {
@@ -129,14 +129,15 @@ class GuidePage {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'summary': summary,
-        'blocks': blocks.map((b) => b.toJson()).toList(),
-        if (sections.isNotEmpty) 'sections': sections.map((s) => s.toJson()).toList(),
-        'checklist': checklist.map((c) => c.toJson()).toList(),
-        if (cta != null) 'cta': cta!.toJson(),
-      };
+    'id': id,
+    'title': title,
+    'summary': summary,
+    'blocks': blocks.map((b) => b.toJson()).toList(),
+    if (sections.isNotEmpty)
+      'sections': sections.map((s) => s.toJson()).toList(),
+    'checklist': checklist.map((c) => c.toJson()).toList(),
+    if (cta != null) 'cta': cta!.toJson(),
+  };
 }
 
 class GuideBlock {
@@ -194,6 +195,9 @@ class GuideBlock {
       final btn = json['button'] as Map<String, dynamic>;
       buttonLabel = btn['label']?.toString();
       buttonUrl = btn['url']?.toString();
+    } else {
+      buttonLabel = json['buttonLabel']?.toString();
+      buttonUrl = json['buttonUrl']?.toString();
     }
     icon = json['icon']?.toString();
     final variant = json['variant']?.toString();
@@ -220,20 +224,20 @@ class GuideBlock {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        if (title != null) 'title': title,
-        if (content != null) 'content': content,
-        if (items.isNotEmpty) 'content': items,
-        if (chips.isNotEmpty) 'chips': chips,
-        if (buttonLabel != null || buttonUrl != null)
-          'button': {
-            if (buttonLabel != null) 'label': buttonLabel,
-            if (buttonUrl != null) 'url': buttonUrl,
-          },
-        if (icon != null) 'icon': icon,
-        if (variant != null) 'variant': variant,
-        if (ordered) 'ordered': true,
-      };
+    'type': type,
+    if (title != null) 'title': title,
+    if (content != null) 'content': content,
+    if (items.isNotEmpty) 'content': items,
+    if (chips.isNotEmpty) 'chips': chips,
+    if (buttonLabel != null || buttonUrl != null)
+      'button': {
+        if (buttonLabel != null) 'label': buttonLabel,
+        if (buttonUrl != null) 'url': buttonUrl,
+      },
+    if (icon != null) 'icon': icon,
+    if (variant != null) 'variant': variant,
+    if (ordered) 'ordered': true,
+  };
 }
 
 class ChecklistItem {
@@ -241,23 +245,15 @@ class ChecklistItem {
   final String text;
   final bool done;
 
-  ChecklistItem({
-    required this.id,
-    required this.text,
-    required this.done,
-  });
+  ChecklistItem({required this.id, required this.text, required this.done});
 
   factory ChecklistItem.fromJson(Map<String, dynamic> json) => ChecklistItem(
-        id: (json['id'] ?? '').toString(),
-        text: (json['text'] ?? '').toString(),
-        done: json['done'] == true,
-      );
+    id: (json['id'] ?? '').toString(),
+    text: (json['text'] ?? '').toString(),
+    done: json['done'] == true,
+  );
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'text': text,
-        'done': done,
-      };
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'done': done};
 }
 
 class GuideCtaLink {
@@ -283,10 +279,10 @@ class GuideCtaLink {
   }
 
   Map<String, dynamic> toJson() => {
-        if (mapCategory != null) 'mapCategory': mapCategory,
-        if (forumTag != null) 'forumTag': forumTag,
-        if (externalLinks.isNotEmpty) 'externalLinks': externalLinks,
-      };
+    if (mapCategory != null) 'mapCategory': mapCategory,
+    if (forumTag != null) 'forumTag': forumTag,
+    if (externalLinks.isNotEmpty) 'externalLinks': externalLinks,
+  };
 }
 
 class GuidePageSection {
@@ -319,10 +315,10 @@ class GuidePageSection {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        if (subtitle != null) 'subtitle': subtitle,
-        if (icon != null) 'icon': icon,
-        'blocks': blocks.map((b) => b.toJson()).toList(),
-      };
+    'id': id,
+    'title': title,
+    if (subtitle != null) 'subtitle': subtitle,
+    if (icon != null) 'icon': icon,
+    'blocks': blocks.map((b) => b.toJson()).toList(),
+  };
 }

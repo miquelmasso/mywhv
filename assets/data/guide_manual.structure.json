@@ -278,13 +278,11 @@
               "content": "@arrival.sim.typical_text"
             },
             {
-              "type": "card",
-              "title": "@arrival.sim.telstra_title",
-              "content": [
-                "@arrival.sim.telstra_1",
-                "@arrival.sim.telstra_2",
-                "@arrival.sim.telstra_3"
-              ]
+              "type": "button",
+              "button": {
+                "label": "@arrival.sim.local_sims_button",
+                "url": "action:local_sims"
+              }
             }
           ],
           "checklist": [

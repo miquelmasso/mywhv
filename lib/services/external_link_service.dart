@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/report_message_page.dart';
+import '../utils/app_i18n.dart';
 
 class ExternalLinkService {
   const ExternalLinkService._();
@@ -36,6 +37,9 @@ class ExternalLinkService {
 
   static Future<void> showBrokenLinkDialog(BuildContext context) async {
     if (!context.mounted) return;
+    final strings = await AppI18n.load();
+    if (!context.mounted) return;
+    String t(String key) => AppI18n.t(strings, key);
 
     await showDialog<void>(
       context: context,
@@ -71,18 +75,18 @@ class ExternalLinkService {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text.rich(
+                    Text.rich(
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Oops! ',
-                            style: TextStyle(color: Color(0xFF7470C8)),
+                            text: t('error.oops'),
+                            style: const TextStyle(color: Color(0xFF7470C8)),
                           ),
-                          TextSpan(text: 'Link failed'),
+                          TextSpan(text: t('error.link_title')),
                         ],
                       ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color(0xFF151922),
                         fontSize: 24,
                         height: 1.12,
@@ -91,10 +95,10 @@ class ExternalLinkService {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'This link is not available right now.',
+                    Text(
+                      t('error.link_message'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color(0xFF5D6470),
                         fontSize: 15.5,
                         height: 1.35,
@@ -109,9 +113,9 @@ class ExternalLinkService {
                         color: const Color(0xFFF1EFFF),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 21,
                             backgroundColor: Color(0xFF7470C8),
                             child: Icon(
@@ -125,8 +129,8 @@ class ExternalLinkService {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'What can you do?',
-                                  style: TextStyle(
+                                  t('common.what_can_you_do'),
+                                  style: const TextStyle(
                                     color: Color(0xFF7470C8),
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -134,8 +138,8 @@ class ExternalLinkService {
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'Try again later or report it.',
-                                  style: TextStyle(
+                                  t('error.try_report'),
+                                  style: const TextStyle(
                                     color: Color(0xFF151922),
                                     fontSize: 14,
                                     height: 1.28,
@@ -168,9 +172,9 @@ class ExternalLinkService {
                           );
                         },
                         icon: const Icon(Icons.mail_outline_rounded),
-                        label: const Text(
-                          'Report a problem',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                        label: Text(
+                          t('common.report_problem'),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -189,7 +193,7 @@ class ExternalLinkService {
                       height: 42,
                     ),
                     padding: EdgeInsets.zero,
-                    tooltip: 'Close',
+                    tooltip: t('common.close'),
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     icon: const Icon(
                       Icons.close_rounded,

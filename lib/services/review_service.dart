@@ -3,6 +3,7 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_store_links.dart';
+import '../utils/app_i18n.dart';
 
 class ReviewService {
   ReviewService._();
@@ -171,7 +172,10 @@ class ReviewService {
     return DateTime.fromMillisecondsSinceEpoch(raw);
   }
 
-  Future<bool?> _showPrePrompt(BuildContext context) {
+  Future<bool?> _showPrePrompt(BuildContext context) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return null;
+    String t(String key) => AppI18n.t(strings, key);
     final borderRadius = BorderRadius.circular(24);
     return showDialog<bool>(
       context: context,
@@ -192,10 +196,10 @@ class ReviewService {
                   color: Colors.black54,
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Are you enjoying WorkyDay?',
+                Text(
+                  t('review.title'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: Colors.black87,
@@ -203,7 +207,7 @@ class ReviewService {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'WorkyDay is just getting started. Rate the app and tell us your favourite feature.',
+                  t('review.body'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -224,7 +228,7 @@ class ReviewService {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         onPressed: () => Navigator.of(dialogContext).pop(false),
-                        child: const Text('Not now'),
+                        child: Text(t('review.not_now')),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -239,7 +243,7 @@ class ReviewService {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         onPressed: () => Navigator.of(dialogContext).pop(true),
-                        child: const Text('Rate app'),
+                        child: Text(t('review.rate_app')),
                       ),
                     ),
                   ],

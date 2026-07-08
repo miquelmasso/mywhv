@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/affiliate_links_service.dart';
 import '../services/external_link_service.dart';
+import '../utils/app_i18n.dart';
 import '../widgets/guide_back_button.dart';
 
 class InternationalBanksScreen extends StatelessWidget {
@@ -37,7 +38,7 @@ class InternationalBanksScreen extends StatelessWidget {
       asset: 'assets/icons/n26 logo.png',
       directLink: 'https://n26.com/r/miquelm1156?cid=CTK&lang=es',
       discountCode: 'miquelm1156',
-      discountButtonLabel: 'Go to N26',
+      discountButtonLabelKey: 'banks.go_n26',
       background: Color(0xFFFFFFFF),
       foreground: Color(0xFF5B8DB8),
     ),
@@ -55,15 +56,22 @@ class InternationalBanksScreen extends StatelessWidget {
               child: Row(
                 children: [
                   GuideBackButton(onTap: () => Navigator.of(context).pop()),
-                  const Expanded(
-                    child: Text(
-                      'International banks',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF151922),
-                      ),
+                  Expanded(
+                    child: FutureBuilder<Map<String, String>>(
+                      future: AppI18n.load(),
+                      initialData: AppI18n.forCode('en'),
+                      builder: (context, snapshot) {
+                        final strings = snapshot.data ?? AppI18n.forCode('en');
+                        return Text(
+                          AppI18n.t(strings, 'banks.title'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF151922),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 48),
@@ -89,16 +97,18 @@ class InternationalBanksScreen extends StatelessWidget {
 }
 
 Future<void> showInternationalBanksDialog(BuildContext context) async {
+  final strings = await AppI18n.load();
+  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'International banks',
+        title: Text(
+          AppI18n.t(strings, 'banks.title'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color(0xFF151922),
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -232,7 +242,9 @@ class _BankCard extends StatelessWidget {
       final shouldOpenUrl = await _showBankDiscountDialog(
         parentDialogContext ?? context,
         discountCode: bank.discountCode!,
-        buttonLabel: bank.discountButtonLabel ?? bank.name,
+        buttonLabel: bank.discountButtonLabelKey == null
+            ? bank.name
+            : AppI18n.t(await AppI18n.load(), bank.discountButtonLabelKey!),
       );
       if (shouldOpenUrl == true && (parentDialogContext ?? context).mounted) {
         await _openUrl(parentDialogContext ?? context, bank.directLink!);
@@ -271,6 +283,8 @@ class _BankCard extends StatelessWidget {
     required String buttonLabel,
   }) async {
     const accentColor = Color(0xFF11B39C);
+    final strings = await AppI18n.load();
+    if (!context.mounted) return null;
 
     return showDialog<bool>(
       context: context,
@@ -280,10 +294,10 @@ class _BankCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Discount code',
+          title: Text(
+            AppI18n.t(strings, 'common.discount_code'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: accentColor,
               fontSize: 21,
               fontWeight: FontWeight.w800,
@@ -324,7 +338,7 @@ class _BankCard extends StatelessWidget {
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Copy code',
+                          tooltip: AppI18n.t(strings, 'common.copy_code'),
                           onPressed: () async {
                             await Clipboard.setData(
                               ClipboardData(text: discountCode),
@@ -435,7 +449,7 @@ class _BankOption {
     this.affiliateLinkKey,
     this.directLink,
     this.discountCode,
-    this.discountButtonLabel,
+    this.discountButtonLabelKey,
     this.logoPadding = 10,
   }) : initials = '';
 
@@ -444,7 +458,7 @@ class _BankOption {
   final String? affiliateLinkKey;
   final String? directLink;
   final String? discountCode;
-  final String? discountButtonLabel;
+  final String? discountButtonLabelKey;
   final String initials;
   final Color background;
   final Color foreground;

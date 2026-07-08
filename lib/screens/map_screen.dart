@@ -25,6 +25,7 @@ import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../services/runtime_device_service.dart';
 import '../utils/australia_map_viewport.dart';
+import '../utils/app_i18n.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/map_place_popup.dart';
@@ -1628,7 +1629,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Perfil',
+      barrierLabel: AppI18n.t(AppI18n.forCode('en'), 'map.dialog.profile'),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, _, _) {
@@ -1688,8 +1689,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _toggleFavorite(String restaurantId) async {
     if (restaurantId.trim().isEmpty) {
+      final strings = await AppI18n.load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: this place has no valid ID.')),
+        SnackBar(content: Text(AppI18n.t(strings, 'map.error.invalid_place'))),
       );
       return;
     }
@@ -1755,8 +1758,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     if (!mounted) return;
 
     if (restaurantId.trim().isEmpty) {
+      final strings = await AppI18n.load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: this place has no valid ID.')),
+        SnackBar(content: Text(AppI18n.t(strings, 'map.error.invalid_place'))),
       );
       return;
     }
@@ -1766,11 +1771,13 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       return;
     }
 
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     final result = await _showDecisionDialog(
-      title: 'Have you worked here?',
-      subtitle: 'Your feedback helps other users.',
-      yesLabel: 'Yes',
-      noLabel: 'No',
+      title: AppI18n.t(strings, 'map.worked.title'),
+      subtitle: AppI18n.t(strings, 'map.worked.subtitle'),
+      yesLabel: AppI18n.t(strings, 'common.yes'),
+      noLabel: AppI18n.t(strings, 'map.worked.no'),
       yesColor: Colors.green,
     );
 
@@ -1794,11 +1801,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Saved on this device. Sync with the server can happen later.',
-          ),
-        ),
+        SnackBar(content: Text(AppI18n.t(strings, 'map.worked.saved_local'))),
       );
     }
   }
@@ -1890,7 +1893,9 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _showAlreadyWorkedDialog(String restaurantName) {
+  Future<void> _showAlreadyWorkedDialog(String restaurantName) async {
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     final borderRadius = BorderRadius.circular(24);
     return showDialog<void>(
       context: context,
@@ -1911,8 +1916,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   color: Colors.black54,
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Already marked',
+                Text(
+                  AppI18n.t(strings, 'map.worked.already_title'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -1922,7 +1927,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$restaurantName is already in your worked list.',
+                  AppI18n.t(strings, 'map.worked.already_body'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -1942,7 +1947,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('OK'),
+                    child: Text(AppI18n.t(strings, 'common.ok')),
                   ),
                 ),
               ],
@@ -1953,7 +1958,9 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showEmailOptions(String email) {
+  Future<void> _showEmailOptions(String email) async {
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
@@ -2004,7 +2011,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                           await OverlayHelper.showCopiedOverlay(
                             context,
                             this,
-                            'copied email',
+                            AppI18n.t(strings, 'map.email.copied'),
                           );
                           unawaited(
                             _handlePositiveReviewAction(
@@ -2012,7 +2019,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             ),
                           );
                         },
-                        child: const Text('Copy email'),
+                        child: Text(AppI18n.t(strings, 'map.email.copy')),
                       ),
                       const SizedBox(height: 8),
                       ElevatedButton(
@@ -2051,7 +2058,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             ),
                           );
                         },
-                        child: const Text('Send email'),
+                        child: Text(AppI18n.t(strings, 'map.email.send')),
                       ),
                     ],
                   ),
@@ -2071,7 +2078,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showLocationServicesMessage();
+        await _showLocationServicesMessage();
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -2108,7 +2115,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         CameraUpdate.newLatLngZoom(userTarget, 15),
       );
     } catch (_) {
-      _showLocationGenericError();
+      await _showLocationGenericError();
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
@@ -2130,28 +2137,30 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     messenger.hideCurrentSnackBar();
 
     if (permission == LocationPermission.deniedForever) {
-      _showLocationPermissionNotice();
+      await _showLocationPermissionNotice();
       return;
     }
 
     _removeLocationPermissionNotice();
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Location access denied. Tap again to allow it.'),
-      ),
+      SnackBar(content: Text(AppI18n.t(strings, 'map.location.denied'))),
     );
   }
 
-  void _showLocationServicesMessage() {
+  Future<void> _showLocationServicesMessage() async {
     if (!mounted) return;
     _removeLocationPermissionNotice();
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: const Text('Location services are turned off.'),
+        content: Text(AppI18n.t(strings, 'map.location.services_off')),
         action: SnackBarAction(
-          label: 'Settings',
+          label: AppI18n.t(strings, 'map.location.settings'),
           onPressed: () {
             unawaited(Geolocator.openLocationSettings());
           },
@@ -2160,21 +2169,23 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showLocationGenericError() {
+  Future<void> _showLocationGenericError() async {
     if (!mounted) return;
     _removeLocationPermissionNotice();
+    final strings = await AppI18n.load();
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('We could not get your location right now.'),
-      ),
+      SnackBar(content: Text(AppI18n.t(strings, 'map.location.unavailable'))),
     );
   }
 
-  void _showLocationPermissionNotice() {
+  Future<void> _showLocationPermissionNotice() async {
     if (!mounted) return;
     _removeLocationPermissionNotice();
+    final strings = await AppI18n.load();
+    if (!mounted) return;
 
     final overlay = Overlay.of(context);
 
@@ -2193,9 +2204,8 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: MapNoticeCard(
-                      message:
-                          'Location access is blocked. Open settings, then go to Permissions > Location.',
-                      actionLabel: 'Settings',
+                      message: AppI18n.t(strings, 'map.location.blocked'),
+                      actionLabel: AppI18n.t(strings, 'map.location.settings'),
                       onAction: () {
                         _removeLocationPermissionNotice();
                         unawaited(_openLocationPermissionSettings());
@@ -2228,7 +2238,11 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(content: Text('Could not open location settings.')),
+      SnackBar(
+        content: Text(
+          AppI18n.t(await AppI18n.load(), 'map.location.settings_failed'),
+        ),
+      ),
     );
   }
 
@@ -2261,8 +2275,9 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             (restaurant['phone'] ?? '').toString(),
             'copied phone',
           ),
-          onEmail: () =>
-              _showEmailOptions((restaurant['email'] ?? '').toString()),
+          onEmail: () => unawaited(
+            _showEmailOptions((restaurant['email'] ?? '').toString()),
+          ),
           onFacebook: () =>
               _openUrl((restaurant['facebook_url'] ?? '').toString()),
           onCareers: () =>
@@ -2947,6 +2962,7 @@ class _ProfilePopupMenu extends StatelessWidget {
                   iconColor: Colors.redAccent,
                   iconBg: Colors.redAccent.withValues(alpha: 0.12),
                   text: 'Automatic email editing',
+                  textKey: 'profile.automatic_email',
                   onTap: onMail,
                   tileKey: automaticEmailTileKey,
                 ),
@@ -2956,6 +2972,7 @@ class _ProfilePopupMenu extends StatelessWidget {
                   iconColor: Colors.pinkAccent,
                   iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
                   text: 'Favourites',
+                  textKey: 'profile.favourites',
                   onTap: onFavorites,
                 ),
                 const SizedBox(height: 14),
@@ -2964,6 +2981,7 @@ class _ProfilePopupMenu extends StatelessWidget {
                   iconColor: const Color(0xFFB45309),
                   iconBg: const Color(0xFFFDEBD3),
                   text: 'Send report',
+                  textKey: 'profile.send_report',
                   onTap: onReports,
                 ),
                 const SizedBox(height: 14),
@@ -2971,7 +2989,8 @@ class _ProfilePopupMenu extends StatelessWidget {
                   icon: Icons.local_cafe_outlined,
                   iconColor: const Color(0xFFB2872B),
                   iconBg: const Color(0xFFFFF3C4),
-                  text: 'Buy me a coffe',
+                  text: 'Buy me a coffee',
+                  textKey: 'profile.support',
                   onTap: onSupport,
                 ),
                 if (showSoftUpdateMessage) ...[
@@ -3050,6 +3069,7 @@ class _ProfileTile extends StatelessWidget {
     required this.onTap,
     this.iconColor = Colors.black87,
     this.iconBg = Colors.black12,
+    this.textKey,
     this.tileKey,
   });
 
@@ -3058,7 +3078,28 @@ class _ProfileTile extends StatelessWidget {
   final VoidCallback onTap;
   final Color iconColor;
   final Color iconBg;
+  final String? textKey;
   final Key? tileKey;
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontWeight: FontWeight.w700,
+    fontSize: 15,
+  );
+
+  Widget _buildLabel() {
+    final key = textKey;
+    if (key == null) {
+      return Text(text, style: _labelStyle);
+    }
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, snapshot) {
+        final strings = snapshot.data ?? AppI18n.forCode('en');
+        return Text(AppI18n.t(strings, key), style: _labelStyle);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3084,15 +3125,7 @@ class _ProfileTile extends StatelessWidget {
                 child: Icon(icon, color: iconColor),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
+              Expanded(child: _buildLabel()),
               const Icon(Icons.chevron_right, color: Colors.black45),
             ],
           ),

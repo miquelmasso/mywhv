@@ -318,7 +318,7 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              '🚫 Restaurant bloquejat i dades esborrades.',
+                              'Restaurant blocked and data deleted.',
                             ),
                             backgroundColor: Colors.redAccent,
                           ),
@@ -333,8 +333,8 @@ class _RestaurantEditPageState extends State<RestaurantEditPage> {
                     onPressed: _loading ? null : _saveChanges,
                     icon: const Icon(Icons.save),
                     label: _loading
-                        ? const Text('Guardant...')
-                        : const Text('Guardar canvis'),
+                        ? const Text('Saving...')
+                        : const Text('Save changes'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,

@@ -29,7 +29,7 @@ class AdminPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.list_alt_outlined),
-                label: const Text('Veure dades'),
+                label: const Text('View data'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
@@ -50,7 +50,7 @@ class AdminPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.tune),
-                label: const Text('Gestio de mapa'),
+                label: const Text('Map management'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade700,
                   foregroundColor: Colors.white,
@@ -90,7 +90,7 @@ class AdminPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.build_circle_outlined),
-                label: const Text('Buscar restaurants'),
+                label: const Text('Search restaurants'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -111,7 +111,7 @@ class AdminPage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.agriculture),
-                label: const Text('Gestionar farms'),
+                label: const Text('Manage farms'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.brown.shade600,
                   foregroundColor: Colors.white,

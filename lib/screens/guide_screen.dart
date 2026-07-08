@@ -6,6 +6,7 @@ import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
 import '../services/journey_guide_progress_service.dart';
 import '../services/search_service.dart';
+import '../utils/app_i18n.dart';
 import 'australia_journey_guide_screen.dart';
 import 'guide_page_screen.dart';
 import 'visa_type_selection_screen.dart';
@@ -86,6 +87,7 @@ class _GuideScreenState extends State<GuideScreen> {
   final SearchService _searchService = SearchService.instance;
   final TextEditingController _searchController = TextEditingController();
   bool _showJourneyBadge = true;
+  Map<String, String> _uiStrings = AppI18n.forCode('en');
 
   @override
   void initState() {
@@ -111,8 +113,11 @@ class _GuideScreenState extends State<GuideScreen> {
     final saved = prefs.getString('guide_lang');
     final chosen = saved ?? (systemLang.isNotEmpty ? systemLang : 'en');
     _langCode = chosen;
+    _uiStrings = AppI18n.forCode(chosen);
     return GuideManualRepository().loadByLocaleCode(chosen);
   }
+
+  String _ui(String key) => AppI18n.t(_uiStrings, key);
 
   @override
   void dispose() {
@@ -230,7 +235,7 @@ class _GuideScreenState extends State<GuideScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Select language',
+                _ui('guide.select_language'),
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
@@ -264,6 +269,7 @@ class _GuideScreenState extends State<GuideScreen> {
         await prefs.setString('guide_lang', code);
         setState(() {
           _langCode = code;
+          _uiStrings = AppI18n.forCode(code);
           _future = GuideManualRepository().loadByLocaleCode(_langCode);
         });
         await _searchService.init(localeOverride: code);
@@ -324,7 +330,7 @@ class _GuideScreenState extends State<GuideScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_results.isEmpty) {
-      return const Center(child: Text('No results found'));
+      return Center(child: Text(_ui('guide.no_results')));
     }
     return ListView.separated(
       itemCount: _results.length,
@@ -459,13 +465,13 @@ class _GuideScreenState extends State<GuideScreen> {
             ),
           ),
         ),
-        title: const Text('Australia Guide'),
+        title: Text(_ui('guide.title')),
         centerTitle: true,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: IconButton(
-              tooltip: 'Change language',
+              tooltip: _ui('guide.change_language'),
               onPressed: _chooseLanguage,
               icon: const Icon(Icons.translate),
             ),
@@ -482,11 +488,11 @@ class _GuideScreenState extends State<GuideScreen> {
                   controller: _searchController,
                   onChanged: _onQueryChanged,
                   decoration: InputDecoration(
-                    hintText: 'Search anything',
+                    hintText: _ui('guide.search_hint'),
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _query.isNotEmpty
                         ? IconButton(
-                            tooltip: 'Clear',
+                            tooltip: _ui('common.clear'),
                             icon: const Icon(Icons.close, size: 18),
                             onPressed: _clearSearch,
                           )
@@ -517,7 +523,7 @@ class _GuideScreenState extends State<GuideScreen> {
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('We could not load the guide.'),
+                            Text(_ui('guide.load_error')),
                             const SizedBox(height: 12),
                             ElevatedButton(
                               onPressed: () {
@@ -526,7 +532,7 @@ class _GuideScreenState extends State<GuideScreen> {
                                       .loadFromAssets();
                                 });
                               },
-                              child: const Text('Retry'),
+                              child: Text(_ui('common.retry')),
                             ),
                           ],
                         );
@@ -557,7 +563,7 @@ class _GuideScreenState extends State<GuideScreen> {
 
                       final sections = _filterSections(snapshot.data!.sections);
                       if (sections.isEmpty) {
-                        return const Center(child: Text('No sections found.'));
+                        return Center(child: Text(_ui('guide.no_sections')));
                       }
                       return GridView.builder(
                         itemCount: sections.length,

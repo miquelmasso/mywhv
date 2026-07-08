@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/report_message_page.dart';
+import '../utils/app_i18n.dart';
 
 class AppErrorDialogService {
   const AppErrorDialogService._();
@@ -9,27 +10,35 @@ class AppErrorDialogService {
   static const Color _ink = Color(0xFF151922);
   static const String _sadKangarooAsset = 'assets/icons/kangaroo_sad.png';
 
-  static Future<void> showMapAssetErrorDialog(BuildContext context) {
+  static Future<void> showMapAssetErrorDialog(BuildContext context) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return;
     return showCriticalErrorDialog(
       context,
       imageAsset: _sadKangarooAsset,
-      titlePrefix: 'Oops! ',
-      title: 'Didn\'t load',
-      message: 'Something went wrong. Please try again.',
-      helperTitle: 'Next step',
-      helperText: 'Try again later or report it.',
+      titlePrefix: AppI18n.t(strings, 'error.oops'),
+      title: AppI18n.t(strings, 'error.load_title'),
+      message: AppI18n.t(strings, 'error.load_message'),
+      helperTitle: AppI18n.t(strings, 'common.next_step'),
+      helperText: AppI18n.t(strings, 'error.try_report'),
+      reportLabel: AppI18n.t(strings, 'common.report_problem'),
+      closeTooltip: AppI18n.t(strings, 'common.close'),
     );
   }
 
-  static Future<void> showMailErrorDialog(BuildContext context) {
+  static Future<void> showMailErrorDialog(BuildContext context) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return;
     return showCriticalErrorDialog(
       context,
       imageAsset: _sadKangarooAsset,
-      titlePrefix: 'Oops! ',
-      title: 'Email failed',
-      message: 'We could not open your email app.',
-      helperTitle: 'Next step',
-      helperText: 'Check Mail setup or report it.',
+      titlePrefix: AppI18n.t(strings, 'error.oops'),
+      title: AppI18n.t(strings, 'error.email_title'),
+      message: AppI18n.t(strings, 'error.email_message'),
+      helperTitle: AppI18n.t(strings, 'common.next_step'),
+      helperText: AppI18n.t(strings, 'error.email_helper'),
+      reportLabel: AppI18n.t(strings, 'common.report_problem'),
+      closeTooltip: AppI18n.t(strings, 'common.close'),
     );
   }
 
@@ -41,6 +50,8 @@ class AppErrorDialogService {
     required String helperText,
     String? titlePrefix,
     String imageAsset = _sadKangarooAsset,
+    String reportLabel = 'Report a problem',
+    String closeTooltip = 'Close',
   }) async {
     if (!context.mounted) return;
 
@@ -182,9 +193,9 @@ class AppErrorDialogService {
                           );
                         },
                         icon: const Icon(Icons.mail_outline_rounded),
-                        label: const Text(
-                          'Report a problem',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                        label: Text(
+                          reportLabel,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -203,7 +214,7 @@ class AppErrorDialogService {
                       height: 42,
                     ),
                     padding: EdgeInsets.zero,
-                    tooltip: 'Close',
+                    tooltip: closeTooltip,
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     icon: const Icon(Icons.close_rounded, color: _ink),
                   ),
@@ -233,6 +244,9 @@ class AppCriticalErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppI18n.forCode(
+      WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+    );
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
@@ -301,9 +315,9 @@ class AppCriticalErrorState extends StatelessWidget {
                   ),
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text(
-                    'Try again',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  label: Text(
+                    AppI18n.t(strings, 'common.try_again'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),

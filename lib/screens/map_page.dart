@@ -16,6 +16,7 @@ import '../services/external_link_service.dart';
 import '../services/overlay_helper.dart';
 import '../services/favorites_service.dart';
 import '../services/review_service.dart';
+import '../utils/app_i18n.dart';
 import '../widgets/harvest_months_radial_overlay.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'favorites_screen.dart';
@@ -398,7 +399,7 @@ class _MapPageState extends State<MapPage> with TickerProviderStateMixin {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Perfil',
+      barrierLabel: AppI18n.t(AppI18n.forCode('en'), 'map.dialog.profile'),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, _, _) {
@@ -1507,6 +1508,7 @@ class ProfilePopupMenu extends StatelessWidget {
               iconColor: Colors.redAccent,
               iconBg: Colors.redAccent.withValues(alpha: 0.12),
               text: 'Edit automatic mail',
+              textKey: 'profile.automatic_email',
               onTap: onMail,
             ),
             const SizedBox(height: 14),
@@ -1515,6 +1517,7 @@ class ProfilePopupMenu extends StatelessWidget {
               iconColor: Colors.pinkAccent,
               iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
               text: 'Favourites',
+              textKey: 'profile.favourites',
               onTap: onFavorites,
             ),
             const SizedBox(height: 14),
@@ -1522,7 +1525,8 @@ class ProfilePopupMenu extends StatelessWidget {
               icon: Icons.local_cafe_outlined,
               iconColor: const Color(0xFFB2872B),
               iconBg: const Color(0xFFFFF3C4),
-              text: 'Buy me a coffe',
+              text: 'Buy me a coffee',
+              textKey: 'profile.support',
               onTap: onSupport,
             ),
             if (showAdmin) ...[
@@ -1549,6 +1553,7 @@ class _ProfileTile extends StatelessWidget {
     this.iconColor = Colors.black87,
     this.iconBg = Colors.black12,
     required this.onTap,
+    this.textKey,
   });
 
   final IconData icon;
@@ -1556,6 +1561,27 @@ class _ProfileTile extends StatelessWidget {
   final Color iconColor;
   final Color iconBg;
   final VoidCallback onTap;
+  final String? textKey;
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontWeight: FontWeight.w700,
+    fontSize: 15,
+  );
+
+  Widget _buildLabel() {
+    final key = textKey;
+    if (key == null) {
+      return Text(text, style: _labelStyle);
+    }
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, snapshot) {
+        final strings = snapshot.data ?? AppI18n.forCode('en');
+        return Text(AppI18n.t(strings, key), style: _labelStyle);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1580,15 +1606,7 @@ class _ProfileTile extends StatelessWidget {
                 child: Icon(icon, color: iconColor),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
+              Expanded(child: _buildLabel()),
               const Icon(Icons.chevron_right, color: Colors.black45),
             ],
           ),

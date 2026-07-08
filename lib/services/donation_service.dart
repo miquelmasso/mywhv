@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'external_link_service.dart';
+import '../utils/app_i18n.dart';
 import '../widgets/donation_popup.dart';
 
 class DonationService {
@@ -45,10 +46,13 @@ class DonationService {
   }
 
   Future<bool> showSupportPopup(BuildContext context) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return false;
+
     final result = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Support WorkyDay',
+      barrierLabel: AppI18n.t(strings, 'donation.title'),
       barrierColor: Colors.black.withValues(alpha: 0.42),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (dialogContext, _, _) {

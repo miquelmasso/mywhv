@@ -12,7 +12,7 @@ class DataListsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Veure dades')),
+      appBar: AppBar(title: const Text('View data')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16),

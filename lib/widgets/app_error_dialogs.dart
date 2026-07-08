@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/report_message_page.dart';
+import '../utils/app_i18n.dart';
 
 class AppErrorDialogs {
   const AppErrorDialogs._();
@@ -12,25 +13,29 @@ class AppErrorDialogs {
   static Future<void> showMapAssetError(
     BuildContext context, {
     VoidCallback? onRetry,
-  }) {
+  }) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return;
     return show(
       context,
-      title: 'Didn\'t load',
-      message: 'Something went wrong. Please try again.',
-      helperTitle: 'Next step',
-      helperText: 'Try again later or report it.',
-      imageAsset: 'assets/icons/kangaroo_sad.png',
+      title: AppI18n.t(strings, 'error.load_title'),
+      message: AppI18n.t(strings, 'error.load_message'),
+      helperTitle: AppI18n.t(strings, 'common.next_step'),
+      helperText: AppI18n.t(strings, 'error.try_report'),
+      imageAsset: 'assets/kangaroo_sad.png',
     );
   }
 
-  static Future<void> showMailError(BuildContext context) {
+  static Future<void> showMailError(BuildContext context) async {
+    final strings = await AppI18n.load();
+    if (!context.mounted) return;
     return show(
       context,
-      title: 'Email failed',
-      message: 'We could not open your email app.',
-      helperTitle: 'Next step',
-      helperText: 'Check Mail setup or report it.',
-      imageAsset: 'assets/icons/kangaroo_sad.png',
+      title: AppI18n.t(strings, 'error.email_title'),
+      message: AppI18n.t(strings, 'error.email_message'),
+      helperTitle: AppI18n.t(strings, 'common.next_step'),
+      helperText: AppI18n.t(strings, 'error.email_helper'),
+      imageAsset: 'assets/kangaroo_sad.png',
     );
   }
 
@@ -42,6 +47,7 @@ class AppErrorDialogs {
     required String helperText,
     String? imageAsset,
   }) async {
+    final strings = await AppI18n.load();
     if (!context.mounted) return;
 
     await showDialog<void>(
@@ -179,9 +185,9 @@ class AppErrorDialogs {
                           );
                         },
                         icon: const Icon(Icons.mail_outline_rounded),
-                        label: const Text(
-                          'Report a problem',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                        label: Text(
+                          AppI18n.t(strings, 'common.report_problem'),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -200,7 +206,7 @@ class AppErrorDialogs {
                       height: 42,
                     ),
                     padding: EdgeInsets.zero,
-                    tooltip: 'Close',
+                    tooltip: AppI18n.t(strings, 'common.close'),
                     onPressed: () => Navigator.of(dialogContext).pop(),
                     icon: const Icon(Icons.close_rounded, color: _ink),
                   ),

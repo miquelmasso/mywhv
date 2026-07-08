@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/journey_guide_progress_service.dart';
+import '../utils/app_i18n.dart';
 
 class KangarooGuideEntryButton extends StatefulWidget {
   const KangarooGuideEntryButton({super.key, required this.onTap});
@@ -19,6 +20,7 @@ class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
   late final AnimationController _controller;
   late final Animation<double> _scale;
   bool _visible = false;
+  Map<String, String> _uiStrings = AppI18n.forCode('en');
 
   @override
   void initState() {
@@ -32,10 +34,14 @@ class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
   }
 
   Future<void> _prepareVisibility() async {
+    final strings = await AppI18n.load();
     final finished = await JourneyGuideProgressService.instance
         .isJourneyFinished();
     if (!mounted || finished) return;
-    setState(() => _visible = true);
+    setState(() {
+      _uiStrings = strings;
+      _visible = true;
+    });
     _controller.forward();
   }
 
@@ -80,9 +86,9 @@ class _KangarooGuideEntryButtonState extends State<KangarooGuideEntryButton>
                   ),
                 ],
               ),
-              child: const Text(
-                'Let me guide you through Australia 🇦🇺',
-                style: TextStyle(
+              child: Text(
+                AppI18n.t(_uiStrings, 'kangaroo.bubble'),
+                style: const TextStyle(
                   color: Color(0xFF1D222B),
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5,

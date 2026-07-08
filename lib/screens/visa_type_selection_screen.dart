@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/guide_manual/guide_manual.dart';
+import '../utils/app_i18n.dart';
 import '../utils/guide_section_theme.dart';
 import '../widgets/guide_back_button.dart';
 import 'guide_page_screen.dart';
@@ -19,85 +20,182 @@ class VisaTypeSelectionScreen extends StatelessWidget {
   final Map<String, String> initialStrings;
   final void Function(int index)? onNavigateToTab;
 
-  static const List<String> _whvBullets = [
-    'Travel and work full-time',
-    'Change employers freely',
-    'Explore Australia while saving',
-    'Valid for adventure and work',
-    'Good for short-term plans',
-  ];
-
-  static const List<String> _studentBullets = [
-    'Study at schools, TAFE or uni',
-    'Work limited hours',
-    'Build a longer-term future',
-    'Improve English or skills',
-    'Best for study-based plans',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final sectionTheme = GuideSectionTheme.forSection(sectionId);
-    return Scaffold(
-      backgroundColor: sectionTheme.pageBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-              child: Row(
-                children: [
-                  GuideBackButton(onTap: () => Navigator.of(context).pop()),
-                  const Expanded(
-                    child: Text(
-                      'Visa & requirements',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF151922),
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, snapshot) {
+        final strings = snapshot.data ?? AppI18n.forCode('en');
+        String t(String key) => AppI18n.t(strings, key);
+        final whvBullets = [
+          t('visa.whv.b1'),
+          t('visa.whv.b2'),
+          t('visa.whv.b3'),
+          t('visa.whv.b4'),
+          t('visa.whv.b5'),
+        ];
+        final studentBullets = [
+          t('visa.student.b1'),
+          t('visa.student.b2'),
+          t('visa.student.b3'),
+          t('visa.student.b4'),
+          t('visa.student.b5'),
+        ];
+
+        return Scaffold(
+          backgroundColor: sectionTheme.pageBackground,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+                  child: Row(
+                    children: [
+                      GuideBackButton(onTap: () => Navigator.of(context).pop()),
+                      Expanded(
+                        child: Text(
+                          t('visa.types.title'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF151922),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 48),
+                    ],
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(24, 34, 24, 28),
+                    children: [
+                      Text(
+                        t('visa.types.heading'),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF151922),
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 44),
+                      _VisaTypeCard(
+                        title: t('visa.types.whv'),
+                        bullets: whvBullets,
+                        icon: Icons.travel_explore_outlined,
+                        accentColor: const Color(0xFFE8847A),
+                        onTap: () => _openPage(context, whvPage),
+                      ),
+                      const SizedBox(height: 18),
+                      _VisaTypeCard(
+                        title: t('visa.types.student'),
+                        bullets: studentBullets,
+                        icon: Icons.school_outlined,
+                        accentColor: const Color(0xFF78A8E5),
+                        onTap: () => _openPage(context, _studentVisaPage(t)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 34, 24, 28),
-                children: [
-                  const Text(
-                    'Types of visa',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF151922),
-                      letterSpacing: 0,
-                    ),
-                  ),
-                  const SizedBox(height: 44),
-                  _VisaTypeCard(
-                    title: 'Work and Holiday Visa',
-                    bullets: _whvBullets,
-                    icon: Icons.travel_explore_outlined,
-                    accentColor: const Color(0xFFE8847A),
-                    onTap: () => _openPage(context, whvPage),
-                  ),
-                  const SizedBox(height: 18),
-                  _VisaTypeCard(
-                    title: 'Student Visa',
-                    bullets: _studentBullets,
-                    icon: Icons.school_outlined,
-                    accentColor: const Color(0xFF78A8E5),
-                    onTap: () => _openPage(context, _studentVisaPage),
-                  ),
-                ],
-              ),
+          ),
+        );
+      },
+    );
+  }
+
+  GuidePage _studentVisaPage(String Function(String key) t) {
+    return GuidePage(
+      id: 'visa_overview',
+      title: t('student.title'),
+      summary: 'Study in Australia while working limited hours.',
+      blocks: const [],
+      sections: [
+        GuidePageSection(
+          id: 'requirements_tab',
+          title: t('student.requirements_tab'),
+          blocks: [
+            GuideBlock(
+              type: 'card',
+              title: t('student.what_title'),
+              items: [
+                t('student.what_1'),
+                t('student.what_2'),
+                t('student.what_3'),
+              ],
+            ),
+            GuideBlock(
+              type: 'card',
+              title: t('student.approval_title'),
+              content: t('student.approval_body'),
+            ),
+            GuideBlock(
+              type: 'card',
+              title: t('student.requirements_title'),
+              items: [
+                t('student.req_1'),
+                t('student.req_2'),
+                t('student.req_3'),
+                t('student.req_4'),
+                t('student.req_5'),
+              ],
+              ordered: true,
+              buttonLabel: t('insurance.recommended'),
+              buttonUrl: 'action:travel_insurance',
+            ),
+            GuideBlock(
+              type: 'callout',
+              title: t('student.important_title'),
+              content: t('student.important_body'),
+              variant: 'warning',
             ),
           ],
         ),
-      ),
+        GuidePageSection(
+          id: 'apply_steps_tab',
+          title: t('student.apply_tab'),
+          blocks: [
+            GuideBlock(
+              type: 'card',
+              title: t('student.steps_title'),
+              items: [
+                t('student.step_1'),
+                t('student.step_2'),
+                t('student.step_3'),
+                t('student.step_4'),
+                t('student.step_5'),
+              ],
+              ordered: true,
+            ),
+            GuideBlock(
+              type: 'card',
+              title: t('student.balance_title'),
+              content: t('student.balance_body'),
+            ),
+            GuideBlock(
+              type: 'card',
+              title: t('student.support_title'),
+              content: t('student.support_body'),
+              buttonLabel: t('student.support_button'),
+              buttonUrl: 'https://youtooproject.com/contacto/?ref=miquelmasso',
+            ),
+            GuideBlock(
+              type: 'card',
+              title: t('student.official_title'),
+              buttonLabel: t('student.official_button'),
+              buttonUrl:
+                  'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500',
+            ),
+          ],
+        ),
+      ],
+      checklist: const [],
+      cta: GuideCtaLink(forumTag: 'visa'),
     );
   }
 
@@ -113,98 +211,6 @@ class VisaTypeSelectionScreen extends StatelessWidget {
       ),
     );
   }
-
-  static final GuidePage _studentVisaPage = GuidePage(
-    id: 'visa_overview',
-    title: 'Student Visa',
-    summary: 'Study in Australia while working limited hours.',
-    blocks: const [],
-    sections: [
-      GuidePageSection(
-        id: 'requirements_tab',
-        title: 'Requirements',
-        blocks: [
-          GuideBlock(
-            type: 'card',
-            title: 'What is a Student Visa?',
-            items: [
-              'Designed for people enrolled in an eligible course in Australia.',
-              'Allows study at schools, TAFE, universities or other approved providers.',
-              'Lets students work limited hours while studying.',
-            ],
-          ),
-          GuideBlock(
-            type: 'card',
-            title: 'Estimated approval time',
-            content:
-                'Processing times vary depending on your course, country, documents and application quality.',
-          ),
-          GuideBlock(
-            type: 'card',
-            title: 'Student Visa requirements',
-            items: [
-              'Valid passport',
-              'Confirmation of Enrolment from an approved provider',
-              'Evidence of funds for course fees, travel and living costs',
-              'Health insurance for overseas students',
-              'English level or education documents if required',
-            ],
-            ordered: true,
-            buttonLabel: 'Recommended insurance',
-            buttonUrl: 'action:travel_insurance',
-          ),
-          GuideBlock(
-            type: 'callout',
-            title: 'Important',
-            content:
-                'Student visa rules and work conditions can change. Always verify the latest requirements on the official Australian Government website before applying.',
-            variant: 'warning',
-          ),
-        ],
-      ),
-      GuidePageSection(
-        id: 'apply_steps_tab',
-        title: 'How to apply',
-        blocks: [
-          GuideBlock(
-            type: 'card',
-            title: 'Application steps',
-            items: [
-              'Choose an eligible course and education provider.',
-              'Receive your Confirmation of Enrolment.',
-              'Prepare documents, funds evidence and health insurance.',
-              'Apply online through ImmiAccount.',
-              'Wait for the visa decision before making final plans.',
-            ],
-            ordered: true,
-          ),
-          GuideBlock(
-            type: 'card',
-            title: 'Work and study balance',
-            content:
-                'Plan your budget around study first. Work rights are limited and should not be treated as the only way to fund your stay.',
-          ),
-          GuideBlock(
-            type: 'card',
-            title: 'Student visa support',
-            content:
-                'If you need help applying for a student visa or finding schools and study centres in Australia, we recommend contacting YouTooProject.',
-            buttonLabel: 'YouTooProject',
-            buttonUrl: 'https://youtooproject.com/contacto/?ref=miquelmasso',
-          ),
-          GuideBlock(
-            type: 'card',
-            title: 'Official information',
-            buttonLabel: 'Check Student Visa details',
-            buttonUrl:
-                'https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500',
-          ),
-        ],
-      ),
-    ],
-    checklist: const [],
-    cta: GuideCtaLink(forumTag: 'visa'),
-  );
 }
 
 class _VisaTypeCard extends StatelessWidget {

@@ -417,6 +417,7 @@
     "money.super.lost_text": "Mehrere Fonds? Mit TFN auf ATO online finden und zusammenführen.",
     "cert.rsa.combo": "RSA: Alkohol ausschenken",
     "cert.white.combo": "White Card: Bau",
-    "cert.usi.combo": "USI: einige Kurse/Zertifikate"
+    "cert.usi.combo": "USI: einige Kurse/Zertifikate",
+    "arrival.sim.local_sims_button": "Lokale SIMs"
   }
 }

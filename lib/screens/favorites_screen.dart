@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/google_services_config.dart';
 import '../services/external_link_service.dart';
 import '../services/favorites_service.dart';
+import '../utils/app_i18n.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -47,8 +48,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (address.trim().isEmpty) return;
     if (!GoogleServicesConfig.enableExternalGoogleMapsLinks) {
       if (!mounted) return;
+      final strings = await AppI18n.load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Maps is temporarily paused.')),
+        SnackBar(content: Text(AppI18n.t(strings, 'map.google_paused'))),
       );
       return;
     }
@@ -72,7 +75,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildCard(Map<String, dynamic> data) {
+  Widget _buildCard(Map<String, dynamic> data, Map<String, String> strings) {
+    String t(String key) => AppI18n.t(strings, key);
     final docId = (data['docId'] ?? data['id'] ?? '').toString();
     final name = (data['name'] ?? '').toString();
     final address = (data['address'] ?? '').toString();
@@ -156,8 +160,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         : Colors.red,
                   ),
                   tooltip: _removedIds.contains(docId)
-                      ? 'Add to favourites'
-                      : 'Remove from favourites',
+                      ? t('map.tooltip.add_favourite')
+                      : t('map.tooltip.remove_favourite'),
                 ),
               ],
             ),
@@ -169,28 +173,28 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     Icons.call,
                     Colors.green,
                     () => _call(phone),
-                    tooltip: 'Trucar',
+                    tooltip: t('map.tooltip.copy_phone'),
                   ),
                 if (email.isNotEmpty)
                   _actionIcon(
                     Icons.email_outlined,
                     Colors.redAccent,
                     () => _email(email),
-                    tooltip: 'Email',
+                    tooltip: t('map.tooltip.email_options'),
                   ),
                 if (facebook.isNotEmpty)
                   _actionIcon(
                     Icons.facebook,
                     Colors.blue,
                     () => _openUrl(facebook),
-                    tooltip: 'Facebook',
+                    tooltip: t('map.tooltip.open_facebook'),
                   ),
                 if (careers.isNotEmpty)
                   _actionIcon(
                     Icons.work_outline,
                     Colors.green,
                     () => _openUrl(careers),
-                    tooltip: 'Ofertes/feina',
+                    tooltip: t('map.tooltip.view_jobs'),
                   ),
                 if (instagram.isNotEmpty)
                   IconButton(
@@ -198,13 +202,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       FontAwesomeIcons.instagram,
                       color: Colors.purple,
                     ),
-                    tooltip: 'Instagram',
+                    tooltip: t('map.tooltip.open_instagram'),
                     onPressed: () => _openUrl(instagram),
                   ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.directions, color: Colors.blueAccent),
-                  tooltip: 'Com arribar',
+                  tooltip: t('map.tooltip.directions'),
                   onPressed: () =>
                       _openDirections(address.isNotEmpty ? address : name),
                 ),
@@ -218,33 +222,39 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Favourites')),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                'We could not load your favourites right now. Please try again in a moment.',
-              ),
-            );
-          }
-          final docs = snapshot.data ?? [];
-          if (docs.isEmpty) {
-            return const Center(child: Text('No favourites yet'));
-          }
-          final ordered = List<Map<String, dynamic>>.from(docs.reversed);
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            itemCount: ordered.length,
-            itemBuilder: (context, index) => _buildCard(ordered[index]),
-          );
-        },
-      ),
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, languageSnapshot) {
+        final strings = languageSnapshot.data ?? AppI18n.forCode('en');
+        String t(String key) => AppI18n.t(strings, key);
+
+        return Scaffold(
+          appBar: AppBar(title: Text(t('profile.favourites'))),
+          body: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text(t('favorites.load_error')));
+              }
+              final docs = snapshot.data ?? [];
+              if (docs.isEmpty) {
+                return Center(child: Text(t('favorites.empty')));
+              }
+              final ordered = List<Map<String, dynamic>>.from(docs.reversed);
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                itemCount: ordered.length,
+                itemBuilder: (context, index) =>
+                    _buildCard(ordered[index], strings),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/report_service.dart';
+import '../utils/app_i18n.dart';
 
 class ReportMessagePage extends StatefulWidget {
   const ReportMessagePage({super.key});
@@ -59,7 +60,16 @@ class _ReportMessagePageState extends State<ReportMessagePage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Send report')),
+      appBar: AppBar(
+        title: FutureBuilder<Map<String, String>>(
+          future: AppI18n.load(),
+          initialData: AppI18n.forCode('en'),
+          builder: (context, snapshot) {
+            final strings = snapshot.data ?? AppI18n.forCode('en');
+            return Text(AppI18n.t(strings, 'profile.send_report'));
+          },
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),

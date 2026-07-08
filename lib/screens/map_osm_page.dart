@@ -401,7 +401,7 @@ class _MapPageOSMState extends State<MapPageOSM>
               if ((data['instagram_url'] ?? '').toString().isNotEmpty)
                 Text('Instagram: ${data['instagram_url']}'),
               if ((data['careers_page'] ?? '').toString().isNotEmpty)
-                Text('Feina: ${data['careers_page']}'),
+                Text('Jobs: ${data['careers_page']}'),
             ],
           ),
         ),
@@ -629,7 +629,7 @@ class _MapPageOSMState extends State<MapPageOSM>
             child: FloatingActionButton.extended(
               onPressed: _recenter,
               icon: const Icon(Icons.my_location),
-              label: const Text('Recentrar'),
+              label: const Text('Recenter'),
             ),
           ),
         ],

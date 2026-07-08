@@ -23,6 +23,7 @@ import '../services/review_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/admin_button_visibility_service.dart';
 import '../services/tile_cache_service.dart';
+import '../utils/app_i18n.dart';
 import 'favorites_screen.dart';
 import 'mail_setup_page.dart';
 import 'report_message_page.dart';
@@ -931,7 +932,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Perfil',
+      barrierLabel: AppI18n.t(AppI18n.forCode('en'), 'map.dialog.profile'),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, _, _) {
@@ -2274,7 +2275,7 @@ class FarmPlaceholderView extends StatelessWidget {
                 ),
               ),
               onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('Enrere'),
+              child: Text(AppI18n.t(AppI18n.forCode('en'), 'common.close')),
             ),
           ),
         ),
@@ -2519,6 +2520,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconColor: Colors.redAccent,
               iconBg: Colors.redAccent.withValues(alpha: 0.12),
               text: 'Automatic email editing',
+              textKey: 'profile.automatic_email',
               onTap: onMail,
               tileKey: automaticEmailTileKey,
             ),
@@ -2528,6 +2530,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconColor: Colors.pinkAccent,
               iconBg: Colors.pinkAccent.withValues(alpha: 0.12),
               text: 'Favourites',
+              textKey: 'profile.favourites',
               onTap: onFavorites,
             ),
             const SizedBox(height: 14),
@@ -2536,6 +2539,7 @@ class _ProfilePopupMenu extends StatelessWidget {
               iconColor: const Color(0xFFB45309),
               iconBg: const Color(0xFFFDEBD3),
               text: 'Send report',
+              textKey: 'profile.send_report',
               onTap: onReports,
             ),
             const SizedBox(height: 14),
@@ -2543,7 +2547,8 @@ class _ProfilePopupMenu extends StatelessWidget {
               icon: Icons.local_cafe_outlined,
               iconColor: const Color(0xFFB2872B),
               iconBg: const Color(0xFFFFF3C4),
-              text: 'Buy me a coffe',
+              text: 'Buy me a coffee',
+              textKey: 'profile.support',
               onTap: onSupport,
             ),
             if (showAdmin) ...[
@@ -2570,6 +2575,7 @@ class _ProfileTile extends StatelessWidget {
     this.iconColor = Colors.black87,
     this.iconBg = Colors.black12,
     required this.onTap,
+    this.textKey,
     this.tileKey,
   });
 
@@ -2578,7 +2584,28 @@ class _ProfileTile extends StatelessWidget {
   final Color iconColor;
   final Color iconBg;
   final VoidCallback onTap;
+  final String? textKey;
   final Key? tileKey;
+
+  static const TextStyle _labelStyle = TextStyle(
+    fontWeight: FontWeight.w700,
+    fontSize: 15,
+  );
+
+  Widget _buildLabel() {
+    final key = textKey;
+    if (key == null) {
+      return Text(text, style: _labelStyle);
+    }
+    return FutureBuilder<Map<String, String>>(
+      future: AppI18n.load(),
+      initialData: AppI18n.forCode('en'),
+      builder: (context, snapshot) {
+        final strings = snapshot.data ?? AppI18n.forCode('en');
+        return Text(AppI18n.t(strings, key), style: _labelStyle);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2604,15 +2631,7 @@ class _ProfileTile extends StatelessWidget {
                 child: Icon(icon, color: iconColor),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
+              Expanded(child: _buildLabel()),
               const Icon(Icons.chevron_right, color: Colors.black45),
             ],
           ),

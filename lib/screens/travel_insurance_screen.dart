@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/external_link_service.dart';
+import '../utils/app_i18n.dart';
 import '../widgets/guide_back_button.dart';
 
 class TravelInsuranceScreen extends StatelessWidget {
@@ -59,15 +60,22 @@ class TravelInsuranceScreen extends StatelessWidget {
               child: Row(
                 children: [
                   GuideBackButton(onTap: () => Navigator.of(context).pop()),
-                  const Expanded(
-                    child: Text(
-                      'Travel Insurance',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF151922),
-                      ),
+                  Expanded(
+                    child: FutureBuilder<Map<String, String>>(
+                      future: AppI18n.load(),
+                      initialData: AppI18n.forCode('en'),
+                      builder: (context, snapshot) {
+                        final strings = snapshot.data ?? AppI18n.forCode('en');
+                        return Text(
+                          AppI18n.t(strings, 'insurance.title'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF151922),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 48),
@@ -93,16 +101,18 @@ class TravelInsuranceScreen extends StatelessWidget {
 }
 
 Future<void> showTravelInsuranceDialog(BuildContext context) async {
+  final strings = await AppI18n.load();
+  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Travel Insurance',
+        title: Text(
+          AppI18n.t(strings, 'insurance.title'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color(0xFF151922),
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -266,6 +276,8 @@ Future<void> _handleProviderTap(
 Future<bool?> _showDiscountCodeDialog(BuildContext context) async {
   const accentColor = Color(0xFF66C7C1);
   const discountCode = 'MIQ5OFF';
+  final strings = await AppI18n.load();
+  if (!context.mounted) return null;
 
   return showDialog<bool>(
     context: context,
@@ -273,10 +285,10 @@ Future<bool?> _showDiscountCodeDialog(BuildContext context) async {
       return AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Discount code',
+        title: Text(
+          AppI18n.t(strings, 'common.discount_code'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: accentColor,
             fontSize: 21,
             fontWeight: FontWeight.w800,
@@ -319,7 +331,7 @@ Future<bool?> _showDiscountCodeDialog(BuildContext context) async {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Copy code',
+                        tooltip: AppI18n.t(strings, 'common.copy_code'),
                         onPressed: () async {
                           await Clipboard.setData(
                             const ClipboardData(text: discountCode),

@@ -157,7 +157,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Restaurant afegit correctament')),
+        const SnackBar(content: Text('Restaurant added successfully')),
       );
       Navigator.of(context).pop();
     } catch (e) {
@@ -382,7 +382,7 @@ class _AddRestaurantManualPageState extends State<AddRestaurantManualPage> {
                   onPressed: _saving ? null : _save,
                   icon: const Icon(Icons.save),
                   label: _saving
-                      ? const Text('Guardant...')
+                      ? const Text('Saving...')
                       : const Text('Add restaurant'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
