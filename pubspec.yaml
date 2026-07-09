@@ -132,7 +132,6 @@ flutter:
     - assets/data/guide_manual.strings.hi.json
     - assets/data/restaurants_seed.json
     - assets/icons/
-    - assets/source.gif
     - export/farms.json
     - export/harvest_places.json
     - export/harvest_places_2025_complete_with_coords.json
