@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'add_construction_by_postcode_page.dart';
 import 'gestio_restaurants.dart';
 import 'manage_farms_page.dart';
 import 'restaurant_edit_page.dart';
@@ -93,6 +94,28 @@ class AdminPage extends StatelessWidget {
                 label: const Text('Search restaurants'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const AddConstructionByPostcodePage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.construction),
+                label: const Text('Search construction'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey.shade700,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
