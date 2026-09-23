@@ -5,6 +5,7 @@ import '../proves/careers_list_page.dart';
 import '../proves/instagram_list_page.dart';
 import '../proves/facebook_list_page.dart';
 import '../proves/worked_here_list_page.dart';
+import '../proves/construction_data_list_page.dart';
 
 class DataListsPage extends StatelessWidget {
   const DataListsPage({super.key});
@@ -20,6 +21,27 @@ class DataListsPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ConstructionDataListPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.construction_outlined),
+                label: const Text('Construction data'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(

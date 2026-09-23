@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'contact_html_fetcher.dart';
+import 'construction_application_contact_classifier.dart';
 
 class EmailVerificationResult {
   const EmailVerificationResult({
@@ -504,6 +505,10 @@ class EmailExtractor {
   // ---------------- Validació ----------------
   bool _isValidEmail(String email, String domain, {String? originUrl}) {
     final e = email.toLowerCase();
+
+    if (!ConstructionApplicationContactClassifier.isSemanticallyValidEmail(e)) {
+      return false;
+    }
 
     // 1️⃣ Patró bàsic correcte
     final baseValid = RegExp(

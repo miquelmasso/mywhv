@@ -7,7 +7,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/construction_category.dart';
+import '../models/construction_domain_records.dart';
+import 'construction_application_contact_classifier.dart';
 import 'restaurant_sqlite_store.dart';
+import 'construction_sqlite_store.dart';
+import 'construction_validation_catalog_service.dart';
 import 'offline_bootstrap_service.dart';
 import 'offline_state.dart';
 
@@ -25,17 +30,528 @@ class RestaurantsFirebaseSyncResult {
   final bool didRun;
 }
 
+class ConstructionCompaniesCacheWriteResult {
+  const ConstructionCompaniesCacheWriteResult({
+    required this.added,
+    required this.updated,
+    required this.total,
+  });
+
+  final int added;
+  final int updated;
+  final int total;
+}
+
+class ConstructionFirebaseSyncResult {
+  const ConstructionFirebaseSyncResult({
+    required this.remoteCount,
+    required this.localCount,
+    required this.mergedCount,
+    required this.didRun,
+  });
+
+  final int remoteCount;
+  final int localCount;
+  final int mergedCount;
+  final bool didRun;
+}
+
 class MapMarkersService {
   static const _cacheKeyJson = 'restaurants_cache_json';
   static const _cacheKeySynced = 'restaurants_cache_synced';
   static const _cacheKeyAppVersion = 'restaurants_cache_app_version';
+  static const _constructionLocalCacheKey =
+      'construction_companies_local_cache_json';
+  static const _constructionFirebaseLastSyncKey =
+      'construction_companies_firebase_last_sync';
+  static const _constructionFirebaseSyncInterval = Duration(days: 30);
   static const _localWorkedHereMinCountsKey =
       'worked_here_local_min_counts_json';
+  static const _constructionWorkedHereMinCountsKey =
+      'construction_worked_here_local_min_counts_json';
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static List<Map<String, dynamic>>? _memoryRestaurants;
   static String? _memoryCacheVersion;
   static List<Map<String, dynamic>>? _memoryMapRestaurants;
   static String? _memoryMapCacheVersion;
+  static List<Map<String, dynamic>>? _memoryConstructionCompanies;
+
+  static Future<List<Map<String, dynamic>>> loadConstructionCompanies({
+    bool lightweight = true,
+    bool syncFromFirebaseIfNeeded = false,
+  }) async {
+    if (syncFromFirebaseIfNeeded) {
+      await syncConstructionCompaniesFromFirebaseIfNeeded();
+    }
+    final cached = _memoryConstructionCompanies;
+    if (cached != null) return cached;
+
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.importSeedAssetIfEmpty();
+    var rows = await store.getAll();
+    var validationChanged = false;
+    for (final row in rows) {
+      final channelFieldsBefore = jsonEncode({
+        'email_contact_type': row['email_contact_type'],
+        'email_public_eligible': row['email_public_eligible'],
+        'careers_public_eligible': row['careers_public_eligible'],
+        'email_identity_status': row['email_identity_status'],
+      });
+      ConstructionApplicationContactClassifier.applyDerivedFields(row);
+      final channelFieldsAfter = jsonEncode({
+        'email_contact_type': row['email_contact_type'],
+        'email_public_eligible': row['email_public_eligible'],
+        'careers_public_eligible': row['careers_public_eligible'],
+        'email_identity_status': row['email_identity_status'],
+      });
+      if (channelFieldsBefore != channelFieldsAfter) validationChanged = true;
+      final name = (row['name'] ?? '').toString();
+      final evidence = await ConstructionValidationCatalogService.instance
+          .findOpenDataEvidence(name);
+      final validated =
+          evidence != null ||
+          await ConstructionValidationCatalogService.instance
+              .isValidatedCompanyName(name);
+      final nextStatus = validated
+          ? 'validated_active_company'
+          : 'osm_only_needs_review';
+      final classification = ConstructionCategory.classifyRowDetailed(row);
+      var category = classification.category;
+      var entityKind = classification.entityKindId;
+      var confidence = classification.confidence;
+      var reason = classification.reason;
+      var classificationSource = 'osm_tags';
+      if (evidence != null &&
+          entityKind != 'supplier_retail' &&
+          entityKind != 'project_site') {
+        final categories = evidence['construction_categories'];
+        if (categories is List && categories.isNotEmpty) {
+          category = ConstructionCategory.fromId(categories.first);
+        }
+        entityKind = 'employer';
+        confidence = confidence < 90 ? 90 : confidence;
+        reason = 'company and category corroborated by open-data sources';
+        classificationSource = 'open_data_corroboration';
+      }
+      final sources = <String>{
+        ...(row['catalog_sources'] is List
+            ? (row['catalog_sources'] as List).map((e) => e.toString())
+            : const <String>[]),
+        if (evidence != null) (evidence['source_id'] ?? '').toString(),
+        if (validated) 'asic_companies',
+        'osm',
+      }..removeWhere((source) => source.isEmpty);
+      final updates = <String, dynamic>{
+        'company_validation_status': nextStatus,
+        'company_validation_source': validated ? 'asic_companies' : 'osm',
+        'construction_category': category.id,
+        'construction_category_label': category.label,
+        'entity_kind': entityKind,
+        'classification_confidence': confidence,
+        'classification_reason': reason,
+        'classification_source': classificationSource,
+        'review_status': entityKind == 'employer' && confidence >= 70
+            ? 'ready_for_map'
+            : 'needs_review',
+        'catalog_sources': sources.toList()..sort(),
+      };
+      for (final entry in updates.entries) {
+        if (row[entry.key].toString() != entry.value.toString()) {
+          row[entry.key] = entry.value;
+          validationChanged = true;
+        }
+      }
+    }
+    if (validationChanged && rows.isNotEmpty) {
+      await store.replaceAll(rows);
+    }
+
+    // One-time compatibility migration from the first construction prototype.
+    if (rows.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString(_constructionLocalCacheKey);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedJson);
+          if (decoded is List) {
+            rows = decoded
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList(growable: false);
+            await store.replaceAll(rows);
+            await prefs.remove(_constructionLocalCacheKey);
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error migrating construction cache to SQLite: $e');
+        }
+      }
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final localWorkedHereMinCounts = _readLocalWorkedHereMinCountsForKey(
+      prefs,
+      _constructionWorkedHereMinCountsKey,
+    );
+    final merged = _applyLocalWorkedHereMinCounts(
+      _dedupeConstructionRows(rows),
+      localWorkedHereMinCounts,
+    );
+    _memoryConstructionCompanies = merged;
+    if (merged.isNotEmpty) {
+      debugPrint('🏗️ Construction companies loaded: ${rows.length}');
+    }
+    return merged;
+  }
+
+  /// Re-runs local classification and open-data corroboration without making
+  /// network requests or publishing anything.
+  static Future<List<Map<String, dynamic>>>
+  reclassifyLocalConstructionCompanies() async {
+    _memoryConstructionCompanies = null;
+    return loadConstructionCompanies(
+      lightweight: false,
+      syncFromFirebaseIfNeeded: false,
+    );
+  }
+
+  static Future<ConstructionCompaniesCacheWriteResult>
+  upsertLocalConstructionCompanies(List<Map<String, dynamic>> companies) async {
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    final existing = await store.getAll();
+
+    final merged = _dedupeConstructionRows(existing);
+    final indexByKey = <String, int>{};
+    for (var i = 0; i < merged.length; i++) {
+      final key = _constructionDedupeKey(merged[i]);
+      if (key.isNotEmpty) indexByKey[key] = i;
+    }
+
+    var added = 0;
+    var updated = 0;
+    for (final raw in companies) {
+      final company = _normalizeConstructionCompanyRow(raw);
+      if (company.isEmpty) continue;
+      final key = _constructionDedupeKey(company);
+      if (key.isEmpty) continue;
+      final existingIndex = indexByKey[key];
+      if (existingIndex == null) {
+        indexByKey[key] = merged.length;
+        merged.add(company);
+        added++;
+      } else {
+        merged[existingIndex] = {...merged[existingIndex], ...company};
+        updated++;
+      }
+    }
+
+    await store.replaceAll(merged);
+    _memoryConstructionCompanies = merged;
+    return ConstructionCompaniesCacheWriteResult(
+      added: added,
+      updated: updated,
+      total: merged.length,
+    );
+  }
+
+  static Future<void> replaceLocalConstructionCompanies(
+    List<Map<String, dynamic>> companies,
+  ) async {
+    final normalized = _dedupeConstructionRows(companies);
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.replaceAll(normalized);
+    _memoryConstructionCompanies = normalized;
+  }
+
+  static Future<void> updateLocalConstructionCompanyFields(
+    String docId,
+    Map<String, dynamic> updates,
+  ) async {
+    if (docId.trim().isEmpty || updates.isEmpty) return;
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.updateCompanyFields(docId, updates);
+    _memoryConstructionCompanies = _dedupeConstructionRows(
+      await store.getAll(),
+    );
+  }
+
+  static Future<void> updateConstructionCompanyFields(
+    String docId,
+    Map<String, dynamic> updates,
+  ) async {
+    if (docId.trim().isEmpty || updates.isEmpty) return;
+    final sanitized = _sanitizeForJson(updates)
+      ..['updated_at'] = FieldValue.serverTimestamp();
+    await _firestore
+        .collection('construction_companies')
+        .doc(docId)
+        .set(sanitized, SetOptions(merge: true));
+    await updateLocalConstructionCompanyFields(docId, updates);
+  }
+
+  static Future<void> deleteConstructionCompany(String docId) async {
+    if (docId.trim().isEmpty) return;
+    await _firestore.collection('construction_companies').doc(docId).delete();
+    await deleteLocalConstructionCompany(docId);
+  }
+
+  static Future<void> deleteLocalConstructionCompany(String docId) async {
+    if (docId.trim().isEmpty) return;
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.deleteById(docId);
+    _memoryConstructionCompanies = _dedupeConstructionRows(
+      await store.getAll(),
+    );
+  }
+
+  static Future<void> upsertConstructionCompaniesToFirebase(
+    List<Map<String, dynamic>> companies,
+  ) async {
+    if (companies.isEmpty) return;
+    for (var offset = 0; offset < companies.length; offset += 400) {
+      final batch = _firestore.batch();
+      for (final raw in companies.skip(offset).take(400)) {
+        final company = _normalizeConstructionCompanyRow(
+          Map<String, dynamic>.from(raw),
+        );
+        final docId = (company['docId'] ?? company['id'] ?? '').toString();
+        if (docId.isEmpty) continue;
+        final data = _sanitizeForJson(company)
+          ..['id'] = docId
+          ..['docId'] = docId
+          ..['place_type'] = 'construction'
+          ..['marker_kind'] = 'construction'
+          ..['updated_at'] = FieldValue.serverTimestamp()
+          ..['synced_from'] = (company['source'] ?? '').toString().isEmpty
+              ? 'app'
+              : company['source'];
+        data.removeWhere(
+          (key, value) =>
+              value is String &&
+              value.trim().isEmpty &&
+              key != 'id' &&
+              key != 'docId',
+        );
+        batch.set(
+          _firestore.collection('construction_companies').doc(docId),
+          data,
+          SetOptions(merge: true),
+        );
+      }
+      await batch.commit();
+    }
+  }
+
+  static Future<ConstructionFirebaseSyncResult>
+  syncConstructionCompaniesFromFirebase() async {
+    return syncConstructionCompaniesFromFirebaseIfNeeded(force: true);
+  }
+
+  static Future<ConstructionFirebaseSyncResult>
+  syncConstructionCompaniesFromFirebaseIfNeeded({bool force = false}) async {
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.importSeedAssetIfEmpty();
+    final local = await store.getAll();
+    final prefs = await SharedPreferences.getInstance();
+    final lastSync = DateTime.tryParse(
+      prefs.getString(_constructionFirebaseLastSyncKey) ?? '',
+    );
+    if (!force &&
+        lastSync != null &&
+        DateTime.now().toUtc().difference(lastSync) <
+            _constructionFirebaseSyncInterval) {
+      return ConstructionFirebaseSyncResult(
+        remoteCount: 0,
+        localCount: local.length,
+        mergedCount: local.length,
+        didRun: false,
+      );
+    }
+    final snapshot = await _firestore
+        .collection('construction_companies')
+        .get();
+    final remote = snapshot.docs
+        .map((doc) {
+          final data = _sanitizeForJson(Map<String, dynamic>.from(doc.data()));
+          data['id'] = (data['id'] ?? doc.id).toString();
+          data['docId'] = doc.id;
+          data['place_type'] = 'construction';
+          data['marker_kind'] = 'construction';
+          return data;
+        })
+        .toList(growable: false);
+    final localWorkedHereMinCounts = _readLocalWorkedHereMinCountsForKey(
+      prefs,
+      _constructionWorkedHereMinCountsKey,
+    );
+    final merged = _applyLocalWorkedHereMinCounts(
+      _dedupeConstructionRows([...local, ...remote]),
+      localWorkedHereMinCounts,
+    );
+    await replaceLocalConstructionCompanies(merged);
+    await prefs.setString(
+      _constructionFirebaseLastSyncKey,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    return ConstructionFirebaseSyncResult(
+      remoteCount: remote.length,
+      localCount: local.length,
+      mergedCount: merged.length,
+      didRun: true,
+    );
+  }
+
+  static Future<void> updateConstructionWorkedHereCache(
+    String docId,
+    int delta,
+  ) async {
+    if (docId.trim().isEmpty || delta == 0) return;
+    final store = ConstructionSqliteStore.instance;
+    await store.init();
+    await store.updateWorkedHereCount(docId, delta);
+
+    final source = _memoryConstructionCompanies ?? await store.getAll();
+    final updated = _updatedWorkedHereList(source, docId, delta);
+    if (updated != null) _memoryConstructionCompanies = updated;
+  }
+
+  static Future<void> rememberLocalConstructionWorkedHereCount(
+    String docId,
+    int minCount,
+  ) async {
+    if (docId.trim().isEmpty || minCount < 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final counts = _readLocalWorkedHereMinCountsForKey(
+      prefs,
+      _constructionWorkedHereMinCountsKey,
+    );
+    final current = counts[docId] ?? 0;
+    if (minCount <= current) return;
+    counts[docId] = minCount;
+    await prefs.setString(
+      _constructionWorkedHereMinCountsKey,
+      jsonEncode(counts),
+    );
+    if (_memoryConstructionCompanies != null) {
+      _memoryConstructionCompanies = _applyLocalWorkedHereMinCounts(
+        _memoryConstructionCompanies!,
+        counts,
+      );
+    }
+  }
+
+  static Future<void> setLocalConstructionWorkedHereCount(
+    String docId,
+    int count,
+  ) async {
+    await _setLocalWorkedHereCountForKey(
+      docId,
+      count,
+      key: _constructionWorkedHereMinCountsKey,
+    );
+  }
+
+  static Future<void> deleteConstructionCompaniesFromFirebase(
+    Iterable<String> docIds,
+  ) async {
+    final ids = docIds.where((id) => id.trim().isNotEmpty).toList();
+    for (var offset = 0; offset < ids.length; offset += 400) {
+      final batch = _firestore.batch();
+      for (final id in ids.skip(offset).take(400)) {
+        batch.delete(_firestore.collection('construction_companies').doc(id));
+      }
+      await batch.commit();
+    }
+  }
+
+  static List<Map<String, dynamic>> _dedupeConstructionRows(
+    List<Map<String, dynamic>> rows,
+  ) {
+    final merged = <Map<String, dynamic>>[];
+    final indexByKey = <String, int>{};
+    for (final raw in rows) {
+      final row = _normalizeConstructionCompanyRow(raw);
+      if (row.isEmpty) continue;
+      final key = _constructionDedupeKey(row);
+      if (key.isEmpty) continue;
+      final existingIndex = indexByKey[key];
+      if (existingIndex == null) {
+        indexByKey[key] = merged.length;
+        merged.add(row);
+      } else {
+        merged[existingIndex] = {...merged[existingIndex], ...row};
+      }
+    }
+    return merged;
+  }
+
+  static Map<String, dynamic> _normalizeConstructionCompanyRow(
+    Map<String, dynamic> data,
+  ) {
+    final id = (data['docId'] ?? data['id'] ?? data['source_place_id'] ?? '')
+        .toString()
+        .trim();
+    if (id.isEmpty) return <String, dynamic>{};
+    data['id'] = id;
+    data['docId'] = id;
+    data['place_type'] = 'construction';
+    data['marker_kind'] = 'construction';
+    data['source'] ??= 'osm';
+    final classification = ConstructionCategory.classifyRowDetailed(data);
+    final corroboratedEmployer =
+        (data['entity_kind'] ?? '').toString() == 'employer' &&
+        ConstructionDomainRecords.hasCorroboratedHiringLink(data);
+    if (corroboratedEmployer) {
+      data['construction_category'] ??= ConstructionCategory.miningCompany.id;
+      data['construction_category_label'] ??=
+          ConstructionCategory.miningCompany.label;
+      data['entity_kind'] = 'employer';
+      final storedConfidence =
+          int.tryParse((data['classification_confidence'] ?? '').toString()) ??
+          0;
+      data['classification_confidence'] = storedConfidence < 95
+          ? 95
+          : storedConfidence;
+      data['classification_reason'] ??=
+          'Employer linked to a corroborated operator or contractor worksite';
+    } else {
+      data['construction_category'] = classification.category.id;
+      data['construction_category_label'] = classification.category.label;
+      data['entity_kind'] = classification.entityKindId;
+      data['classification_confidence'] = classification.confidence;
+      data['classification_reason'] = classification.reason;
+    }
+    data['classification_source'] ??= 'osm_tags';
+    data['review_status'] =
+        corroboratedEmployer ||
+            (classification.isEmployer && classification.confidence >= 70)
+        ? 'ready_for_map'
+        : 'needs_review';
+    final website = (data['website'] ?? '').toString().trim();
+    if (_isOpenStreetMapUrl(website)) {
+      data['osm_url'] = (data['osm_url'] ?? website).toString();
+      data['website'] = '';
+    }
+    ConstructionApplicationContactClassifier.applyDerivedFields(data);
+    return data;
+  }
+
+  static bool _isOpenStreetMapUrl(String value) {
+    final uri = Uri.tryParse(value.trim());
+    final host = uri?.host.toLowerCase() ?? '';
+    return host == 'openstreetmap.org' || host.endsWith('.openstreetmap.org');
+  }
+
+  static String _constructionDedupeKey(Map<String, dynamic> data) {
+    final sourceId = (data['source_place_id'] ?? '').toString().trim();
+    if (sourceId.isNotEmpty) return sourceId;
+    return (data['docId'] ?? data['id'] ?? '').toString().trim();
+  }
 
   static Future<List<Map<String, dynamic>>> loadRestaurants({
     required bool fromServer,
@@ -277,6 +793,31 @@ class MapMarkersService {
     }
   }
 
+  static Future<void> setLocalWorkedHereCount(String docId, int count) async {
+    await _setLocalWorkedHereCountForKey(
+      docId,
+      count,
+      key: _localWorkedHereMinCountsKey,
+    );
+  }
+
+  static Future<void> _setLocalWorkedHereCountForKey(
+    String docId,
+    int count, {
+    required String key,
+  }) async {
+    if (docId.trim().isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final counts = _readLocalWorkedHereMinCountsForKey(prefs, key);
+    final normalized = math.max(0, count);
+    if (normalized == 0) {
+      counts.remove(docId);
+    } else {
+      counts[docId] = normalized;
+    }
+    await prefs.setString(key, jsonEncode(counts));
+  }
+
   static Future<void> replaceLocalRestaurants(
     List<Map<String, dynamic>> restaurants,
   ) async {
@@ -514,12 +1055,46 @@ class MapMarkersService {
     }, SetOptions(merge: true));
   }
 
+  static Future<void> incrementConstructionWorkedHere(String docId) async {
+    if (docId.trim().isEmpty) {
+      throw ArgumentError('Document ID is empty or invalid');
+    }
+    await _firestore.collection('construction_companies').doc(docId).set({
+      'worked_here_count': FieldValue.increment(1),
+      'worked_here_updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   // 🔹 Redueix el comptador "worked_here_count" si algú vol treure-ho
   static Future<void> decrementWorkedHere(String docId) async {
     if (docId.trim().isEmpty) {
       throw ArgumentError('Document ID is empty or invalid');
     }
-    debugPrint('ℹ️ decrementWorkedHere skipped: local SQLite mode');
+    await _decrementWorkedHereInCollection('restaurants', docId);
+  }
+
+  static Future<void> decrementConstructionWorkedHere(String docId) async {
+    if (docId.trim().isEmpty) {
+      throw ArgumentError('Document ID is empty or invalid');
+    }
+    await _decrementWorkedHereInCollection('construction_companies', docId);
+  }
+
+  static Future<void> _decrementWorkedHereInCollection(
+    String collection,
+    String docId,
+  ) async {
+    final reference = _firestore.collection(collection).doc(docId);
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(reference);
+      final current = snapshot.exists
+          ? _asInt(snapshot.data()?['worked_here_count'])
+          : 0;
+      transaction.set(reference, {
+        'worked_here_count': math.max(0, current - 1),
+        'worked_here_updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
   }
 
   // 🔹 Inicialitza el camp "worked_here_count" si no existeix
@@ -690,7 +1265,17 @@ class MapMarkersService {
   static Map<String, int> _readLocalWorkedHereMinCounts(
     SharedPreferences prefs,
   ) {
-    final raw = prefs.getString(_localWorkedHereMinCountsKey);
+    return _readLocalWorkedHereMinCountsForKey(
+      prefs,
+      _localWorkedHereMinCountsKey,
+    );
+  }
+
+  static Map<String, int> _readLocalWorkedHereMinCountsForKey(
+    SharedPreferences prefs,
+    String key,
+  ) {
+    final raw = prefs.getString(key);
     if (raw == null || raw.trim().isEmpty) {
       return <String, int>{};
     }

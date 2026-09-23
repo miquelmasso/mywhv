@@ -311,7 +311,12 @@ class AppI18n {
       'map.worked.subtitle': 'Your feedback helps other users.',
       'map.worked.no': 'No',
       'map.worked.already_title': 'Already marked',
-      'map.worked.already_body': 'This place is already in your worked list.',
+      'map.worked.already_body':
+          'This place is already in your worked list. Do you want to remove it?',
+      'map.worked.remove': 'Remove',
+      'map.worked.keep': 'Keep it',
+      'map.worked.removed_local':
+          'Removed on this device. Sync can happen later.',
       'map.worked.saved_local': 'Saved on this device. Sync can happen later.',
       'map.email.copy': 'Copy email',
       'map.email.send': 'Send email',
@@ -699,7 +704,12 @@ class AppI18n {
       'map.worked.subtitle': 'Tu respuesta ayuda a otros usuarios.',
       'map.worked.no': 'No',
       'map.worked.already_title': 'Ya marcado',
-      'map.worked.already_body': 'Este sitio ya está en tu lista de trabajos.',
+      'map.worked.already_body':
+          'Este sitio ya está en tu lista de trabajos. ¿Quieres retirarlo?',
+      'map.worked.remove': 'Retirar',
+      'map.worked.keep': 'Mantener',
+      'map.worked.removed_local':
+          'Retirado en este dispositivo. Se sincronizará más tarde.',
       'map.worked.saved_local':
           'Guardado en este dispositivo. Se sincronizará más tarde.',
       'map.email.copy': 'Copiar email',
@@ -1093,7 +1103,12 @@ class AppI18n {
       'map.worked.subtitle': 'Ta réponse aide les autres utilisateurs.',
       'map.worked.no': 'Non',
       'map.worked.already_title': 'Déjà marqué',
-      'map.worked.already_body': 'Ce lieu est déjà dans ta liste de travail.',
+      'map.worked.already_body':
+          'Ce lieu est déjà dans ta liste de travail. Veux-tu le retirer ?',
+      'map.worked.remove': 'Retirer',
+      'map.worked.keep': 'Conserver',
+      'map.worked.removed_local':
+          'Retiré sur cet appareil. La synchro pourra se faire plus tard.',
       'map.worked.saved_local':
           'Enregistré sur cet appareil. La synchro pourra se faire plus tard.',
       'map.email.copy': 'Copier l’email',
@@ -1480,7 +1495,11 @@ class AppI18n {
       'map.worked.no': 'Nein',
       'map.worked.already_title': 'Schon markiert',
       'map.worked.already_body':
-          'Dieser Ort ist bereits in deiner Arbeitsliste.',
+          'Dieser Ort ist bereits in deiner Arbeitsliste. Möchtest du ihn entfernen?',
+      'map.worked.remove': 'Entfernen',
+      'map.worked.keep': 'Behalten',
+      'map.worked.removed_local':
+          'Auf diesem Gerät entfernt. Synchronisierung später möglich.',
       'map.worked.saved_local':
           'Auf diesem Gerät gespeichert. Synchronisierung später möglich.',
       'map.email.copy': 'E-Mail kopieren',
@@ -1869,7 +1888,12 @@ class AppI18n {
       'map.worked.subtitle': 'आपका feedback दूसरे users की मदद करता है.',
       'map.worked.no': 'नहीं',
       'map.worked.already_title': 'पहले से चुना गया',
-      'map.worked.already_body': 'यह जगह आपकी worked list में पहले से है.',
+      'map.worked.already_body':
+          'यह जगह आपकी worked list में पहले से है. क्या आप इसे हटाना चाहते हैं?',
+      'map.worked.remove': 'हटाएँ',
+      'map.worked.keep': 'रखें',
+      'map.worked.removed_local':
+          'इस device से हटा दिया गया है. Sync बाद में हो सकता है.',
       'map.worked.saved_local':
           'इस device पर saved है. Sync बाद में हो सकता है.',
       'map.email.copy': 'Email copy करें',

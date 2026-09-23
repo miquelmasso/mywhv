@@ -43,8 +43,33 @@ class PostcodeEligibilityService {
 
   Future<List<Map<String, dynamic>>> _loadVisaPostcodes() async {
     await _store.init();
+    await _store.importSeedAssetIfEmpty();
     _cache ??= await _store.getAll();
     return _cache!;
+  }
+
+  /// Postcodes currently listed for "Regional Australia" in the bundled
+  /// Home Affairs-derived dataset. This is deliberately postcode-only: the
+  /// actual role and work performed must still satisfy the visa rules.
+  Future<Set<String>> loadRegionalPostcodes() async {
+    final snapshot = await _loadVisaPostcodes();
+    final result = <String>{};
+    for (final data in snapshot) {
+      final industry = (data['industry'] ?? data['id'] ?? '')
+          .toString()
+          .toLowerCase();
+      if (!industry.contains('regional australia')) continue;
+      final postcodes = data['postcodes'];
+      if (postcodes is! List) continue;
+      for (final postcode in postcodes) {
+        final number = int.tryParse(postcode.toString());
+        if (number != null) result.add(number.toString().padLeft(4, '0'));
+      }
+    }
+    // Home Affairs' NSW Regional Australia range ends at 2898. Keep this
+    // correction effective for devices that already imported an older seed.
+    result.remove('2899');
+    return result;
   }
 
   String _normalize(String raw) => raw.padLeft(4, '0');

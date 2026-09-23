@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../models/construction_category.dart';
 import '../utils/app_i18n.dart';
+import 'construction_issue_report_sheet.dart';
 
 const double kMapPopupDockOffset = 104;
 const double kMapRestaurantPopupBottomOffset = kMapPopupDockOffset + 18;
+const _immiRegionalRulesUrl =
+    'https://immi.homeaffairs.gov.au/visas/working-in-australia/'
+    'regional-migration/eligible-regional-areas';
 
 String smartTruncate(String text, int maxChars) {
   if (text.length <= maxChars) return text;
@@ -32,8 +38,10 @@ class MapRestaurantPopup extends StatelessWidget {
     required this.onEmail,
     required this.onFacebook,
     required this.onCareers,
+    this.onWebsite,
     required this.onInstagram,
     required this.onFavorite,
+    this.showRegionalEligibilityNotice = false,
     this.bottomOffset = 0,
   });
 
@@ -46,12 +54,17 @@ class MapRestaurantPopup extends StatelessWidget {
   final VoidCallback onEmail;
   final VoidCallback onFacebook;
   final VoidCallback onCareers;
+  final VoidCallback? onWebsite;
   final VoidCallback onInstagram;
   final VoidCallback onFavorite;
+  final bool showRegionalEligibilityNotice;
   final double bottomOffset;
 
   @override
   Widget build(BuildContext context) {
+    final isConstruction =
+        (data['place_type'] ?? '').toString() == 'construction' ||
+        (data['marker_kind'] ?? '').toString() == 'construction';
     return Positioned(
       left: 14,
       right: 14,
@@ -137,6 +150,79 @@ class MapRestaurantPopup extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (isConstruction)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Builder(
+                      builder: (context) {
+                        final category = ConstructionCategory.classifyRow(data);
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: category.color.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                category.icon,
+                                size: 15,
+                                color: category.color,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                category.label,
+                                style: TextStyle(
+                                  color: category.color,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                if (showRegionalEligibilityNotice &&
+                    isConstruction &&
+                    (data['regional_construction_postcode'] == true ||
+                        data['regional_work_eligible'] == true)) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3CD),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Likely eligible regional area',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Based on the worksite postcode and industry. Visa rules, eligible work and postcodes can change. Check the current requirements on the Department of Home Affairs website before relying on this work for a second or third WHM visa.',
+                          style: TextStyle(fontSize: 11, height: 1.25),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => launchUrl(
+                            Uri.parse(_immiRegionalRulesUrl),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Check current rules on Immi'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -146,7 +232,8 @@ class MapRestaurantPopup extends StatelessWidget {
                         tooltip: t('map.tooltip.copy_phone'),
                         onPressed: onCopyPhone,
                       ),
-                    if ((data['email'] ?? '').toString().isNotEmpty)
+                    if ((data['email'] ?? '').toString().isNotEmpty &&
+                        data['email_public_eligible'] == true)
                       IconButton(
                         icon: const Icon(
                           Icons.email_outlined,
@@ -161,7 +248,8 @@ class MapRestaurantPopup extends StatelessWidget {
                         tooltip: t('map.tooltip.open_facebook'),
                         onPressed: onFacebook,
                       ),
-                    if ((data['careers_page'] ?? '').toString().isNotEmpty)
+                    if ((data['careers_page'] ?? '').toString().isNotEmpty &&
+                        data['careers_public_eligible'] == true)
                       IconButton(
                         icon: const Icon(
                           Icons.work_outline,
@@ -169,6 +257,15 @@ class MapRestaurantPopup extends StatelessWidget {
                         ),
                         tooltip: t('map.tooltip.view_jobs'),
                         onPressed: onCareers,
+                      ),
+                    if ((data['website'] ?? '').toString().isNotEmpty)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.language,
+                          color: Color(0xFF6FA8A3),
+                        ),
+                        tooltip: 'Open website',
+                        onPressed: onWebsite,
                       ),
                     if ((data['instagram_url'] ?? '').toString().isNotEmpty)
                       IconButton(
@@ -190,6 +287,24 @@ class MapRestaurantPopup extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (isConstruction)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF77716C),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 28),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(fontSize: 11),
+                      ),
+                      onPressed: () =>
+                          showConstructionIssueReportSheet(context, data),
+                      icon: const Icon(Icons.flag_outlined, size: 14),
+                      label: const Text('Report a problem'),
+                    ),
+                  ),
               ],
             ),
           );

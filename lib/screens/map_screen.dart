@@ -13,14 +13,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supercluster/supercluster.dart';
 
 import '../config/admin_config.dart';
+import '../models/construction_category.dart';
 import '../services/email_sender_service.dart';
 import '../services/admin_button_visibility_service.dart';
+import '../services/construction_publication_policy.dart';
 import '../services/donation_service.dart';
 import '../services/external_link_service.dart';
 import '../services/favorites_service.dart';
 import '../services/location_settings_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
+import '../services/postcode_eligibility_service.dart';
 import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
 import '../services/runtime_device_service.dart';
@@ -37,9 +40,9 @@ import 'map_osm_vector_page.dart' show MapOSMVectorPage, MapOSMVectorPageState;
 import 'map_renderer_selector.dart';
 import 'report_message_page.dart';
 
-enum Category { hospitality, farm }
+enum Category { hospitality, construction, farm }
 
-enum _RestaurantMarkerKind { standard, night, cafe }
+enum _RestaurantMarkerKind { standard, night, cafe, construction }
 
 class _RestaurantMapPoint {
   const _RestaurantMapPoint(this.location);
@@ -69,11 +72,13 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const Color _restaurantMarkerColor = Color(0xFFE58C7C);
   static const Color _cafeMarkerColor = Color(0xFFD9B45F);
   static const Color _barMarkerColor = Color(0xFFB8A7E8);
+  static const Color _constructionMarkerColor = Color(0xFF8FAEA6);
   static const Color _clusterMarkerColor = Color(0xFF6FA8A3);
   static const Color _selectedMarkerOutlineColor = Color(0xFFD97A6C);
   static const Color _restaurantIconColor = Color(0xFFFFFFFF);
   static const Color _cafeIconColor = Color(0xFFFFFFFF);
   static const Color _barIconColor = Color(0xFFFFFFFF);
+  static const Color _constructionIconColor = Color(0xFFFFFFFF);
   static const Color _clusterTextColor = Color(0xFFFFFFFF);
   static const String _vectorSourceId = 'australia';
   static const List<String> _diagnosticSourceLayers = <String>[
@@ -84,8 +89,9 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   ];
   static const double _defaultZoom = 3.8;
   static const double _maxMapZoom = 18.2;
-  static const bool _showZoomOutButton = false;
+  static const bool _showZoomControls = true;
   static const double _locationFabBottom = kMapPopupDockOffset + 172;
+  static const double _zoomControlsBottom = kMapPopupDockOffset + 300;
   static const double _initialKangarooBottomOffset = 212;
   static const double _zoomOutStep = 1.2;
   static const String _favoriteMarkerImageName = 'workyday-marker-favorite';
@@ -97,6 +103,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const String _cafeMarkerImageName = 'workyday-marker-cafe-pastel';
   static const String _cafeSelectedMarkerImageName =
       'workyday-marker-cafe-selected-pastel';
+  static const String _constructionMarkerImageName =
+      'workyday-marker-construction-pastel';
+  static const String _constructionSelectedMarkerImageName =
+      'workyday-marker-construction-selected-pastel';
   static const String _standardMarkerImageName =
       'workyday-marker-standard-pastel';
   static const String _standardSelectedMarkerImageName =
@@ -183,9 +193,14 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _annotationRefreshQueued = false;
   bool _farmMapEnabled = false;
   bool _isHospitality = true;
+  bool _showConstruction = false;
+  bool _regionalConstructionOnly = false;
+  String _constructionContactFilter = 'apply';
 
   Set<String> _favoritePlaces = <String>{};
+  Set<String> _regionalConstructionPostcodes = <String>{};
   final Set<String> _selectedSources = <String>{};
+  final Set<String> _selectedConstructionCategories = <String>{};
   final Set<String> _addedStyleImages = <String>{};
   final Map<int, String> _clusterImageNames = <int, String>{};
   final Map<String, Map<String, dynamic>> _restaurantDataById =
@@ -194,10 +209,17 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       <String, Map<String, Object?>>{};
 
   List<Map<String, Object?>> _restaurantLocations = <Map<String, Object?>>[];
+  List<Map<String, Object?>> _hospitalityLocations = <Map<String, Object?>>[];
+  List<Map<String, Object?>> _constructionLocations = <Map<String, Object?>>[];
   List<Map<String, Object?>> _visibleRestaurantLocations =
       <Map<String, Object?>>[];
   SuperclusterImmutable<_RestaurantMapPoint>? _restaurantClusterIndex;
   Map<String, dynamic>? _selectedRestaurant;
+  Category get _selectedCategory => !_isHospitality
+      ? Category.farm
+      : _showConstruction
+      ? Category.construction
+      : Category.hospitality;
 
   String get _styleAssetPath => _defaultStyleAssetPath;
   bool get _useVectorPmtilesFallback =>
@@ -557,17 +579,32 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
-        _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
+        _hospitalityLocations = _buildRestaurantLocations(restaurantDocs);
       } else if (!fromServer) {
         final seeded = await _loadSeedRestaurantsFromAsset();
         if (seeded.isNotEmpty) {
-          _restaurantLocations = _buildRestaurantLocations(seeded);
+          _hospitalityLocations = _buildRestaurantLocations(seeded);
         }
       }
     } catch (error) {
       debugPrint('❌ Error carregant restaurants MapLibre: $error');
     }
 
+    try {
+      _regionalConstructionPostcodes = await PostcodeEligibilityService.instance
+          .loadRegionalPostcodes();
+      final constructionDocs =
+          await MapMarkersService.loadConstructionCompanies(
+            syncFromFirebaseIfNeeded: true,
+          );
+      _constructionLocations = _buildRestaurantLocations(constructionDocs);
+    } catch (error) {
+      debugPrint('❌ Error carregant construction MapLibre: $error');
+    }
+
+    _setActivePlaceLocations(
+      _showConstruction ? _constructionLocations : _hospitalityLocations,
+    );
     _recomputeVisibleRestaurants();
     _rebuildRestaurantClusterIndex();
     await _scheduleAnnotationRefresh();
@@ -577,8 +614,6 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     List<Map<String, dynamic>> docs,
   ) {
     final locations = <Map<String, Object?>>[];
-    _restaurantDataById.clear();
-    _restaurantLocationById.clear();
 
     for (final data in docs) {
       final lat = (data['latitude'] ?? data['lat']) as num?;
@@ -588,12 +623,17 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final docId = (data['docId'] ?? '').toString();
       if (docId.isEmpty || data['blocked'] == true) continue;
 
-      final hasData =
-          (data['facebook_url'] ?? '').toString().isNotEmpty ||
-          (data['instagram_url'] ?? '').toString().isNotEmpty ||
-          (data['email'] ?? '').toString().isNotEmpty ||
-          (data['careers_page'] ?? '').toString().isNotEmpty;
-      if (!hasData) continue;
+      final markerKind = _classifyRestaurantMarker(data);
+      final isConstruction = markerKind == _RestaurantMarkerKind.construction;
+      final constructionCategory = isConstruction
+          ? ConstructionCategory.classifyRow(data)
+          : null;
+      final canAppear = isConstruction
+          ? ConstructionPublicationPolicy.canAppearOnMap(data)
+          : ConstructionPublicationPolicy.hasPublicContact(data);
+      if (!canAppear) {
+        continue;
+      }
 
       final location = <String, Object?>{
         'id': docId,
@@ -602,14 +642,29 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         'data': data,
         'worked_here_count': _parseCount(data['worked_here_count']),
         'sources': _extractSources(data),
-        'marker_kind': _classifyRestaurantMarker(data),
+        'marker_kind': markerKind,
+        if (constructionCategory != null)
+          'construction_category': constructionCategory.id,
+        if (isConstruction)
+          'regional_construction_postcode': _isRegionalConstruction(data),
       };
-      _restaurantDataById[docId] = Map<String, dynamic>.from(data);
-      _restaurantLocationById[docId] = location;
       locations.add(location);
     }
 
     return locations;
+  }
+
+  void _setActivePlaceLocations(List<Map<String, Object?>> locations) {
+    _restaurantLocations = locations;
+    _restaurantDataById.clear();
+    _restaurantLocationById.clear();
+    for (final location in locations) {
+      final id = (location['id'] ?? '').toString();
+      final data = location['data'];
+      if (id.isEmpty || data is! Map<String, dynamic>) continue;
+      _restaurantDataById[id] = Map<String, dynamic>.from(data);
+      _restaurantLocationById[id] = location;
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadSeedRestaurantsFromAsset() async {
@@ -641,7 +696,12 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _recomputeVisibleRestaurants() {
-    if (_selectedSources.isEmpty) {
+    final hasActiveFilter = _showConstruction
+        ? _selectedConstructionCategories.isNotEmpty ||
+              _regionalConstructionOnly ||
+              _constructionContactFilter != 'all'
+        : _selectedSources.isNotEmpty;
+    if (!hasActiveFilter) {
       _visibleRestaurantLocations = _restaurantLocations;
     } else {
       _visibleRestaurantLocations = _restaurantLocations
@@ -853,6 +913,44 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         outlineColor: _selectedMarkerOutlineColor,
       ),
     );
+    await _ensureNamedStyleImage(
+      _constructionMarkerImageName,
+      await _buildPinIconBytes(
+        fill: _constructionMarkerColor,
+        icon: Icons.construction_rounded,
+        iconSize: 16,
+        iconColor: _constructionIconColor,
+      ),
+    );
+    await _ensureNamedStyleImage(
+      _constructionSelectedMarkerImageName,
+      await _buildPinIconBytes(
+        fill: _constructionMarkerColor,
+        icon: Icons.construction_rounded,
+        iconSize: 16,
+        iconColor: _constructionIconColor,
+        outlineColor: _selectedMarkerOutlineColor,
+      ),
+    );
+    for (final category in ConstructionCategory.values) {
+      await _ensureNamedStyleImage(
+        'workyday-marker-construction-${category.id}',
+        await _buildPinIconBytes(
+          fill: category.color,
+          icon: category.icon,
+          iconSize: 15,
+        ),
+      );
+      await _ensureNamedStyleImage(
+        'workyday-marker-construction-${category.id}-selected',
+        await _buildPinIconBytes(
+          fill: category.color,
+          icon: category.icon,
+          iconSize: 15,
+          outlineColor: _selectedMarkerOutlineColor,
+        ),
+      );
+    }
   }
 
   Future<void> _ensureNamedStyleImage(String name, Uint8List bytes) async {
@@ -879,18 +977,31 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final isFavorite = _favoritePlacesNotifier.value.contains(markerId);
     final isSelected =
         markerId.isNotEmpty && markerId == _selectedRestaurantIdNotifier.value;
+    final markerKind =
+        (location['marker_kind'] as _RestaurantMarkerKind?) ??
+        _RestaurantMarkerKind.standard;
+    if (markerKind == _RestaurantMarkerKind.construction) {
+      final category = ConstructionCategory.fromId(
+        location['construction_category'],
+      );
+      return 'workyday-marker-construction-${category.id}'
+          '${isSelected ? '-selected' : ''}';
+    }
     if (isFavorite) {
       return isSelected
           ? _favoriteSelectedMarkerImageName
           : _favoriteMarkerImageName;
     }
 
-    return switch ((location['marker_kind'] as _RestaurantMarkerKind?) ??
-        _RestaurantMarkerKind.standard) {
+    return switch (markerKind) {
       _RestaurantMarkerKind.night =>
         isSelected ? _nightSelectedMarkerImageName : _nightMarkerImageName,
       _RestaurantMarkerKind.cafe =>
         isSelected ? _cafeSelectedMarkerImageName : _cafeMarkerImageName,
+      _RestaurantMarkerKind.construction =>
+        isSelected
+            ? _constructionSelectedMarkerImageName
+            : _constructionMarkerImageName,
       _RestaurantMarkerKind.standard =>
         isSelected
             ? _standardSelectedMarkerImageName
@@ -1228,6 +1339,13 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   _RestaurantMarkerKind _classifyRestaurantMarker(Map<String, dynamic> data) {
+    final rawKind =
+        (data['marker_kind'] ?? data['place_type'] ?? data['category'] ?? '')
+            .toString()
+            .toLowerCase();
+    if (rawKind.contains('construction')) {
+      return _RestaurantMarkerKind.construction;
+    }
     final name = (data['name'] ?? '').toString().toLowerCase();
     final isNight =
         name.contains('bar') ||
@@ -1295,6 +1413,19 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   bool _passesFilter(Map<String, Object?> location) {
+    if (!_isHospitality) return true;
+    if (_showConstruction) {
+      if (_regionalConstructionOnly &&
+          location['regional_construction_postcode'] != true) {
+        return false;
+      }
+      final categoryMatches =
+          _selectedConstructionCategories.isEmpty ||
+          _selectedConstructionCategories.contains(
+            (location['construction_category'] ?? '').toString(),
+          );
+      return categoryMatches && _passesConstructionContactFilter(location);
+    }
     if (_selectedSources.isEmpty) return true;
     final rawSources = location['sources'];
     final sources = rawSources is Set<String>
@@ -1306,7 +1437,123 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return sources.any(_selectedSources.contains);
   }
 
-  bool get _allSelected => _selectedSources.isEmpty;
+  bool _passesConstructionContactFilter(Map<String, Object?> location) {
+    if (_constructionContactFilter == 'all') return true;
+    final raw = location['data'];
+    if (raw is! Map) return false;
+    final data = Map<String, dynamic>.from(raw);
+    bool has(String key) => (data[key] ?? '').toString().trim().isNotEmpty;
+    final careers =
+        data['careers_public_eligible'] == true && has('careers_page');
+    final email = data['email_public_eligible'] == true && has('email');
+    final website =
+        has('website') &&
+        (data['website_identity_status'] ?? '') != 'rejected_mismatch';
+    final phone = has('phone');
+    return switch (_constructionContactFilter) {
+      'apply' => careers || email,
+      'careers' => careers,
+      'email' => email,
+      'web' => website,
+      'phone' => phone,
+      _ => true,
+    };
+  }
+
+  void _setConstructionContactFilter(String value) {
+    _constructionContactFilter = value;
+    _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _rebuildRestaurantClusterIndex();
+    if (mounted) setState(() {});
+    unawaited(_scheduleAnnotationRefresh());
+  }
+
+  bool _isRegionalConstruction(Map<String, dynamic> data) {
+    if (data['regional_work_eligible'] == true) return true;
+    final direct = data['postcode'] ?? data['postcode_display'];
+    var postcode = int.tryParse(
+      (direct ?? '').toString(),
+    )?.toString().padLeft(4, '0');
+    if (postcode == null) {
+      final address = (data['address'] ?? '').toString();
+      for (final match in RegExp(r'\b(\d{4})\b').allMatches(address)) {
+        postcode = match.group(1);
+      }
+    }
+    return postcode != null &&
+        _regionalConstructionPostcodes.contains(postcode);
+  }
+
+  void _toggleRegionalConstructionFilter() {
+    final enabled = !_regionalConstructionOnly;
+    setState(() {
+      _regionalConstructionOnly = enabled;
+      _selectedRestaurant = null;
+    });
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _rebuildRestaurantClusterIndex();
+    unawaited(_scheduleAnnotationRefresh());
+    if (enabled) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Likely eligible regional area. Based on the worksite postcode and industry. Visa rules, eligible work and postcodes can change. Check the current requirements on the Department of Home Affairs website before relying on this work for a second or third WHM visa.',
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildRegionalConstructionFilterChip() {
+    final active = _regionalConstructionOnly;
+    const accent = Color(0xFF2F7466);
+    return Semantics(
+      button: true,
+      selected: active,
+      label: 'Filter Construction by likely eligible regional area',
+      child: Material(
+        color: active ? accent : Colors.white,
+        elevation: active ? 7 : 4,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: _toggleRegionalConstructionFilter,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  active ? Icons.check_circle_rounded : Icons.event_available,
+                  size: 19,
+                  color: active ? Colors.white : accent,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'Likely eligible regional area',
+                  style: TextStyle(
+                    color: active ? Colors.white : const Color(0xFF244B43),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool get _allSelected => _showConstruction
+      ? _selectedConstructionCategories.isEmpty &&
+            _constructionContactFilter == 'all'
+      : _selectedSources.isEmpty;
 
   void _setSourceSelection(String sourceKey, bool selected) {
     if (sourceKey == 'all') {
@@ -1324,6 +1571,23 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     if (mounted) {
       setState(() {});
     }
+    unawaited(_scheduleAnnotationRefresh());
+  }
+
+  void _setConstructionCategorySelection(String categoryId, bool selected) {
+    if (categoryId == 'all') {
+      _selectedConstructionCategories.clear();
+      _constructionContactFilter = 'all';
+    } else if (selected) {
+      _selectedConstructionCategories.add(categoryId);
+    } else {
+      _selectedConstructionCategories.remove(categoryId);
+    }
+    _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _rebuildRestaurantClusterIndex();
+    if (mounted) setState(() {});
     unawaited(_scheduleAnnotationRefresh());
   }
 
@@ -1403,36 +1667,101 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                     trailing: Checkbox(
                                       value: _allSelected,
                                       onChanged: (_) {
-                                        _setSourceSelection('all', true);
+                                        if (_showConstruction) {
+                                          _setConstructionCategorySelection(
+                                            'all',
+                                            true,
+                                          );
+                                        } else {
+                                          _setSourceSelection('all', true);
+                                        }
                                         setPopoverState(() {});
                                       },
                                     ),
                                   ),
                                   const Divider(height: 1),
-                                  ..._sourceOptions.map((option) {
-                                    final key = option['key'] as String;
-                                    final label = option['label'] as String;
-                                    final icon = option['icon'] as IconData;
-                                    final selected = _selectedSources.contains(
-                                      key,
-                                    );
-                                    return CheckboxListTile(
-                                      value: selected,
-                                      onChanged: (_) {
-                                        _setSourceSelection(key, !selected);
-                                        setPopoverState(() {});
-                                      },
-                                      controlAffinity:
-                                          ListTileControlAffinity.trailing,
-                                      secondary: Icon(
-                                        icon,
-                                        color: selected
-                                            ? Colors.blueAccent
-                                            : Colors.black54,
+                                  ...(_showConstruction
+                                          ? ConstructionCategory.values.map(
+                                              (category) => <String, dynamic>{
+                                                'key': category.id,
+                                                'label': category.label,
+                                                'icon': category.icon,
+                                                'color': category.color,
+                                              },
+                                            )
+                                          : _sourceOptions)
+                                      .map((option) {
+                                        final key = option['key'] as String;
+                                        final label = option['label'] as String;
+                                        final icon = option['icon'] as IconData;
+                                        final selected = _showConstruction
+                                            ? _selectedConstructionCategories
+                                                  .contains(key)
+                                            : _selectedSources.contains(key);
+                                        return CheckboxListTile(
+                                          value: selected,
+                                          onChanged: (_) {
+                                            if (_showConstruction) {
+                                              _setConstructionCategorySelection(
+                                                key,
+                                                !selected,
+                                              );
+                                            } else {
+                                              _setSourceSelection(
+                                                key,
+                                                !selected,
+                                              );
+                                            }
+                                            setPopoverState(() {});
+                                          },
+                                          controlAffinity:
+                                              ListTileControlAffinity.trailing,
+                                          secondary: Icon(
+                                            icon,
+                                            color: selected
+                                                ? (option['color'] as Color? ??
+                                                      Colors.blueAccent)
+                                                : Colors.black54,
+                                          ),
+                                          title: Text(label),
+                                        );
+                                      }),
+                                  if (_showConstruction) ...[
+                                    const Divider(height: 1),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Wrap(
+                                        spacing: 5,
+                                        runSpacing: 5,
+                                        children:
+                                            const {
+                                                  'all': 'All',
+                                                  'apply': 'Apply',
+                                                  'careers': 'Careers',
+                                                  'email': 'Email',
+                                                  'web': 'Web',
+                                                  'phone': 'Phone',
+                                                }.entries
+                                                .map(
+                                                  (entry) => ChoiceChip(
+                                                    label: Text(entry.value),
+                                                    selected:
+                                                        _constructionContactFilter ==
+                                                        entry.key,
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    onSelected: (_) {
+                                                      _setConstructionContactFilter(
+                                                        entry.key,
+                                                      );
+                                                      setPopoverState(() {});
+                                                    },
+                                                  ),
+                                                )
+                                                .toList(),
                                       ),
-                                      title: Text(label),
-                                    );
-                                  }),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -1452,8 +1781,39 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     overlay.insert(_filterOverlay!);
   }
 
-  void _toggleCategory(bool hospitality) {
-    if (_isHospitality == hospitality) return;
+  Future<void> _reloadConstructionLocations() async {
+    try {
+      final constructionDocs =
+          await MapMarkersService.loadConstructionCompanies(
+            syncFromFirebaseIfNeeded: true,
+          );
+      final constructionLocations = _buildRestaurantLocations(constructionDocs);
+      if (!mounted) return;
+      setState(() {
+        _constructionLocations = constructionLocations;
+        if (_showConstruction) {
+          _setActivePlaceLocations(_constructionLocations);
+        }
+      });
+      if (_showConstruction) {
+        _recomputeVisibleRestaurants();
+        _rebuildRestaurantClusterIndex();
+        await _scheduleAnnotationRefresh();
+      }
+    } catch (error) {
+      debugPrint('❌ Error recarregant construction locations: $error');
+    }
+  }
+
+  void _toggleCategory(Category category) {
+    final hospitality = category != Category.farm;
+    final construction = category == Category.construction;
+    if (_isHospitality == hospitality && _showConstruction == construction) {
+      if (construction) {
+        unawaited(_reloadConstructionLocations());
+      }
+      return;
+    }
     if (_isHospitality) {
       _hospitalityCenter = _currentCenter;
       _hospitalityZoom = _currentZoom;
@@ -1465,14 +1825,23 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final targetZoom = hospitality ? _hospitalityZoom : _harvestZoom;
     setState(() {
       _isHospitality = hospitality;
+      _showConstruction = construction;
       _currentCenter = targetCenter;
       _currentZoom = targetZoom;
       _selectedRestaurant = null;
+      _setActivePlaceLocations(
+        construction ? _constructionLocations : _hospitalityLocations,
+      );
     });
     _setSelectedRestaurantId(null);
     _closeFilterOverlay();
     if (hospitality) {
+      _recomputeVisibleRestaurants();
+      _rebuildRestaurantClusterIndex();
       unawaited(_scheduleAnnotationRefresh());
+      if (construction) {
+        unawaited(_reloadConstructionLocations());
+      }
     } else {
       unawaited(_mapController?.clearSymbols() ?? Future<void>.value());
     }
@@ -1550,10 +1919,14 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     ).push(MaterialPageRoute(builder: (_) => const ReportMessagePage()));
   }
 
-  void _openAdmin() {
-    Navigator.of(
+  Future<void> _openAdmin() async {
+    final didChangeConstruction = await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const AdminPage()));
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AdminPage()));
+    if (!mounted) return;
+    if (didChangeConstruction == true) {
+      await _reloadConstructionLocations();
+    }
   }
 
   Future<void> _maybeShowProfileTooltip() async {
@@ -1749,11 +2122,15 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _showWorkedDialog(
     String restaurantId,
-    String restaurantName,
-  ) async {
+    String restaurantName, {
+    required bool isConstruction,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
+    final workedPlacesKey = isConstruction
+        ? 'worked_construction_places'
+        : 'worked_places';
     final workedPlaces = Set<String>.from(
-      prefs.getStringList('worked_places') ?? const <String>[],
+      prefs.getStringList(workedPlacesKey) ?? const <String>[],
     );
     if (!mounted) return;
 
@@ -1767,7 +2144,45 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
 
     if (workedPlaces.contains(restaurantId)) {
-      await _showAlreadyWorkedDialog(restaurantName);
+      final shouldRemove = await _showAlreadyWorkedDialog(restaurantName);
+      if (shouldRemove == true) {
+        workedPlaces.remove(restaurantId);
+        try {
+          await prefs.setStringList(workedPlacesKey, workedPlaces.toList());
+          if (isConstruction) {
+            await MapMarkersService.setLocalConstructionWorkedHereCount(
+              restaurantId,
+              0,
+            );
+          } else {
+            await MapMarkersService.setLocalWorkedHereCount(restaurantId, 0);
+          }
+          _updateLocalWorkedHere(restaurantId, -1);
+          if (mounted) setState(() {});
+          if (isConstruction) {
+            await MapMarkersService.updateConstructionWorkedHereCache(
+              restaurantId,
+              -1,
+            );
+            await MapMarkersService.decrementConstructionWorkedHere(
+              restaurantId,
+            );
+          } else {
+            await MapMarkersService.updateWorkedHereCache(restaurantId, -1);
+            await MapMarkersService.decrementWorkedHere(restaurantId);
+          }
+          await _scheduleAnnotationRefresh();
+        } catch (_) {
+          if (!mounted) return;
+          final strings = await AppI18n.load();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppI18n.t(strings, 'map.worked.removed_local')),
+            ),
+          );
+        }
+      }
       return;
     }
 
@@ -1786,17 +2201,32 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     workedPlaces.add(restaurantId);
     final nextWorkedHereCount = _currentWorkedHereCount(restaurantId) + 1;
     try {
-      await prefs.setStringList('worked_places', workedPlaces.toList());
-      await MapMarkersService.rememberLocalWorkedHereCount(
-        restaurantId,
-        nextWorkedHereCount,
-      );
+      await prefs.setStringList(workedPlacesKey, workedPlaces.toList());
+      if (isConstruction) {
+        await MapMarkersService.rememberLocalConstructionWorkedHereCount(
+          restaurantId,
+          nextWorkedHereCount,
+        );
+      } else {
+        await MapMarkersService.rememberLocalWorkedHereCount(
+          restaurantId,
+          nextWorkedHereCount,
+        );
+      }
       _updateLocalWorkedHere(restaurantId, 1);
       if (mounted) {
         setState(() {});
       }
-      await MapMarkersService.incrementWorkedHere(restaurantId);
-      await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+      if (isConstruction) {
+        await MapMarkersService.updateConstructionWorkedHereCache(
+          restaurantId,
+          1,
+        );
+        await MapMarkersService.incrementConstructionWorkedHere(restaurantId);
+      } else {
+        await MapMarkersService.incrementWorkedHere(restaurantId);
+        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+      }
       await _scheduleAnnotationRefresh();
     } catch (_) {
       if (!mounted) return;
@@ -1893,68 +2323,15 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _showAlreadyWorkedDialog(String restaurantName) async {
+  Future<bool?> _showAlreadyWorkedDialog(String _) async {
     final strings = await AppI18n.load();
-    if (!mounted) return;
-    final borderRadius = BorderRadius.circular(24);
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: borderRadius),
-          elevation: 8,
-          backgroundColor: const Color(0xFFFFF7F5),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  size: 28,
-                  color: Colors.black54,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  AppI18n.t(strings, 'map.worked.already_title'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  AppI18n.t(strings, 'map.worked.already_body'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: Text(AppI18n.t(strings, 'common.ok')),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    if (!mounted) return null;
+    return _showDecisionDialog(
+      title: AppI18n.t(strings, 'map.worked.already_title'),
+      subtitle: AppI18n.t(strings, 'map.worked.already_body'),
+      yesLabel: AppI18n.t(strings, 'map.worked.remove'),
+      noLabel: AppI18n.t(strings, 'map.worked.keep'),
+      yesColor: Colors.redAccent,
     );
   }
 
@@ -2252,6 +2629,47 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     unawaited(controller.animateCamera(CameraUpdate.zoomBy(-_zoomOutStep)));
   }
 
+  void _zoomIn() {
+    final controller = _mapController;
+    if (controller == null) return;
+    unawaited(controller.animateCamera(CameraUpdate.zoomBy(_zoomOutStep)));
+  }
+
+  Widget _buildZoomControls() {
+    Widget button({required IconData icon, required VoidCallback onPressed}) {
+      return SizedBox(
+        width: 42,
+        height: 42,
+        child: IconButton(
+          tooltip: icon == Icons.add ? 'Zoom in' : 'Zoom out',
+          onPressed: onPressed,
+          icon: Icon(icon, size: 24),
+          color: Colors.black87,
+          padding: EdgeInsets.zero,
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.white.withValues(alpha: 0.96),
+      elevation: 5,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(icon: Icons.add, onPressed: _zoomIn),
+          Container(
+            width: 24,
+            height: 1,
+            color: Colors.black.withValues(alpha: 0.10),
+          ),
+          button(icon: Icons.remove, onPressed: _zoomOut),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRestaurantPopup() {
     if (_selectedRestaurant == null) {
       return const SizedBox.shrink();
@@ -2263,6 +2681,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       builder: (context, favoritePlaces, child) {
         return MapRestaurantPopup(
           data: restaurant,
+          showRegionalEligibilityNotice: _regionalConstructionOnly,
           workedCount: _parseCount(restaurant['worked_here_count']),
           isFavorite: favoritePlaces.contains(docId),
           bottomOffset: kMapRestaurantPopupBottomOffset,
@@ -2270,6 +2689,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           onWorkedHere: () => _showWorkedDialog(
             docId,
             (restaurant['name'] ?? 'this place').toString(),
+            isConstruction: _showConstruction,
           ),
           onCopyPhone: () => _copyToClipboard(
             (restaurant['phone'] ?? '').toString(),
@@ -2282,6 +2702,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               _openUrl((restaurant['facebook_url'] ?? '').toString()),
           onCareers: () =>
               _openUrl((restaurant['careers_page'] ?? '').toString()),
+          onWebsite: () => _openUrl((restaurant['website'] ?? '').toString()),
           onInstagram: () =>
               _openUrl((restaurant['instagram_url'] ?? '').toString()),
           onFavorite: () => _toggleFavorite(docId),
@@ -2431,13 +2852,10 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: CompactCategorySwitch(
+                        child: CompactCategoryDropdown(
                           key: _categorySwitchKey,
-                          selected: _isHospitality
-                              ? Category.hospitality
-                              : Category.farm,
-                          onChanged: (category) =>
-                              _toggleCategory(category == Category.hospitality),
+                          selected: _selectedCategory,
+                          onChanged: _toggleCategory,
                           farmEnabled: _farmMapEnabled,
                         ),
                       ),
@@ -2466,6 +2884,17 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+              if (_showConstruction)
+                Positioned(
+                  top: 76,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Center(
+                      child: _buildRegionalConstructionFilterChip(),
+                    ),
+                  ),
+                ),
               if (_showOnboardingEmailPreview)
                 Positioned(
                   left: 0,
@@ -2521,17 +2950,11 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              if (_showZoomOutButton)
+              if (_showZoomControls)
                 Positioned(
-                  bottom: 180,
-                  right: 16,
-                  child: FloatingActionButton(
-                    heroTag: 'fab_zoom_out',
-                    onPressed: _zoomOut,
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blueGrey.shade700,
-                    child: const Icon(Icons.zoom_out),
-                  ),
+                  bottom: _zoomControlsBottom,
+                  left: 16,
+                  child: _buildZoomControls(),
                 ),
             ],
           ),
@@ -2558,6 +2981,71 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 }
 
+class CompactCategoryDropdown extends StatelessWidget {
+  const CompactCategoryDropdown({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.farmEnabled = false,
+  });
+
+  final Category selected;
+  final ValueChanged<Category> onChanged;
+  final bool farmEnabled;
+
+  static const _items = <(Category, String, IconData, Color)>[
+    (Category.hospitality, 'Hospitality', Icons.restaurant, Color(0xFF9CAF9F)),
+    (
+      Category.construction,
+      'Construction',
+      Icons.construction,
+      Color(0xFF8FAEA6),
+    ),
+    (Category.farm, 'Farm', Icons.agriculture, Color(0xFF8DAA74)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      color: Colors.white.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(24),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Category>(
+          value: selected,
+          isExpanded: true,
+          borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          items: _items
+              .map(
+                (item) => DropdownMenuItem<Category>(
+                  value: item.$1,
+                  child: Row(
+                    children: [
+                      Icon(item.$3, color: item.$4, size: 21),
+                      const SizedBox(width: 10),
+                      Text(
+                        item.$2,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (category) {
+            if (category != null) onChanged(category);
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class CompactCategorySwitch extends StatelessWidget {
   const CompactCategorySwitch({
     super.key,
@@ -2570,6 +3058,7 @@ class CompactCategorySwitch extends StatelessWidget {
   final ValueChanged<Category> onChanged;
   final bool farmEnabled;
   static const Color _hospitalityAccentColor = Color(0xFF9CAF9F);
+  static const Color _constructionAccentColor = Color(0xFF8FAEA6);
 
   @override
   Widget build(BuildContext context) {
@@ -2589,6 +3078,9 @@ class CompactCategorySwitch extends StatelessWidget {
           bool enabled = true,
         }) {
           final isSelected = selected == category;
+          final selectedColor = category == Category.construction
+              ? _constructionAccentColor
+              : _hospitalityAccentColor;
           return Expanded(
             child: AnimatedContainer(
               duration: animDuration,
@@ -2596,9 +3088,7 @@ class CompactCategorySwitch extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 2),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? _hospitalityAccentColor
-                    : Colors.transparent,
+                color: isSelected ? selectedColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: InkWell(
@@ -2683,6 +3173,11 @@ class CompactCategorySwitch extends StatelessWidget {
                   buildSegment(
                     category: Category.hospitality,
                     label: 'Hospitality',
+                    enabled: true,
+                  ),
+                  buildSegment(
+                    category: Category.construction,
+                    label: 'Construction',
                     enabled: true,
                   ),
                   buildSegment(

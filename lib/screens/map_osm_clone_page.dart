@@ -1554,6 +1554,7 @@ class MapOSMClonePageState extends State<MapOSMClonePage>
           onEmail: () => _showEmailOptions(r['email']),
           onFacebook: () => _openUrl(r['facebook_url']),
           onCareers: () => _openUrl(r['careers_page']),
+          onWebsite: () => _openUrl(r['website']),
           onInstagram: () => _openUrl(r['instagram_url']),
           onFavorite: () => _toggleFavorite(docId),
         );

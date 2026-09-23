@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "require_explicit_open_licence": true,
+    "allow_html_scraping": false,
+    "publish_personal_contacts": false,
+    "publish_validation_identifiers": false
+  },
+  "sources": [
+    {
+      "id": "geoscience_australia_operating_mines",
+      "name": "Australian Operating Mines",
+      "enabled": true,
+      "record_kind": "worksite",
+      "format": "geojson_api",
+      "url": "https://services.ga.gov.au/gis/rest/services/AustralianOperatingMines/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "attribution": "© Commonwealth of Australia (Geoscience Australia) 2026",
+      "commercial_reuse_allowed": true,
+      "publication_fields": [
+        "name",
+        "state",
+        "latitude",
+        "longitude",
+        "status",
+        "commodity_group",
+        "source_url"
+      ]
+    },
+    {
+      "id": "geoscience_australia_developing_mines",
+      "name": "Australian Developing Mines",
+      "enabled": true,
+      "record_kind": "worksite",
+      "format": "geojson_api",
+      "url": "https://services.ga.gov.au/gis/rest/services/AustralianOperatingMines/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "attribution": "© Commonwealth of Australia (Geoscience Australia) 2026",
+      "commercial_reuse_allowed": true,
+      "publication_fields": [
+        "name",
+        "state",
+        "latitude",
+        "longitude",
+        "status",
+        "commodity_group",
+        "source_url"
+      ]
+    },
+    {
+      "id": "geoscience_australia_care_maintenance_mines",
+      "name": "Australian Mines on Care and Maintenance",
+      "enabled": true,
+      "record_kind": "worksite",
+      "format": "geojson_api",
+      "url": "https://services.ga.gov.au/gis/rest/services/AustralianOperatingMines/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "attribution": "© Commonwealth of Australia (Geoscience Australia) 2026",
+      "commercial_reuse_allowed": true,
+      "publication_fields": [
+        "name",
+        "state",
+        "latitude",
+        "longitude",
+        "status",
+        "commodity_group",
+        "source_url"
+      ]
+    },
+    {
+      "id": "remp_2025",
+      "name": "Resources and Energy Major Projects 2025",
+      "enabled": false,
+      "record_kind": "project_and_company",
+      "format": "xlsx",
+      "url": "https://www.industry.gov.au/sites/default/files/2025-12/resources-and-energy-major-projects-2025-data.xlsx",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "attribution": "Department of Industry, Science and Resources, Resources and Energy Major Projects 2025",
+      "commercial_reuse_allowed": true,
+      "note": "Licence verified. Connector remains paused only until the workbook columns are mapped and third-party material is excluded."
+    },
+    {
+      "id": "wa_mining_tenements",
+      "name": "Western Australia Mining Tenements",
+      "enabled": true,
+      "record_kind": "company_evidence",
+      "format": "json_api",
+      "url": "https://public-services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/3/query?where=tenstatus%3D%27LIVE%27&outFields=oid%2Ctenid%2Ctype%2Ctenstatus%2Choldercnt%2Cholder1%2Cholder2%2Cholder3%2Cholder4%2Cholder5%2Cholder6%2Cholder7%2Cholder8%2Cholder9&returnGeometry=false&orderByFields=oid&resultRecordCount=10000&f=json",
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "attribution": "Government of Western Australia, Mining Tenements (DMIRS-003)",
+      "commercial_reuse_allowed": true,
+      "publication_fields": ["name", "state", "construction_categories", "evidence_count", "source_url"],
+      "note": "Holder postal addresses are deliberately excluded. Natural-person holders are rejected pending company-register validation."
+    },
+    {
+      "id": "nsw_mining_titles",
+      "name": "NSW Exploration and Mining Titles",
+      "enabled": false,
+      "record_kind": "company_evidence",
+      "format": "json_api",
+      "licence": "Creative Commons Attribution",
+      "licence_url": "https://opendefinition.org/licenses/cc-by/",
+      "attribution": "NSW Department of Primary Industries and Regional Development, NSW Exploration and Mining Titles",
+      "commercial_reuse_allowed": true,
+      "note": "Licence verified. Connector paused while the publisher's replacement download endpoint is resolved; no permission or paid API will be used."
+    },
+    {
+      "id": "austender_open_contracts",
+      "name": "AusTender Open Contracting Data",
+      "enabled": true,
+      "record_kind": "company_evidence",
+      "format": "json_api",
+      "url_template": "https://api.tenders.gov.au/ocds/findByDates/contractPublished/{from}/{to}",
+      "licence": "CC BY 3.0 AU",
+      "licence_url": "https://creativecommons.org/licenses/by/3.0/au/legalcode",
+      "attribution": "Australian Government Department of Finance, AusTender",
+      "commercial_reuse_allowed": true,
+      "ephemeral_raw_download": true,
+      "publication_fields": [
+        "name",
+        "state",
+        "locality",
+        "postcode",
+        "construction_categories",
+        "evidence_count",
+        "source_url"
+      ],
+      "note": "Only suppliers supported by construction-related contract evidence are accepted. ABNs and contactPoint data are never published."
+    },
+    {
+      "id": "asic_companies",
+      "name": "ASIC Company Dataset",
+      "enabled": false,
+      "record_kind": "validation_only",
+      "format": "csv",
+      "licence": "CC BY 3.0 AU",
+      "commercial_reuse_allowed": true,
+      "publish_fields": [],
+      "note": "Company status, ABN, ACN and registration data are validation-only and must never enter the public catalogue."
+    },
+    {
+      "id": "abr_bulk_extract",
+      "name": "ABR Bulk Extract",
+      "enabled": false,
+      "record_kind": "validation_only",
+      "format": "xml",
+      "licence": "CC BY 3.0 AU",
+      "licence_url": "https://creativecommons.org/licenses/by/3.0/au/legalcode",
+      "commercial_reuse_allowed": true,
+      "publish_fields": [],
+      "note": "ABN and ACN are temporary matching keys only and must never enter the public catalogue."
+    }
+  ]
+}

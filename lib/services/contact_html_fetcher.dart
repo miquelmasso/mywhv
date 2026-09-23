@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:http/io_client.dart';
@@ -10,6 +11,12 @@ class ContactHtmlFetcher {
   );
   static final Map<String, Future<String?>> _cache =
       <String, Future<String?>>{};
+  static final Map<String, String> _lastFailureByHost = <String, String>{};
+
+  static String? lastFailureReason(String url) {
+    final host = Uri.tryParse(_normalizeUrl(url))?.host.toLowerCase();
+    return host == null ? null : _lastFailureByHost[host];
+  }
 
   static Future<String?> fetch(String url, {Duration? timeout}) {
     final normalized = _normalizeUrl(url);
@@ -51,8 +58,24 @@ class ContactHtmlFetcher {
           .timeout(timeout ?? const Duration(seconds: 10));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+        if (host.isNotEmpty) {
+          if (response.statusCode == 403) {
+            _lastFailureByHost[host] = 'http_403_blocked';
+          } else if (response.statusCode == 429 || response.statusCode >= 500) {
+            _lastFailureByHost[host] =
+                'http_${response.statusCode}_retry_later';
+          } else {
+            // A missing optional page such as /careers is not a transient
+            // failure of the company's website.
+            _lastFailureByHost.remove(host);
+          }
+        }
         return null;
       }
+
+      final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+      if (host.isNotEmpty) _lastFailureByHost.remove(host);
 
       final contentType = response.headers['content-type']?.toLowerCase() ?? '';
       if (contentType.isNotEmpty &&
@@ -65,6 +88,14 @@ class ContactHtmlFetcher {
       }
 
       return response.body;
+    } on TimeoutException {
+      final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+      if (host.isNotEmpty) _lastFailureByHost[host] = 'timeout_retry_later';
+      return null;
+    } on SocketException {
+      final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+      if (host.isNotEmpty) _lastFailureByHost[host] = 'network_retry_later';
+      return null;
     } catch (_) {
       return null;
     }

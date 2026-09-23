@@ -131,11 +131,15 @@ flutter:
     - assets/data/guide_manual.strings.de.json
     - assets/data/guide_manual.strings.hi.json
     - assets/data/restaurants_seed.json
+    - assets/open_data/wa_minedex/worksites.json
     - assets/icons/
     - export/farms.json
     - export/harvest_places.json
     - export/harvest_places_2025_complete_with_coords.json
     - export/restaurants.json
+    - export/construction_companies.json
+    - export/construction_validated_names.json
+    - export/construction_open_data_snapshot.json
     - export/visa_postcodes.json
 
   # To add assets to your application, add an assets section, like this:

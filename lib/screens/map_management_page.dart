@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/map_display_settings_service.dart';
+import '../services/map_construction_refresh_service.dart';
 import '../services/map_restaurants_refresh_service.dart';
 
 class MapManagementPage extends StatefulWidget {
@@ -12,6 +13,34 @@ class MapManagementPage extends StatefulWidget {
 
 class _MapManagementPageState extends State<MapManagementPage> {
   bool _isRefreshingRestaurants = false;
+  bool _isRefreshingConstruction = false;
+
+  Future<void> _refreshConstructionFromFirebase() async {
+    if (_isRefreshingConstruction) return;
+    setState(() => _isRefreshingConstruction = true);
+    try {
+      final result = await MapConstructionRefreshService.instance
+          .refreshFromFirebase();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'construction_companies.json generat. ${result.count} empreses sincronitzades.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No s’ha pogut generar construction_companies.json.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isRefreshingConstruction = false);
+    }
+  }
 
   Future<void> _refreshRestaurantsFromFirebase() async {
     if (_isRefreshingRestaurants) return;
@@ -115,6 +144,27 @@ class _MapManagementPageState extends State<MapManagementPage> {
                     isMaintenanceVisible
                         ? 'Desactivar manteniment'
                         : 'Activar manteniment',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isRefreshingConstruction
+                      ? null
+                      : _refreshConstructionFromFirebase,
+                  icon: _isRefreshingConstruction
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        )
+                      : const Icon(Icons.construction_outlined),
+                  label: Text(
+                    _isRefreshingConstruction
+                        ? 'Generant construction_companies.json...'
+                        : 'Generar construction_companies.json',
                   ),
                 ),
               ),

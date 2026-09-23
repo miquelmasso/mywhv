@@ -16,6 +16,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../config/osm_vector_map_config.dart';
+import '../models/construction_category.dart';
 import '../widgets/map_place_popup.dart';
 import '../services/harvest_places_service.dart';
 import '../services/app_error_dialog_service.dart';
@@ -25,6 +26,7 @@ import '../services/local_vector_style_service.dart';
 import '../services/location_settings_service.dart';
 import '../services/map_markers_service.dart';
 import '../services/overlay_helper.dart';
+import '../services/postcode_eligibility_service.dart';
 import '../services/favorites_service.dart';
 import '../services/remote_config_service.dart';
 import '../services/review_service.dart';
@@ -32,6 +34,7 @@ import '../utils/australia_map_viewport.dart';
 import '../utils/app_i18n.dart';
 import '../services/email_sender_service.dart';
 import '../services/admin_button_visibility_service.dart';
+import '../services/construction_publication_policy.dart';
 import '../widgets/location_fab_icon.dart';
 import '../widgets/map_notice_card.dart';
 import '../widgets/profile_button_icon.dart';
@@ -42,9 +45,9 @@ import 'admin_page.dart';
 import '../config/admin_config.dart';
 import 'package:mywhv/screens/_pin_tail_painter.dart';
 
-enum Category { hospitality, farm }
+enum Category { hospitality, construction, farm }
 
-enum _RestaurantMarkerKind { standard, night, cafe }
+enum _RestaurantMarkerKind { standard, night, cafe, construction }
 
 class MapOSMVectorPage extends StatefulWidget {
   const MapOSMVectorPage({
@@ -71,13 +74,16 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   static const Color _restaurantMarkerColor = Color(0xFFE58C7C);
   static const Color _cafeMarkerColor = Color(0xFFD9B45F);
   static const Color _barMarkerColor = Color(0xFFB8A7E8);
+  static const Color _constructionMarkerColor = Color(0xFF8FAEA6);
   static const Color _clusterMarkerColor = Color(0xFF6FA8A3);
   static const Color _selectedMarkerOutlineColor = Color(0xFFD97A6C);
   static const Color _restaurantIconColor = Color(0xFFFFFFFF);
   static const Color _cafeIconColor = Color(0xFFFFFFFF);
   static const Color _barIconColor = Color(0xFFFFFFFF);
-  static const bool _showZoomOutButton = false;
+  static const Color _constructionIconColor = Color(0xFFFFFFFF);
+  static const bool _showZoomControls = true;
   static const double _locationFabBottom = kMapPopupDockOffset + 172;
+  static const double _zoomControlsBottom = kMapPopupDockOffset + 300;
   static const double _initialKangarooBottomOffset = 212;
   static const double _zoomOutStep = 1.2;
   static const double _clusterZoomStep = 2.2;
@@ -103,10 +109,13 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   bool _farmMapEnabled = true;
 
   List<Map<String, Object?>> _restaurantLocations = [];
+  List<Map<String, Object?>> _hospitalityLocations = [];
+  List<Map<String, Object?>> _constructionLocations = [];
   List<Map<String, Object?>> _visibleRestaurantLocations = [];
   List<Map<String, Object?>> _harvestLocations = [];
   List<Marker> _markers = [];
   bool _isHospitality = true;
+  bool _showConstruction = false;
   bool _isLoadingData = true;
   bool _isTileLoading = true;
   Timer? _tileLoadingTimeout;
@@ -135,6 +144,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   final Queue<String> _prefetchedTileKeysQueue = Queue<String>();
   final Set<String> _prefetchedTileKeysSet = <String>{};
   final Set<String> _selectedSources = {};
+  final Set<String> _selectedConstructionCategories = {};
+  Set<String> _regionalConstructionPostcodes = <String>{};
+  bool _regionalConstructionOnly = false;
+  String _constructionContactFilter = 'apply';
   dynamic _originalOnError;
   Timer? _persistDebounce;
   final List<Map<String, dynamic>> _sourceOptions = const [
@@ -155,6 +168,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   late final Widget _markerNightSelectedIcon;
   late final Widget _markerCafeIcon;
   late final Widget _markerCafeSelectedIcon;
+  late final Widget _markerConstructionIcon;
+  late final Widget _markerConstructionSelectedIcon;
+  late final Map<String, Widget> _constructionMarkerIcons;
+  late final Map<String, Widget> _constructionSelectedMarkerIcons;
   late final Widget _markerStandardIcon;
   late final Widget _markerStandardSelectedIcon;
   late final Widget _markerHarvestIcon;
@@ -181,6 +198,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   String get _styleCacheKey =>
       '$_styleAssetCacheKey|${widget.styleAssetPath}|$osmVectorTilesUrlTemplateOrEmpty';
+
+  Category get _selectedCategory => !_isHospitality
+      ? Category.farm
+      : _showConstruction
+      ? Category.construction
+      : Category.hospitality;
 
   bool _setEquals(Set<String> a, Set<String> b) {
     if (identical(a, b)) return true;
@@ -378,6 +401,36 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       iconColor: _cafeIconColor,
       outlineColor: _selectedMarkerOutlineColor,
     );
+    _markerConstructionIcon = _pinMarker(
+      fill: _constructionMarkerColor,
+      icon: Icons.construction_rounded,
+      iconSize: 15,
+      iconColor: _constructionIconColor,
+    );
+    _markerConstructionSelectedIcon = _pinMarker(
+      fill: _constructionMarkerColor,
+      icon: Icons.construction_rounded,
+      iconSize: 15,
+      iconColor: _constructionIconColor,
+      outlineColor: _selectedMarkerOutlineColor,
+    );
+    _constructionMarkerIcons = {
+      for (final category in ConstructionCategory.values)
+        category.id: _pinMarker(
+          fill: category.color,
+          icon: category.icon,
+          iconSize: 15,
+        ),
+    };
+    _constructionSelectedMarkerIcons = {
+      for (final category in ConstructionCategory.values)
+        category.id: _pinMarker(
+          fill: category.color,
+          icon: category.icon,
+          iconSize: 15,
+          outlineColor: _selectedMarkerOutlineColor,
+        ),
+    };
     _markerStandardIcon = _pinMarker(
       fill: _restaurantMarkerColor,
       icon: Icons.restaurant,
@@ -662,16 +715,32 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         lightweight: true,
       );
       if (restaurantDocs.isNotEmpty) {
-        _restaurantLocations = _buildRestaurantLocations(restaurantDocs);
+        _hospitalityLocations = _buildRestaurantLocations(restaurantDocs);
       } else if (!fromServer) {
         final seeded = await _loadSeedRestaurantsFromAsset();
         if (seeded.isNotEmpty) {
-          _restaurantLocations = _buildRestaurantLocations(seeded);
+          _hospitalityLocations = _buildRestaurantLocations(seeded);
         }
       }
     } catch (e) {
       debugPrint('❌ Error restaurants OSM vector: $e');
     }
+
+    try {
+      _regionalConstructionPostcodes = await PostcodeEligibilityService.instance
+          .loadRegionalPostcodes();
+      final constructionDocs =
+          await MapMarkersService.loadConstructionCompanies(
+            syncFromFirebaseIfNeeded: true,
+          );
+      _constructionLocations = _buildRestaurantLocations(constructionDocs);
+    } catch (e) {
+      debugPrint('❌ Error construction OSM vector: $e');
+    }
+
+    _setActivePlaceLocations(
+      _showConstruction ? _constructionLocations : _hospitalityLocations,
+    );
 
     try {
       final harvestPlaces =
@@ -691,19 +760,30 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     final List<Map<String, Object?>> locations = [];
 
     for (final data in docs) {
-      final double? lat = (data['latitude'] ?? data['lat'])?.toDouble();
-      final double? lng = (data['longitude'] ?? data['lng'])?.toDouble();
+      final latValue = data['latitude'] ?? data['lat'];
+      final lngValue = data['longitude'] ?? data['lng'];
+      final double? lat = latValue is num
+          ? latValue.toDouble()
+          : double.tryParse((latValue ?? '').toString());
+      final double? lng = lngValue is num
+          ? lngValue.toDouble()
+          : double.tryParse((lngValue ?? '').toString());
       if (lat == null || lng == null) continue;
 
       final docId = (data['docId'] ?? '').toString();
       if (docId.isEmpty) continue;
       if (data['blocked'] == true) continue;
-      final hasData =
-          ((data['facebook_url'] ?? '').toString().isNotEmpty ||
-          (data['instagram_url'] ?? '').toString().isNotEmpty ||
-          (data['email'] ?? '').toString().isNotEmpty ||
-          (data['careers_page'] ?? '').toString().isNotEmpty);
-      if (!hasData) continue;
+      final markerKind = _classifyRestaurantMarker(data);
+      final isConstruction = markerKind == _RestaurantMarkerKind.construction;
+      final constructionCategory = isConstruction
+          ? ConstructionCategory.classifyRow(data)
+          : null;
+      final canAppear = isConstruction
+          ? ConstructionPublicationPolicy.canAppearOnMap(data)
+          : ConstructionPublicationPolicy.hasPublicContact(data);
+      if (!canAppear) {
+        continue;
+      }
 
       locations.add({
         'id': docId,
@@ -712,10 +792,18 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         'data': data,
         'worked_here_count': data['worked_here_count'] ?? 0,
         'sources': _extractSources(data),
-        'marker_kind': _classifyRestaurantMarker(data),
+        'marker_kind': markerKind,
+        if (constructionCategory != null)
+          'construction_category': constructionCategory.id,
+        if (isConstruction)
+          'regional_construction_postcode': _isRegionalConstruction(data),
       });
     }
     return locations;
+  }
+
+  void _setActivePlaceLocations(List<Map<String, Object?>> locations) {
+    _restaurantLocations = locations;
   }
 
   List<Map<String, Object?>> _buildHarvestLocations(List<HarvestPlace> places) {
@@ -767,7 +855,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   void _recomputeVisibleRestaurants() {
-    if (_selectedSources.isEmpty) {
+    final hasActiveFilter = _showConstruction
+        ? _selectedConstructionCategories.isNotEmpty ||
+              _regionalConstructionOnly ||
+              _constructionContactFilter != 'all'
+        : _selectedSources.isNotEmpty;
+    if (!hasActiveFilter) {
       _visibleRestaurantLocations = _restaurantLocations;
       return;
     }
@@ -777,6 +870,12 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   }
 
   _RestaurantMarkerKind _classifyRestaurantMarker(Map<String, dynamic> data) {
+    final rawKind =
+        '${data['marker_kind'] ?? ''} ${data['place_type'] ?? ''} ${data['category'] ?? ''}'
+            .toLowerCase();
+    if (rawKind.contains('construction')) {
+      return _RestaurantMarkerKind.construction;
+    }
     final name = (data['name'] ?? '').toString().toLowerCase();
     final isNight =
         name.contains('bar') ||
@@ -793,7 +892,15 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     _RestaurantMarkerKind kind, {
     required bool isFavorite,
     required bool isSelected,
+    String constructionCategoryId = '',
   }) {
+    if (kind == _RestaurantMarkerKind.construction) {
+      final category = ConstructionCategory.fromId(constructionCategoryId);
+      return isSelected
+          ? (_constructionSelectedMarkerIcons[category.id] ??
+                _markerConstructionSelectedIcon)
+          : (_constructionMarkerIcons[category.id] ?? _markerConstructionIcon);
+    }
     if (isFavorite) {
       return isSelected ? _markerFavoriteSelectedIcon : _markerFavoriteIcon;
     }
@@ -802,6 +909,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
         isSelected ? _markerNightSelectedIcon : _markerNightIcon,
       _RestaurantMarkerKind.cafe =>
         isSelected ? _markerCafeSelectedIcon : _markerCafeIcon,
+      _RestaurantMarkerKind.construction =>
+        isSelected ? _markerConstructionSelectedIcon : _markerConstructionIcon,
       _RestaurantMarkerKind.standard =>
         isSelected ? _markerStandardSelectedIcon : _markerStandardIcon,
     };
@@ -956,6 +1065,8 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                           isSelected:
                               markerId.isNotEmpty &&
                               markerId == selectedRestaurantId,
+                          constructionCategoryId:
+                              (r['construction_category'] ?? '').toString(),
                         );
                       },
                     )
@@ -1040,8 +1151,38 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
   }
 
-  void _toggleCategory(bool hospitality) {
-    if (_isHospitality == hospitality) return;
+  Future<void> _reloadConstructionLocations() async {
+    try {
+      final constructionDocs =
+          await MapMarkersService.loadConstructionCompanies(
+            syncFromFirebaseIfNeeded: true,
+          );
+      final constructionLocations = _buildRestaurantLocations(constructionDocs);
+      if (!mounted) return;
+      setState(() {
+        _constructionLocations = constructionLocations;
+        if (_showConstruction) {
+          _setActivePlaceLocations(_constructionLocations);
+        }
+      });
+      if (_showConstruction) {
+        _recomputeVisibleRestaurants();
+        _updateMarkers();
+      }
+    } catch (error) {
+      debugPrint('❌ Error reloading construction locations: $error');
+    }
+  }
+
+  void _toggleCategory(Category category) {
+    final hospitality = category != Category.farm;
+    final construction = category == Category.construction;
+    if (_isHospitality == hospitality && _showConstruction == construction) {
+      if (construction) {
+        unawaited(_reloadConstructionLocations());
+      }
+      return;
+    }
     _zoomPrefetchDebounce?.cancel();
     if (_isHospitality) {
       _hospitalityCenter = _currentCenter;
@@ -1054,6 +1195,7 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     final targetZoom = hospitality ? _hospitalityZoom : _harvestZoom;
     setState(() {
       _isHospitality = hospitality;
+      _showConstruction = construction;
       _currentCenter = targetCenter;
       _currentZoom = targetZoom;
       _pendingCenter = targetCenter;
@@ -1061,8 +1203,17 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       _selectedRestaurant = null;
       _selectedHarvest = null;
     });
+    _setActivePlaceLocations(
+      construction ? _constructionLocations : _hospitalityLocations,
+    );
     _setSelectedRestaurantId(null);
     _closeFilterOverlay();
+    if (hospitality) {
+      _recomputeVisibleRestaurants();
+      if (construction) {
+        unawaited(_reloadConstructionLocations());
+      }
+    }
     _updateMarkers();
     if (_mapReady) {
       _mapController.move(targetCenter, targetZoom);
@@ -1113,10 +1264,14 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     ).push(MaterialPageRoute(builder: (_) => const ReportMessagePage()));
   }
 
-  void _openAdmin() {
-    Navigator.of(
+  Future<void> _openAdmin() async {
+    final didChangeConstruction = await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const AdminPage()));
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AdminPage()));
+    if (!mounted) return;
+    if (didChangeConstruction == true) {
+      await _reloadConstructionLocations();
+    }
   }
 
   Future<void> showProfileTooltipIfNeeded() => _maybeShowProfileTooltip();
@@ -1315,11 +1470,15 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   Future<void> _showWorkedDialog(
     String restaurantId,
-    String restaurantName,
-  ) async {
+    String restaurantName, {
+    required bool isConstruction,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
+    final workedPlacesKey = isConstruction
+        ? 'worked_construction_places'
+        : 'worked_places';
     final workedPlaces = Set<String>.from(
-      prefs.getStringList('worked_places') ?? const <String>[],
+      prefs.getStringList(workedPlacesKey) ?? const <String>[],
     );
     if (!mounted) return;
 
@@ -1333,7 +1492,44 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     }
 
     if (workedPlaces.contains(restaurantId)) {
-      await _showAlreadyWorkedDialog(restaurantName);
+      final shouldRemove = await _showAlreadyWorkedDialog(restaurantName);
+      if (shouldRemove == true) {
+        workedPlaces.remove(restaurantId);
+        try {
+          await prefs.setStringList(workedPlacesKey, workedPlaces.toList());
+          if (isConstruction) {
+            await MapMarkersService.setLocalConstructionWorkedHereCount(
+              restaurantId,
+              0,
+            );
+          } else {
+            await MapMarkersService.setLocalWorkedHereCount(restaurantId, 0);
+          }
+          _updateLocalWorkedHere(restaurantId, -1);
+          if (mounted) setState(() {});
+          if (isConstruction) {
+            await MapMarkersService.updateConstructionWorkedHereCache(
+              restaurantId,
+              -1,
+            );
+            await MapMarkersService.decrementConstructionWorkedHere(
+              restaurantId,
+            );
+          } else {
+            await MapMarkersService.updateWorkedHereCache(restaurantId, -1);
+            await MapMarkersService.decrementWorkedHere(restaurantId);
+          }
+        } catch (_) {
+          if (!mounted) return;
+          final strings = await AppI18n.load();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppI18n.t(strings, 'map.worked.removed_local')),
+            ),
+          );
+        }
+      }
       return;
     }
 
@@ -1351,15 +1547,30 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       workedPlaces.add(restaurantId);
       final nextWorkedHereCount = _currentWorkedHereCount(restaurantId) + 1;
       try {
-        await prefs.setStringList('worked_places', workedPlaces.toList());
-        await MapMarkersService.rememberLocalWorkedHereCount(
-          restaurantId,
-          nextWorkedHereCount,
-        );
+        await prefs.setStringList(workedPlacesKey, workedPlaces.toList());
+        if (isConstruction) {
+          await MapMarkersService.rememberLocalConstructionWorkedHereCount(
+            restaurantId,
+            nextWorkedHereCount,
+          );
+        } else {
+          await MapMarkersService.rememberLocalWorkedHereCount(
+            restaurantId,
+            nextWorkedHereCount,
+          );
+        }
         _updateLocalWorkedHere(restaurantId, 1);
         if (mounted) setState(() {});
-        await MapMarkersService.incrementWorkedHere(restaurantId);
-        await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+        if (isConstruction) {
+          await MapMarkersService.updateConstructionWorkedHereCache(
+            restaurantId,
+            1,
+          );
+          await MapMarkersService.incrementConstructionWorkedHere(restaurantId);
+        } else {
+          await MapMarkersService.incrementWorkedHere(restaurantId);
+          await MapMarkersService.updateWorkedHereCache(restaurantId, 1);
+        }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1456,68 +1667,15 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
   }
 
-  Future<void> _showAlreadyWorkedDialog(String restaurantName) async {
+  Future<bool?> _showAlreadyWorkedDialog(String _) async {
     final strings = await AppI18n.load();
-    if (!mounted) return;
-    final borderRadius = BorderRadius.circular(24);
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: borderRadius),
-          elevation: 8,
-          backgroundColor: const Color(0xFFFFF7F5),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  size: 28,
-                  color: Colors.black54,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  AppI18n.t(strings, 'map.worked.already_title'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  AppI18n.t(strings, 'map.worked.already_body'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: Text(AppI18n.t(strings, 'common.ok')),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    if (!mounted) return null;
+    return _showDecisionDialog(
+      title: AppI18n.t(strings, 'map.worked.already_title'),
+      subtitle: AppI18n.t(strings, 'map.worked.already_body'),
+      yesLabel: AppI18n.t(strings, 'map.worked.remove'),
+      noLabel: AppI18n.t(strings, 'map.worked.keep'),
+      yesColor: Colors.redAccent,
     );
   }
 
@@ -1638,6 +1796,46 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
   void _zoomOut() {
     final newZoom = (_currentZoom - _zoomOutStep).clamp(3.0, 18.0);
     _mapController.move(_currentCenter, newZoom);
+  }
+
+  void _zoomIn() {
+    final newZoom = (_currentZoom + _zoomOutStep).clamp(3.0, 18.0);
+    _mapController.move(_currentCenter, newZoom);
+  }
+
+  Widget _buildZoomControls() {
+    Widget button({required IconData icon, required VoidCallback onPressed}) {
+      return SizedBox(
+        width: 42,
+        height: 42,
+        child: IconButton(
+          tooltip: icon == Icons.add ? 'Zoom in' : 'Zoom out',
+          onPressed: onPressed,
+          icon: Icon(icon, size: 24),
+          color: Colors.black87,
+          padding: EdgeInsets.zero,
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.white.withValues(alpha: 0.96),
+      elevation: 5,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(icon: Icons.add, onPressed: _zoomIn),
+          Container(
+            width: 24,
+            height: 1,
+            color: Colors.black.withValues(alpha: 0.10),
+          ),
+          button(icon: Icons.remove, onPressed: _zoomOut),
+        ],
+      ),
+    );
   }
 
   Future<void> _goToUserLocation() async {
@@ -1846,16 +2044,21 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       builder: (context, favoritePlaces, child) {
         return MapRestaurantPopup(
           data: r,
+          showRegionalEligibilityNotice: _regionalConstructionOnly,
           workedCount: (r['worked_here_count'] ?? 0) as int,
           isFavorite: favoritePlaces.contains(docId),
           bottomOffset: kMapRestaurantPopupBottomOffset,
           onClose: _clearTemporarySelection,
-          onWorkedHere: () =>
-              _showWorkedDialog(docId, r['name'] ?? 'this place'),
+          onWorkedHere: () => _showWorkedDialog(
+            docId.toString(),
+            (r['name'] ?? 'this place').toString(),
+            isConstruction: _showConstruction,
+          ),
           onCopyPhone: () => _copyToClipboard(r['phone'], 'copied phone'),
           onEmail: () => unawaited(_showEmailOptions(r['email'])),
           onFacebook: () => _openUrl(r['facebook_url']),
           onCareers: () => _openUrl(r['careers_page']),
+          onWebsite: () => _openUrl(r['website']),
           onInstagram: () => _openUrl(r['instagram_url']),
           onFavorite: () => _toggleFavorite(docId),
         );
@@ -1882,7 +2085,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
     );
   }
 
-  bool get _allSelected => _selectedSources.isEmpty;
+  bool get _allSelected => _showConstruction
+      ? _selectedConstructionCategories.isEmpty &&
+            _constructionContactFilter == 'all'
+      : _selectedSources.isEmpty;
 
   void _setSourceSelection(String sourceKey, bool selected) {
     if (sourceKey == 'all') {
@@ -1895,6 +2101,52 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
       }
       if (_selectedSources.isEmpty) _selectedSources.clear();
     }
+    _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _updateMarkers();
+  }
+
+  void _setConstructionCategorySelection(String categoryId, bool selected) {
+    if (categoryId == 'all') {
+      _selectedConstructionCategories.clear();
+      _constructionContactFilter = 'all';
+    } else if (selected) {
+      _selectedConstructionCategories.add(categoryId);
+    } else {
+      _selectedConstructionCategories.remove(categoryId);
+    }
+    _selectedRestaurant = null;
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _updateMarkers();
+  }
+
+  bool _passesConstructionContactFilter(Map<String, Object?> location) {
+    if (_constructionContactFilter == 'all') return true;
+    final raw = location['data'];
+    if (raw is! Map) return false;
+    final data = Map<String, dynamic>.from(raw);
+    bool has(String key) => (data[key] ?? '').toString().trim().isNotEmpty;
+    final careers =
+        data['careers_public_eligible'] == true && has('careers_page');
+    final email = data['email_public_eligible'] == true && has('email');
+    final website =
+        has('website') &&
+        (data['website_identity_status'] ?? '') != 'rejected_mismatch';
+    final phone = has('phone');
+    return switch (_constructionContactFilter) {
+      'apply' => careers || email,
+      'careers' => careers,
+      'email' => email,
+      'web' => website,
+      'phone' => phone,
+      _ => true,
+    };
+  }
+
+  void _setConstructionContactFilter(String value) {
+    _constructionContactFilter = value;
     _selectedRestaurant = null;
     _setSelectedRestaurantId(null);
     _recomputeVisibleRestaurants();
@@ -1978,36 +2230,101 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                                     trailing: Checkbox(
                                       value: _allSelected,
                                       onChanged: (_) {
-                                        _setSourceSelection('all', true);
+                                        if (_showConstruction) {
+                                          _setConstructionCategorySelection(
+                                            'all',
+                                            true,
+                                          );
+                                        } else {
+                                          _setSourceSelection('all', true);
+                                        }
                                         setPopoverState(() {});
                                       },
                                     ),
                                   ),
                                   const Divider(height: 1),
-                                  ..._sourceOptions.map((option) {
-                                    final key = option['key'] as String;
-                                    final label = option['label'] as String;
-                                    final icon = option['icon'] as IconData;
-                                    final selected = _selectedSources.contains(
-                                      key,
-                                    );
-                                    return CheckboxListTile(
-                                      value: selected,
-                                      onChanged: (_) {
-                                        _setSourceSelection(key, !selected);
-                                        setPopoverState(() {});
-                                      },
-                                      controlAffinity:
-                                          ListTileControlAffinity.trailing,
-                                      secondary: Icon(
-                                        icon,
-                                        color: selected
-                                            ? Colors.blueAccent
-                                            : Colors.black54,
+                                  ...(_showConstruction
+                                          ? ConstructionCategory.values.map(
+                                              (category) => <String, dynamic>{
+                                                'key': category.id,
+                                                'label': category.label,
+                                                'icon': category.icon,
+                                                'color': category.color,
+                                              },
+                                            )
+                                          : _sourceOptions)
+                                      .map((option) {
+                                        final key = option['key'] as String;
+                                        final label = option['label'] as String;
+                                        final icon = option['icon'] as IconData;
+                                        final selected = _showConstruction
+                                            ? _selectedConstructionCategories
+                                                  .contains(key)
+                                            : _selectedSources.contains(key);
+                                        return CheckboxListTile(
+                                          value: selected,
+                                          onChanged: (_) {
+                                            if (_showConstruction) {
+                                              _setConstructionCategorySelection(
+                                                key,
+                                                !selected,
+                                              );
+                                            } else {
+                                              _setSourceSelection(
+                                                key,
+                                                !selected,
+                                              );
+                                            }
+                                            setPopoverState(() {});
+                                          },
+                                          controlAffinity:
+                                              ListTileControlAffinity.trailing,
+                                          secondary: Icon(
+                                            icon,
+                                            color: selected
+                                                ? (option['color'] as Color? ??
+                                                      Colors.blueAccent)
+                                                : Colors.black54,
+                                          ),
+                                          title: Text(label),
+                                        );
+                                      }),
+                                  if (_showConstruction) ...[
+                                    const Divider(height: 1),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Wrap(
+                                        spacing: 5,
+                                        runSpacing: 5,
+                                        children:
+                                            const {
+                                                  'all': 'All',
+                                                  'apply': 'Apply',
+                                                  'careers': 'Careers',
+                                                  'email': 'Email',
+                                                  'web': 'Web',
+                                                  'phone': 'Phone',
+                                                }.entries
+                                                .map(
+                                                  (entry) => ChoiceChip(
+                                                    label: Text(entry.value),
+                                                    selected:
+                                                        _constructionContactFilter ==
+                                                        entry.key,
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    onSelected: (_) {
+                                                      _setConstructionContactFilter(
+                                                        entry.key,
+                                                      );
+                                                      setPopoverState(() {});
+                                                    },
+                                                  ),
+                                                )
+                                                .toList(),
                                       ),
-                                      title: Text(label),
-                                    );
-                                  }),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -2073,6 +2390,18 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
   bool _passesFilter(Map<String, Object?> location) {
     if (!_isHospitality) return true;
+    if (_showConstruction) {
+      if (_regionalConstructionOnly &&
+          location['regional_construction_postcode'] != true) {
+        return false;
+      }
+      final categoryMatches =
+          _selectedConstructionCategories.isEmpty ||
+          _selectedConstructionCategories.contains(
+            (location['construction_category'] ?? '').toString(),
+          );
+      return categoryMatches && _passesConstructionContactFilter(location);
+    }
     if (_selectedSources.isEmpty) return true;
 
     final dynamic rawSources = location['sources'];
@@ -2084,6 +2413,85 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
 
     if (sources.isEmpty) return false;
     return sources.any(_selectedSources.contains);
+  }
+
+  bool _isRegionalConstruction(Map<String, dynamic> data) {
+    if (data['regional_work_eligible'] == true) return true;
+    final direct = data['postcode'] ?? data['postcode_display'];
+    var postcode = int.tryParse(
+      (direct ?? '').toString(),
+    )?.toString().padLeft(4, '0');
+    if (postcode == null) {
+      final address = (data['address'] ?? '').toString();
+      for (final match in RegExp(r'\b(\d{4})\b').allMatches(address)) {
+        postcode = match.group(1);
+      }
+    }
+    return postcode != null &&
+        _regionalConstructionPostcodes.contains(postcode);
+  }
+
+  void _toggleRegionalConstructionFilter() {
+    final enabled = !_regionalConstructionOnly;
+    setState(() {
+      _regionalConstructionOnly = enabled;
+      _selectedRestaurant = null;
+    });
+    _setSelectedRestaurantId(null);
+    _recomputeVisibleRestaurants();
+    _updateMarkers();
+    if (enabled) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Likely eligible regional area. Based on the worksite postcode and industry. Visa rules, eligible work and postcodes can change. Check the current requirements on the Department of Home Affairs website before relying on this work for a second or third WHM visa.',
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildRegionalConstructionFilterChip() {
+    final active = _regionalConstructionOnly;
+    const accent = Color(0xFF2F7466);
+    return Semantics(
+      button: true,
+      selected: active,
+      label: 'Filter Construction by likely eligible regional area',
+      child: Material(
+        color: active ? accent : Colors.white,
+        elevation: active ? 7 : 4,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: _toggleRegionalConstructionFilter,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  active ? Icons.check_circle_rounded : Icons.event_available,
+                  size: 19,
+                  color: active ? Colors.white : accent,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'Likely eligible regional area',
+                  style: TextStyle(
+                    color: active ? Colors.white : const Color(0xFF244B43),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -2306,13 +2714,10 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: CompactCategorySwitch(
+                            child: CompactCategoryDropdown(
                               key: _categorySwitchKey,
-                              selected: _isHospitality
-                                  ? Category.hospitality
-                                  : Category.farm,
-                              onChanged: (cat) =>
-                                  _toggleCategory(cat == Category.hospitality),
+                              selected: _selectedCategory,
+                              onChanged: _toggleCategory,
                               farmEnabled: _farmMapEnabled,
                             ),
                           ),
@@ -2341,6 +2746,17 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                       ),
                     ),
                   ),
+                  if (_showConstruction)
+                    Positioned(
+                      top: 76,
+                      left: 0,
+                      right: 0,
+                      child: SafeArea(
+                        child: Center(
+                          child: _buildRegionalConstructionFilterChip(),
+                        ),
+                      ),
+                    ),
                   if (_showOnboardingEmailPreview)
                     Positioned(
                       left: 0,
@@ -2397,17 +2813,11 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
                   ),
                   _buildRestaurantPopup(),
                   _buildHarvestPopup(),
-                  if (_isHospitality && _showZoomOutButton)
+                  if (_showZoomControls)
                     Positioned(
-                      bottom: 180,
-                      right: 16,
-                      child: FloatingActionButton(
-                        heroTag: 'fab_zoom_out',
-                        onPressed: _zoomOut,
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.blueGrey.shade700,
-                        child: const Icon(Icons.zoom_out),
-                      ),
+                      bottom: _zoomControlsBottom,
+                      left: 16,
+                      child: _buildZoomControls(),
                     ),
                 ],
               ),
@@ -2415,6 +2825,71 @@ class MapOSMVectorPageState extends State<MapOSMVectorPage>
           },
         );
       },
+    );
+  }
+}
+
+class CompactCategoryDropdown extends StatelessWidget {
+  const CompactCategoryDropdown({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+    this.farmEnabled = false,
+  });
+
+  final Category selected;
+  final ValueChanged<Category> onChanged;
+  final bool farmEnabled;
+
+  static const _items = <(Category, String, IconData, Color)>[
+    (Category.hospitality, 'Hospitality', Icons.restaurant, Color(0xFF9CAF9F)),
+    (
+      Category.construction,
+      'Construction',
+      Icons.construction,
+      Color(0xFF8FAEA6),
+    ),
+    (Category.farm, 'Farm', Icons.agriculture, Color(0xFF8DAA74)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      color: Colors.white.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(24),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Category>(
+          value: selected,
+          isExpanded: true,
+          borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          items: _items
+              .map(
+                (item) => DropdownMenuItem<Category>(
+                  value: item.$1,
+                  child: Row(
+                    children: [
+                      Icon(item.$3, color: item.$4, size: 21),
+                      const SizedBox(width: 10),
+                      Text(
+                        item.$2,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (category) {
+            if (category != null) onChanged(category);
+          },
+        ),
+      ),
     );
   }
 }
@@ -2431,6 +2906,7 @@ class CompactCategorySwitch extends StatelessWidget {
   final ValueChanged<Category> onChanged;
   final bool farmEnabled;
   static const Color _hospitalityAccentColor = Color(0xFF9CAF9F);
+  static const Color _constructionAccentColor = Color(0xFF8FAEA6);
 
   @override
   Widget build(BuildContext context) {
@@ -2450,6 +2926,9 @@ class CompactCategorySwitch extends StatelessWidget {
           bool enabled = true,
         }) {
           final isSelected = selected == category;
+          final selectedColor = category == Category.construction
+              ? _constructionAccentColor
+              : _hospitalityAccentColor;
           return Expanded(
             child: AnimatedContainer(
               duration: animDuration,
@@ -2457,9 +2936,7 @@ class CompactCategorySwitch extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 2),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? _hospitalityAccentColor
-                    : Colors.transparent,
+                color: isSelected ? selectedColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: InkWell(
@@ -2547,8 +3024,14 @@ class CompactCategorySwitch extends StatelessWidget {
                     enabled: true,
                   ),
                   buildSegment(
+                    category: Category.construction,
+                    label: 'Construction',
+                    enabled: true,
+                  ),
+                  buildSegment(
                     category: Category.farm,
-                    label: 'Harvest',
+                    label: 'Farm',
+                    badge: 'SOON',
                     enabled: farmEnabled,
                   ),
                 ],

@@ -1,6 +1,116 @@
 import 'contact_html_fetcher.dart';
 
 class CareersExtractor {
+  /// Fast Construction path: trust explicit careers/jobs links published by
+  /// the verified corporate homepage, then probe a small canonical set in
+  /// parallel. The Hospitality flow continues to use [find] unchanged.
+  Future<String?> findConstruction(
+    String baseUrl, {
+    String? homepageHtml,
+  }) async {
+    final homepage = (homepageHtml ?? '').isNotEmpty
+        ? homepageHtml!
+        : (await _fetchHtml(baseUrl) ?? '');
+    final linked = constructionCareerLinksFromHomepage(baseUrl, homepage);
+    if (linked.isNotEmpty) return linked.first;
+
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || base.host.isEmpty) return null;
+    const paths = [
+      '/careers',
+      '/jobs',
+      '/work-with-us',
+      '/work-for-us',
+      '/join-us',
+      '/join-our-team',
+      '/employment',
+      '/vacancies',
+      '/opportunities',
+      '/recruitment',
+    ];
+    final probes = await Future.wait(
+      paths.map((path) async {
+        final candidate = Uri(
+          scheme: base.scheme,
+          host: base.host,
+          port: base.hasPort ? base.port : null,
+          path: path,
+        );
+        final html = await _fetchHtml(candidate.toString());
+        if ((html ?? '').isEmpty || _looksLike404(html!)) return null;
+        final lower = html.toLowerCase();
+        if (!RegExp(
+          r'career|jobs?|vacanc|employment|recruit|apply',
+        ).hasMatch(lower)) {
+          return null;
+        }
+        return candidate.toString();
+      }),
+      eagerError: false,
+    );
+    for (final probe in probes.whereType<String>()) {
+      return probe;
+    }
+    // The older thorough finder also checks about/team pages and sitemaps.
+    // It is used only after the fast homepage and canonical-route checks fail.
+    return find(baseUrl);
+  }
+
+  static List<String> constructionCareerLinksFromHomepage(
+    String baseUrl,
+    String html,
+  ) {
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || base.host.isEmpty || html.isEmpty) return const [];
+    final candidates = <String>{};
+    final hrefPattern = RegExp(
+      r'''href\s*=\s*["']([^"']+)["']''',
+      caseSensitive: false,
+    );
+    for (final match in hrefPattern.allMatches(html)) {
+      final raw = (match.group(1) ?? '').trim();
+      if (raw.isEmpty || raw.startsWith('#')) continue;
+      final resolved = base.resolve(raw);
+      if (resolved.scheme != 'http' && resolved.scheme != 'https') continue;
+      final searchable = '${resolved.host}${resolved.path}'.toLowerCase();
+      if (!RegExp(
+        r'career|jobs?|vacanc|employment|recruit|work-with-us|work-for-us|join-us|join-our-team|people-and-culture',
+      ).hasMatch(searchable)) {
+        continue;
+      }
+      if (_isRejectedConstructionCareerHost(resolved.host)) continue;
+      candidates.add(
+        Uri(
+          scheme: resolved.scheme,
+          userInfo: resolved.userInfo,
+          host: resolved.host,
+          port: resolved.hasPort ? resolved.port : null,
+          path: resolved.path,
+          query: resolved.hasQuery ? resolved.query : null,
+        ).toString(),
+      );
+    }
+    final ordered = candidates.toList()
+      ..sort((a, b) {
+        final aUri = Uri.parse(a);
+        final bUri = Uri.parse(b);
+        final aSame = aUri.host == base.host ? 1 : 0;
+        final bSame = bUri.host == base.host ? 1 : 0;
+        if (aSame != bSame) return bSame.compareTo(aSame);
+        return a.length.compareTo(b.length);
+      });
+    return ordered;
+  }
+
+  static bool _isRejectedConstructionCareerHost(String host) {
+    final lower = host.toLowerCase();
+    return lower.contains('facebook.com') ||
+        lower.contains('instagram.com') ||
+        lower.contains('linkedin.com') ||
+        lower.contains('twitter.com') ||
+        lower.contains('tiktok.com');
+  }
+
   /// 🔍 Troba una pàgina de "careers" o "jobs" dins d'un lloc web
   Future<String?> find(String baseUrl) async {
     // Si la web base és una xarxa social, no busquem cap careers page
