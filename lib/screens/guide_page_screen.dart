@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/guide_manual/guide_manual.dart';
 import '../repositories/guide_manual_repository.dart';
@@ -2423,6 +2424,15 @@ class _BeforeArrivalFlightsAffiliateCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _FlightProviderButton(
+                label: 'Booking.com',
+                asset: 'assets/icons/booking logo.svg',
+                fallbackIcon: Icons.flight_takeoff_outlined,
+                onTap: () {
+                  _openBookingLink(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _FlightProviderButton(
                 label: 'Trip',
                 asset: 'assets/icons/trip logo.png',
                 fallbackIcon: Icons.travel_explore_outlined,
@@ -2445,6 +2455,20 @@ class _BeforeArrivalFlightsAffiliateCard extends StatelessWidget {
     if (link.isEmpty) {
       link = await AffiliateLinksService.instance.getLink('kiwi_link');
     }
+    if (!context.mounted) return;
+
+    if (link.isEmpty) {
+      await ExternalLinkService.showBrokenLinkDialog(context);
+      return;
+    }
+
+    await _openUrl(context, link);
+  }
+
+  Future<void> _openBookingLink(BuildContext context) async {
+    final link = await AffiliateLinksService.instance.getLink(
+      'booking_flights_link',
+    );
     if (!context.mounted) return;
 
     if (link.isEmpty) {
@@ -2527,13 +2551,27 @@ class _BeforeArrivalHostelsAffiliateCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          content: _FlightProviderButton(
-            label: 'Trip',
-            asset: 'assets/icons/trip logo.png',
-            fallbackIcon: Icons.hotel_outlined,
-            onTap: () {
-              _openUrl(context, _tripHostelsUrl);
-            },
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _FlightProviderButton(
+                label: 'Booking.com',
+                asset: 'assets/icons/booking logo.svg',
+                fallbackIcon: Icons.hotel_outlined,
+                onTap: () {
+                  _openBookingLink(context);
+                },
+              ),
+              const SizedBox(height: 12),
+              _FlightProviderButton(
+                label: 'Trip',
+                asset: 'assets/icons/trip logo.png',
+                fallbackIcon: Icons.hotel_outlined,
+                onTap: () {
+                  _openUrl(context, _tripHostelsUrl);
+                },
+              ),
+            ],
           ),
         );
       },
@@ -2542,6 +2580,20 @@ class _BeforeArrivalHostelsAffiliateCard extends StatelessWidget {
 
   Future<void> _openUrl(BuildContext context, String link) async {
     await ExternalLinkService.open(context, link);
+  }
+
+  Future<void> _openBookingLink(BuildContext context) async {
+    final link = await AffiliateLinksService.instance.getLink(
+      'booking_hotels_link',
+    );
+    if (!context.mounted) return;
+
+    if (link.isEmpty) {
+      await ExternalLinkService.showBrokenLinkDialog(context);
+      return;
+    }
+
+    await _openUrl(context, link);
   }
 }
 
@@ -2635,15 +2687,25 @@ class _FlightProviderButton extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Image.asset(
-                  asset,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => Icon(
-                    fallbackIcon,
-                    color: const Color(0xFF9B6A5D),
-                    size: 23,
-                  ),
-                ),
+                child: asset.toLowerCase().endsWith('.svg')
+                    ? SvgPicture.asset(
+                        asset,
+                        fit: BoxFit.contain,
+                        placeholderBuilder: (_) => Icon(
+                          fallbackIcon,
+                          color: const Color(0xFF9B6A5D),
+                          size: 23,
+                        ),
+                      )
+                    : Image.asset(
+                        asset,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => Icon(
+                          fallbackIcon,
+                          color: const Color(0xFF9B6A5D),
+                          size: 23,
+                        ),
+                      ),
               ),
               const SizedBox(width: 13),
               Expanded(
